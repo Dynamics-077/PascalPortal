@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Sales Order — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* Panels */
+    .order-panel {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); margin-bottom: 16px;
+    }
+    .order-panel-header {
+      padding: 14px 20px;
+      background: var(--grey-50); border-bottom: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .order-panel-header h3 { flex: 1; font-size: .95rem; }
+    .order-panel-body { padding: 18px 20px; }
+
+    /* Customer selector panel highlight */
+    .order-panel.rep-panel { border-color: var(--teal); }
+    .order-panel.rep-panel .order-panel-header {
+      background: var(--teal-light); border-bottom-color: var(--teal);
+    }
+    .order-panel.rep-panel .order-panel-header h3 { color: var(--teal-dark); }
+
+    /* Customer search dropdown */
+    .customer-search-wrap { position: relative; }
+    .customer-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 340px;
+      background: white; border: 1.5px solid var(--grey-200);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      z-index: 300; max-height: 280px; overflow-y: auto; display: none;
+    }
+    .customer-dropdown.open { display: block; }
+    .customer-option {
+      padding: 10px 14px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--grey-100); font-size: .85rem;
+      transition: background var(--transition);
+    }
+    .customer-option:last-child { border-bottom: none; }
+    .customer-option:hover { background: var(--teal-light); }
+    .customer-option .co-id    { font-size: .72rem; color: var(--grey-400); font-family: monospace; }
+    .customer-option .co-badge { margin-left: auto; flex-shrink: 0; }
+
+    /* Customer details reveal */
+    #customerDetailsRow { display: none; }
+    #customerDetailsRow.visible { display: grid; }
+
+    /* Credit status indicator */
+    .credit-indicator {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .78rem; font-weight: 600; padding: 3px 10px;
+      border-radius: 12px;
+    }
+    .credit-good     { background: var(--teal-light);   color: var(--teal-dark);    border: 1px solid var(--teal); }
+    .credit-hold     { background: var(--danger-bg);     color: var(--danger);       border: 1px solid var(--danger); }
+    .credit-warning  { background: var(--orange-light);  color: var(--orange);       border: 1px solid var(--orange); }
+
+    /* Lines table */
+    .lines-wrap {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden;
+    }
+    .lines-toolbar {
+      padding: 12px 16px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .lines-toolbar h3 { flex: 1; font-size: .95rem; }
+
+    .order-lines-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .order-lines-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .order-lines-table td { padding: 7px 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .order-lines-table tr:last-child td { border-bottom: none; }
+    .order-lines-table tr:hover td { background: var(--grey-50); }
+    .order-lines-table .line-no   { width: 32px; text-align: center; color: var(--grey-400); font-size: .75rem; font-weight: 600; }
+    .order-lines-table .col-item  { min-width: 280px; }
+    .order-lines-table .col-qty   { width: 80px; }
+    .order-lines-table .col-price { width: 90px; }
+    .order-lines-table .col-disc  { width: 75px; }
+    .order-lines-table .col-net   { width: 100px; text-align: right; }
+    .order-lines-table .col-del   { width: 100px; }
+    .order-lines-table .col-act   { width: 42px; text-align: center; }
+    .net-amount { font-weight: 600; color: var(--navy); }
+
+    .remove-line {
+      background: none; border: none; cursor: pointer;
+      color: var(--grey-400); font-size: 1rem; padding: 4px;
+      border-radius: 4px; transition: all var(--transition);
+    }
+    .remove-line:hover { color: var(--danger); background: var(--danger-bg); }
+    .add-line-row td { background: var(--grey-50); padding: 10px; }
+
+    /* Totals */
+    .order-totals {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px;
+    }
+    .totals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .totals-right { display: flex; flex-direction: column; gap: 6px; }
+    .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: .88rem; }
+    .total-row .lbl { color: var(--grey-600); }
+    .total-row .val { font-weight: 600; color: var(--grey-800); }
+    .total-row.grand { border-top: 1.5px solid var(--grey-200); padding-top: 10px; margin-top: 4px; }
+    .total-row.grand .lbl { font-size: .95rem; font-weight: 700; color: var(--navy); }
+    .total-row.grand .val { font-size: 1.15rem; color: var(--teal); }
+
+    /* Sticky footer */
+    .order-footer {
+      position: sticky; bottom: 0;
+      background: white; border-top: 1px solid var(--grey-200);
+      padding: 14px 28px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 -4px 12px rgba(30,58,95,.08); z-index: 40;
+    }
+    .order-footer .footer-info { flex: 1; font-size: .82rem; color: var(--grey-600); }
+    .order-footer .footer-info strong { color: var(--navy); }
+
+    /* Confirm modal */
+    .confirm-line {
+      display: flex; justify-content: space-between;
+      padding: 6px 0; font-size: .88rem; border-bottom: 1px solid var(--grey-100);
+    }
+    .confirm-line:last-child { border: none; }
+    .confirm-line .cl-label { color: var(--grey-600); }
+    .confirm-line .cl-val   { font-weight: 600; color: var(--navy); }
+
+    /* Product search dropdown (per order line) */
+    .prod-search-wrap { position: relative; }
+    .prod-dropdown {
+      position: fixed; min-width: 320px;
+      background: white; border: 1.5px solid var(--grey-200);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      z-index: 9999; max-height: 220px; overflow-y: auto; display: none;
+    }
+    .prod-dropdown.open { display: block; }
+    .prod-option {
+      padding: 8px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--grey-100); font-size: .82rem;
+      transition: background var(--transition);
+    }
+    .prod-option:last-child { border-bottom: none; }
+    .prod-option:hover { background: var(--teal-light); }
+    .prod-option .po-name { font-weight: 600; color: var(--navy); }
+    .prod-option .po-meta { font-size: .72rem; color: var(--grey-400); font-family: monospace; }
+
+    @media (max-width: 900px) {
+      .totals-grid  { grid-template-columns: 1fr; }
+      .order-footer { padding: 12px 14px; flex-wrap: wrap; }
+    }
+
+    /* ---- Pipeline step indicator ---- */
+    .order-pipeline {
+      display: flex; align-items: center;
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 16px 24px;
+      margin-bottom: 20px;
+    }
+    .pip-step {
+      display: flex; align-items: center; gap: 10px; flex: 1;
+    }
+    .pip-circle {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .85rem; font-weight: 700;
+      border: 2px solid var(--grey-300); background: white; color: var(--grey-400);
+      transition: all .3s ease;
+    }
+    .pip-step.active .pip-circle  { border-color: var(--teal); background: var(--teal); color: white; }
+    .pip-step.done   .pip-circle  { border-color: #16a34a; background: #16a34a; color: white; }
+    .pip-label  { font-size: .88rem; font-weight: 600; color: var(--grey-400); transition: color .3s; }
+    .pip-sub    { font-size: .72rem; color: var(--grey-300); margin-top: 1px; }
+    .pip-step.active .pip-label { color: var(--navy); }
+    .pip-step.done   .pip-label { color: var(--grey-600); }
+    .pip-connector {
+      flex: 1; max-width: 80px; height: 2px;
+      background: var(--grey-200); margin: 0 16px; flex-shrink: 0;
+      transition: background .3s ease;
+    }
+    .pip-connector.done { background: #16a34a; }
+
+    /* ---- Step 1 locked summary (shown on Step 2) ---- */
+    .step1-locked {
+      background: var(--teal-light); border: 1.5px solid var(--teal);
+      border-radius: var(--radius-lg); padding: 14px 20px;
+      margin-bottom: 16px; display: none;
+      align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .step1-locked.show { display: flex; }
+    .s1l-field .lbl { font-size: .7rem; color: var(--teal-dark); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .s1l-field .val { font-size: .88rem; font-weight: 600; color: var(--navy); margin-top: 2px; }
+
+    /* ---- Footer button groups ---- */
+    .footer-btn-group { display: flex; align-items: center; gap: 8px; }
+    .footer-btn-group[hidden] { display: none; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">ST</div>
+      <div class="user-info">
+        <div class="name" id="userName">Loading…</div>
+        <div class="role" id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="account.html"     class="nav-item"><i class="fas fa-users nav-icon"></i> Customers</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Order Booking</a>
+      <div class="nav-section-label" style="margin-top:8px;">Orders</div>
+      <a href="account.html#orders" class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">
+        New Sales Order
+        <span class="breadcrumb">/ <span id="orderIdDisplay">Draft</span></span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</button>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">Cancel</a>
+      </div>
+    </div>
+
+    <!-- Pipeline indicator -->
+    <div class="order-pipeline">
+      <div class="pip-step active" id="pipStep1">
+        <div class="pip-circle" id="pipCircle1"><i class="fas fa-user"></i></div>
+        <div>
+          <div class="pip-label">Order Header</div>
+          <div class="pip-sub">Customer &amp; order details</div>
+        </div>
+      </div>
+      <div class="pip-connector" id="pipConn"></div>
+      <div class="pip-step" id="pipStep2">
+        <div class="pip-circle" id="pipCircle2"><i class="fas fa-list-ul"></i></div>
+        <div>
+          <div class="pip-label">Order Lines</div>
+          <div class="pip-sub">Products &amp; quantities</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Step 1 locked summary (shown only on Step 2) -->
+      <div class="step1-locked" id="step1LockedCard">
+        <div class="s1l-field" style="flex:1; min-width:120px;">
+          <div class="lbl">Order ID</div>
+          <div class="val" id="s1lOrderId" style="font-family:monospace;">—</div>
+        </div>
+        <div class="s1l-field" style="flex:2; min-width:160px;">
+          <div class="lbl">Customer</div>
+          <div class="val" id="s1lCustomer">—</div>
+        </div>
+        <div class="s1l-field" style="flex:1; min-width:120px;">
+          <div class="lbl">PO / Customer Ref</div>
+          <div class="val" id="s1lRef">—</div>
+        </div>
+        <div class="s1l-field" style="flex:1; min-width:100px;">
+          <div class="lbl">Payment Terms</div>
+          <div class="val" id="s1lPayTerms">—</div>
+        </div>
+        <div class="s1l-field" style="flex:1; min-width:90px;">
+          <div class="lbl">Order Status</div>
+          <div class="val"><span class="badge badge-open">In Progress</span></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="goBackToStep1()" style="flex-shrink:0; margin-left:auto;">
+          <i class="fas fa-pencil-alt"></i> Edit Header
+        </button>
+      </div>
+
+      <!-- ===== STEP 1 SECTION ================================ -->
+      <div id="step1Section">
+
+      <!-- ===== REP & CUSTOMER ================================ -->
+      <div class="order-panel rep-panel">
+        <div class="order-panel-header">
+          <h3>Sales Rep &amp; Customer Selection</h3>
+          <span class="badge badge-open">Step 1 — Required</span>
+        </div>
+        <div class="order-panel-body">
+          <!-- Rep fields (auto-populated from Entra ID token)
+               TODO: Values come from GET /api/salesrep/profile after Entra SSO -->
+          <div class="form-row cols-4">
+            <div class="form-group">
+              <label>Sales Rep Name</label>
+              <input type="text" id="repName" readonly
+                style="background:var(--grey-50); font-weight:600; color:var(--navy);" />
+            </div>
+            <div class="form-group">
+              <label>Rep ID (D365 Worker)</label>
+              <input type="text" id="repId" readonly
+                style="background:var(--grey-50); font-family:monospace;" />
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Select Customer <span class="required">*</span></label>
+              <!-- TODO: GET /api/salesrep/customers — customers in rep's territory -->
+              <div class="customer-search-wrap">
+                <div class="search-bar">
+                  <span class="search-icon"></span>
+                  <input type="text" id="customerSearch"
+                    placeholder="Search by school name or account number…"
+                    autocomplete="off" />
+                </div>
+                <div class="customer-dropdown" id="customerDropdown"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer details — revealed after selection -->
+          <div class="form-row cols-4" id="customerDetailsRow">
+            <div class="form-group">
+              <label>Account #</label>
+              <input type="text" id="customerAccNo" readonly
+                style="background:var(--grey-50); font-family:monospace;" />
+            </div>
+            <div class="form-group">
+              <label>Customer Name</label>
+              <input type="text" id="customerNameDisplay" readonly
+                style="background:var(--grey-50);" />
+            </div>
+            <div class="form-group">
+              <label>Credit Status</label>
+              <div id="creditStatusDisplay" style="margin-top:6px;"></div>
+            </div>
+            <div class="form-group">
+              <label>Available Credit</label>
+              <div id="availableCreditDisplay" style="margin-top:6px; font-size:.95rem; font-weight:700; color:var(--teal);"></div>
+            </div>
+          </div>
+
+          <!-- Customer notes (if any) -->
+          <div id="customerNotesAlert" style="display:none; margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- ===== ORDER HEADER ================================
+           Fields map to SalesOrderHeadersV2 OData entity in D365 -->
+      <div class="order-panel">
+        <div class="order-panel-header">
+          <h3>Order Header</h3>
+          <span id="orderIdBadge" class="badge badge-open" style="font-family:monospace;">Draft</span>
+        </div>
+        <div class="order-panel-body">
+          <div class="form-row cols-4">
+            <div class="form-group">
+              <label>Sales Order ID</label>
+              <input type="text" id="orderId" readonly style="font-family:monospace; font-weight:600;" />
+            </div>
+            <div class="form-group">
+              <label>Order Date</label>
+              <input type="date" id="orderDate" readonly />
+            </div>
+            <div class="form-group">
+              <label>Order Type</label>
+              <input type="text" id="orderType" value="Website Cash Sale Orders" readonly
+                style="background:var(--grey-50);" />
+            </div>
+            <div class="form-group">
+              <label>Source System</label>
+              <input type="text" id="sourceSystem" value="Pascal Web" readonly
+                style="background:var(--grey-50);" />
+            </div>
+          </div>
+          <div class="form-row cols-4">
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Customer Reference (PO#) <span class="required">*</span></label>
+              <input type="text" id="customerRef" placeholder="e.g. PO-2026-0112" maxlength="30" />
+            </div>
+            <div class="form-group">
+              <label>Requested Ship Date</label>
+              <input type="date" id="requestedShipDate" />
+            </div>
+            <div class="form-group">
+              <label>Order Status</label>
+              <input type="hidden" id="orderStatus" value="In Progress" />
+              <div style="margin-top:8px;">
+                <span class="badge badge-open" style="font-size:.82rem; padding:5px 12px;">In Progress</span>
+                <div style="font-size:.72rem; color:var(--grey-400); margin-top:4px;">Set automatically — not editable</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-row cols-4">
+            <div class="form-group">
+              <label>Delivery Terms</label>
+              <select id="deliveryTerms">
+                <option value="">— Select —</option>
+                <option value="EXW">EXW — Ex Works</option>
+                <option value="FCA">FCA — Free Carrier</option>
+                <option value="FAS">FAS — Free Alongside Ship</option>
+                <option value="FOB">FOB — Free on Board</option>
+                <option value="CFR">CFR — Cost &amp; Freight</option>
+                <option value="CIF">CIF — Cost, Insurance &amp; Freight</option>
+                <option value="DDP">DDP — Delivered Duty Paid</option>
+                <option value="DES">DES — Delivered Ex Ship</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Payment Terms</label>
+              <select id="paymentTerms">
+                <option value="">— Select —</option>
+                <option value="Cash">Cash</option>
+                <option value="COD">COD</option>
+                <option value="Net1">Net1</option>
+                <option value="Net10">Net10</option>
+                <option value="Net15">Net15</option>
+                <option value="Net30">Net30</option>
+                <option value="Net45">Net45</option>
+                <option value="Month+15">Month+15</option>
+                <option value="Sch_5M">Sch_5M</option>
+                <option value="Sch_6M">Sch_6M</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Warehouse</label>
+              <select id="warehouse">
+                <option value="SYD">Sydney (SYD)</option>
+                <option value="MEL">Melbourne (MEL)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Delivery Address <span class="required">*</span></label>
+              <input type="text" id="deliveryAddress" placeholder="Select a customer to pre-fill, or type address" />
+            </div>
+          </div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Delivery Instructions</label>
+              <input type="text" id="deliveryNotes" placeholder="e.g. Leave at library reception" maxlength="150" />
+            </div>
+            <div class="form-group">
+              <label>Internal Notes (rep only)</label>
+              <input type="text" id="internalNotes" placeholder="Notes for Pascal Press back-office" maxlength="150" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /step1Section -->
+
+      <!-- ===== STEP 2 SECTION ================================ -->
+      <div id="step2Section" style="display:none;">
+
+      <!-- ===== ORDER LINES ================================= -->
+      <div class="lines-wrap">
+        <div class="lines-toolbar">
+          <h3>Order Lines</h3>
+          <span id="lineCountBadge" class="badge badge-open">0 items</span>
+          <div style="flex:1;"></div>
+          <button class="btn btn-outline btn-sm" onclick="addBlankLine()">+ Add Row</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="order-lines-table" id="linesTable">
+            <thead>
+              <tr>
+                <th class="line-no">#</th>
+                <th class="col-item">Item / Description</th>
+                <th>Category</th>
+                <th class="col-qty">Qty <span class="required">*</span></th>
+                <th>Unit</th>
+                <th class="col-price">Unit Price</th>
+                <th class="col-disc">Disc %</th>
+                <th class="col-net">Net Amount</th>
+                <th>Delivery</th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody id="linesBody"></tbody>
+            <tfoot>
+              <tr class="add-line-row" id="addLineRow">
+                <td colspan="11" style="text-align:center;">
+                  <button class="btn btn-ghost btn-sm" onclick="addBlankLine()"
+                    style="width:100%; justify-content:center; color:var(--teal);">
+                    + Click here or use "+ Add Row" above to add an order line
+                  </button>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== TOTALS ====================================== -->
+      <div class="order-totals">
+        <div class="totals-grid">
+          <div>
+            <h3 style="margin-bottom:12px;">Order Summary</h3>
+            <div id="summaryNotes" style="font-size:.83rem; color:var(--grey-600); line-height:1.8;">
+              No items added yet.
+            </div>
+          </div>
+          <div class="totals-right">
+            <div class="total-row">
+              <span class="lbl">Subtotal (excl. GST)</span>
+              <span class="val" id="subtotal">$0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="lbl">Total Discount</span>
+              <span class="val" id="totalDiscount" style="color:var(--danger);">-$0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="lbl">GST (10%)</span>
+              <span class="val" id="gstAmount">$0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="lbl">Freight</span>
+              <span class="val" id="freightAmount">$0.00</span>
+            </div>
+            <div class="total-row grand">
+              <span class="lbl">ORDER TOTAL (incl. GST)</span>
+              <span class="val" id="grandTotal">$0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /step2Section -->
+
+    </div><!-- /page-body -->
+
+    <!-- Sticky footer -->
+    <div class="order-footer">
+      <div class="footer-info">
+        Order <strong id="footerOrderId">Draft</strong> ·
+        <span id="footerCustomer" style="color:var(--teal);">No customer selected</span> ·
+        <span id="footerLineCount">0 lines</span> ·
+        Total: <strong id="footerTotal">$0.00</strong>
+      </div>
+      <!-- Step 1 buttons -->
+      <div class="footer-btn-group" id="step1FooterBtns">
+        <button class="btn btn-ghost" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</button>
+        <a href="dashboard.html" class="btn btn-ghost">Cancel</a>
+        <button class="btn btn-primary" id="step1SubmitBtn" onclick="saveHeaderAndContinue()">
+          Save Header &amp; Continue <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+      <!-- Step 2 buttons (hidden until step 2) -->
+      <div class="footer-btn-group" id="step2FooterBtns" hidden>
+        <button class="btn btn-ghost" onclick="goBackToStep1()"><i class="fas fa-arrow-left"></i> Edit Header</button>
+        <button class="btn btn-danger" id="cancelOrderBtn" onclick="cancelOrder()"
+          style="background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);">
+          <i class="fas fa-times"></i> Cancel Order
+        </button>
+        <button class="btn btn-primary" id="submitOrderBtn" onclick="submitOrder()" disabled>
+          <i class="fas fa-check"></i> Submit Order
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== CONFIRM MODAL ==================================== -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Confirm Sales Order</h3>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="PP.closeModal('confirmModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <span>Review your order before submitting. Once confirmed, it will be sent to D365 for processing.</span>
+      </div>
+      <div id="confirmSummary" style="margin: 12px 0;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="PP.closeModal('confirmModal')"><i class="fas fa-arrow-left"></i> Back to Lines</button>
+      <button class="btn btn-primary" id="finalSubmitBtn" onclick="finalSubmit()">
+        Confirm &amp; Submit Order
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUCCESS MODAL ==================================== -->
+<div class="modal-overlay" id="successModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="color:var(--success);">Order Submitted Successfully</h3>
+    </div>
+    <div class="modal-body" style="text-align:center; padding:24px;">
+      <div style="font-size:1.1rem; font-weight:700; color:var(--navy); margin-bottom:8px;" id="successOrderId">
+        Order PAS0000000
+      </div>
+      <p style="margin-bottom:16px;">Order placed on behalf of customer and sent to D365 for fulfilment.</p>
+      <div style="background:var(--grey-50); border-radius:var(--radius); padding:14px; margin-bottom:16px; text-align:left; font-size:.85rem;">
+        <div id="successDetails" style="line-height:2;"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:center; gap:12px;">
+      <a href="dashboard.html"      class="btn btn-ghost">← Dashboard</a>
+      <a href="account.html#orders" class="btn btn-primary">View All Orders</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+<script src="db.js"></script>
+<script>
+/* ============================================================
+   Sales Order Page — 2-Step Pipeline
+   Step 1: Customer + Header → save to SP (status = In Progress)
+   Step 2: Order Lines → save lines + update header to Submit
+   ============================================================ */
+
+let orderLines       = [];
+let currentOrderId   = PP.nextOrderId();
+let salesRep         = null;
+let selectedCustomer = null;
+let currentStep      = 1;
+let savedSalesId     = null;   // set after step 1 SP save
+let savedSpItemId    = null;   // SP item ID for direct PUT/DELETE (no SalesId column lookup)
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const token = localStorage.getItem('pp_token');
+    const bootstrap = await fetch('/api/bootstrap', {
+      headers: { Authorization: token ? `Bearer ${token}` : '' }
+    }).then(r => r.json());
+
+    salesRep = bootstrap.salesRep || PP.getSalesRep();
+
+    document.getElementById('repName').value = salesRep.name;
+    document.getElementById('repId').value   = salesRep.id + ' (' + salesRep.d365WorkerId + ')';
+
+    const initials = salesRep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('userName').textContent   = salesRep.name;
+    document.getElementById('userRole').textContent   = salesRep.territory;
+
+    document.getElementById('orderId').value               = currentOrderId;
+    document.getElementById('orderIdDisplay').textContent  = currentOrderId;
+    document.getElementById('orderIdBadge').textContent    = currentOrderId;
+    document.getElementById('footerOrderId').textContent   = currentOrderId;
+
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('orderDate').value = today;
+
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('requestedShipDate').value = tomorrow.toISOString().slice(0, 10);
+    document.getElementById('requestedShipDate').min   = tomorrow.toISOString().slice(0, 10);
+
+    initCustomerSearch();
+
+    // Auto-fill customer passed from account.html via sessionStorage
+    const stored = sessionStorage.getItem('d365_selected_customer');
+    if (stored) {
+      try {
+        const c = JSON.parse(stored);
+        if (c && c.CustomerAccount) selectCustomer(c);
+      } catch (e) { /* ignore malformed */ }
+    }
+  } catch (error) {
+    console.error('Error loading sales order form:', error);
+    PP.showToast('Failed to load form data', 'error');
+  }
+});
+
+/* ---- Customer search — live D365 API -------------------- */
+function initCustomerSearch() {
+  const input    = document.getElementById('customerSearch');
+  const dropdown = document.getElementById('customerDropdown');
+  let   _timer   = null;
+
+  async function doSearch(q) {
+    try {
+      const url  = q
+        ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=20`
+        : `/api/d365/customers?top=30`;
+      const data = await fetch(url).then(r => r.json());
+      const results = data.value || [];
+      if (results.length === 0) { dropdown.classList.remove('open'); return; }
+
+      dropdown.innerHTML = '';
+      results.forEach(c => {
+        const city = c.AddressCity ? ` · ${c.AddressCity}` : '';
+        const div  = document.createElement('div');
+        div.className = 'customer-option';
+        div.innerHTML = `
+          <div>
+            <div style="font-weight:600; color:var(--navy);">${c.OrganizationName || c.CustomerAccount}</div>
+            <div class="co-id">${c.CustomerAccount}${city}</div>
+          </div>
+          <span class="badge badge-paid co-badge">Active</span>`;
+        div.addEventListener('click', () => selectCustomer(c));
+        dropdown.appendChild(div);
+      });
+      dropdown.classList.add('open');
+    } catch (e) {
+      console.error('[D365] Customer search failed:', e);
+    }
+  }
+
+  input.addEventListener('input', function () {
+    clearTimeout(_timer);
+    const q = this.value.trim();
+    _timer = setTimeout(() => doSearch(q), 300);
+  });
+
+  input.addEventListener('focus', function () {
+    if (!this.value.trim()) doSearch('');
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.customer-search-wrap')) dropdown.classList.remove('open');
+  });
+}
+
+/* ---- Select customer ------------------------------------- */
+function selectCustomer(customer) {
+  selectedCustomer = customer;
+
+  const name = customer.OrganizationName || customer.name || customer.CustomerAccount;
+  const acct = customer.CustomerAccount  || customer.accountNum || customer.id;
+
+  document.getElementById('customerSearch').value      = name;
+  document.getElementById('customerAccNo').value       = acct;
+  document.getElementById('customerNameDisplay').value = name;
+  document.getElementById('customerDropdown').classList.remove('open');
+
+  document.getElementById('customerDetailsRow').classList.add('visible');
+
+  // D365 CustomersV3 doesn't expose credit limit — show as Active
+  document.getElementById('creditStatusDisplay').innerHTML =
+    `<span class="credit-indicator credit-good"><i class="fas fa-check"></i> Active</span>`;
+
+  const payTerms = customer.PaymentTermsName || customer.paymentTerms || '';
+  document.getElementById('availableCreditDisplay').textContent = payTerms ? `Terms: ${payTerms}` : 'Terms: —';
+
+  // Auto-fill Payment Terms dropdown from customer record
+  if (payTerms) {
+    const ptSelect = document.getElementById('paymentTerms');
+    if (ptSelect) {
+      for (const opt of ptSelect.options) {
+        if (opt.value === payTerms) { ptSelect.value = payTerms; break; }
+      }
+    }
+  }
+
+  document.getElementById('customerNotesAlert').style.display = 'none';
+
+  // Build delivery address from D365 address parts
+  const addrParts = [customer.AddressStreet, customer.AddressCity, customer.AddressState, customer.AddressZipCode]
+    .filter(Boolean);
+  document.getElementById('deliveryAddress').value =
+    addrParts.join(', ') || customer.address || customer.deliveryAddress || '';
+
+  document.getElementById('footerCustomer').textContent = name;
+
+  PP.showToast(`Customer selected: ${name}`, 'success');
+  updateTotals();
+}
+
+/* ---- Add blank line -------------------------------------- */
+function addBlankLine() {
+  if (!selectedCustomer) {
+    PP.showToast('Please select a customer first', 'warning');
+    return;
+  }
+  orderLines.push({ lineNo: orderLines.length + 1, itemNo: '', name: '', category: '', qty: 1, unit: 'ea', price: 0, discount: 0, deliveryType: 'Stock', status: 'In Progress', orderLineStatus: 'In Progress' });
+  renderLines();
+}
+
+/* ---- Remove line ----------------------------------------- */
+function removeLine(idx) {
+  orderLines.splice(idx, 1);
+  orderLines.forEach((l, i) => l.lineNo = i + 1);
+  renderLines();
+}
+
+/* ---- Render lines table ---------------------------------- */
+function renderLines() {
+  const tbody = document.getElementById('linesBody');
+  tbody.innerHTML = '';
+
+  orderLines.forEach((line, idx) => {
+    const net = PP.calcNet(line.price, line.qty, line.discount);
+    const tr  = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="line-no">${line.lineNo}</td>
+      <td class="col-item">
+        <div class="prod-search-wrap">
+          <input type="text" class="prod-name-input" data-idx="${idx}"
+            value="${(line.name && line.itemNo ? line.name + ' - ' + line.itemNo : line.name || line.itemNo || '').replace(/"/g,'&quot;')}"
+            placeholder="Search or type product name"
+            style="width:100%; font-weight:600;" />
+          <div class="prod-dropdown" id="prodDrop${idx}"></div>
+        </div>
+      </td>
+      <td>
+        <input type="text" value="${(line.category || '').replace(/"/g,'&quot;')}" placeholder="Category"
+          style="width:90px; font-size:.78rem;"
+          onchange="updateLine(${idx}, 'category', this.value)" />
+      </td>
+      <td class="col-qty">
+        <input type="number" min="1" max="9999" value="${line.qty}" style="width:70px;"
+          onchange="updateLine(${idx}, 'qty', +this.value)" />
+      </td>
+      <td style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
+      <td class="col-price">
+        <input type="number" min="0" step="0.01" value="${line.price.toFixed(2)}" style="width:80px;"
+          onchange="updateLine(${idx}, 'price', +this.value)" />
+      </td>
+      <td class="col-disc">
+        <input type="number" min="0" max="100" step="0.5" value="${line.discount}" style="width:65px;"
+          onchange="updateLine(${idx}, 'discount', +this.value)" />
+      </td>
+      <td class="col-net"><span class="net-amount">${PP.fmtCurrency(net)}</span></td>
+      <td class="col-del">
+        <select onchange="updateLine(${idx}, 'deliveryType', this.value)" style="width:90px; font-size:.8rem;">
+          ${['Stock','Backorder','Direct'].map(t => `<option ${t===line.deliveryType?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td class="col-act">
+        <button class="remove-line" onclick="removeLine(${idx})" title="Remove line"><i class="fas fa-times"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  updateTotals();
+  wireProductSearch();
+}
+
+function updateLine(idx, field, value) {
+  orderLines[idx][field] = value;
+  renderLines();
+}
+
+/* ---- Close product dropdowns on outside click ------------ */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.prod-search-wrap')) {
+    document.querySelectorAll('.prod-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  }
+});
+
+/* ---- Wire product search inputs after each render -------- */
+function wireProductSearch() {
+  document.querySelectorAll('.prod-name-input').forEach(function(input) {
+    const idx = +input.dataset.idx;
+    let _timer = null;
+    input.oninput = function() {
+      // Strip the " - ItemNo" suffix so we store only the name and search cleanly
+      const raw  = this.value;
+      const dash = raw.lastIndexOf(' - ');
+      const name = dash !== -1 ? raw.slice(0, dash) : raw;
+      orderLines[idx].name = name;
+      clearTimeout(_timer);
+      const q = name.trim();
+      _timer = setTimeout(function() { doProductSearch(idx, q); }, 300);
+    };
+    input.onfocus = function() {
+      // Show just the name while editing so the user isn't confused by " - D0002" suffix
+      const line = orderLines[idx];
+      if (line && line.name) this.value = line.name;
+      doProductSearch(idx, line ? line.name.trim() : '');
+    };
+    input.onblur = function() {
+      // Restore "Name - ItemNo" display on blur
+      const line = orderLines[idx];
+      if (line && line.name && line.itemNo) {
+        this.value = line.name + ' - ' + line.itemNo;
+      }
+    };
+  });
+}
+
+/* ---- Fetch products from D365 and show dropdown ---------- */
+async function doProductSearch(idx, q) {
+  const drop = document.getElementById('prodDrop' + idx);
+  if (!drop) return;
+  try {
+    const url = q
+      ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=15'
+      : '/api/d365/products?top=15';
+    const data = await fetch(url).then(function(r) { return r.json(); });
+    const results = data.value || [];
+    if (results.length === 0) { drop.classList.remove('open'); return; }
+
+    drop.innerHTML = '';
+    results.forEach(function(p) {
+      const price = p.SalesPrice > 0 ? ' · $' + p.SalesPrice.toFixed(2) : '';
+      const group = p.ProductGroupId ? ' · ' + p.ProductGroupId : '';
+      const div = document.createElement('div');
+      div.className = 'prod-option';
+      div.innerHTML =
+        '<div class="po-name">' + (p.SearchName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
+        '<div class="po-meta">' + (p.ItemNumber || '').replace(/</g,'&lt;') + price + group + '</div>';
+      div.addEventListener('click', function() { selectProduct(idx, p); });
+      drop.appendChild(div);
+    });
+
+    // Position fixed relative to the input so it escapes overflow containers
+    const inputEl = document.querySelector('.prod-name-input[data-idx="' + idx + '"]');
+    if (inputEl) {
+      const r = inputEl.getBoundingClientRect();
+      drop.style.top   = (r.bottom + 2) + 'px';
+      drop.style.left  = r.left + 'px';
+      drop.style.width = Math.max(r.width, 320) + 'px';
+    }
+    drop.classList.add('open');
+  } catch (e) {
+    console.error('[D365] Product search failed:', e);
+  }
+}
+
+/* ---- Auto-fill line from D365 product selection ---------- */
+function selectProduct(idx, p) {
+  orderLines[idx].itemNo   = p.ItemNumber      || '';
+  orderLines[idx].name     = p.SearchName      || p.ItemNumber || '';
+  orderLines[idx].category = p.ProductGroupId  || '';
+  orderLines[idx].price    = p.SalesPrice      || 0;
+  orderLines[idx].unit     = p.SalesUnitSymbol || 'ea';
+  renderLines();
+}
+
+/* ---- Update totals --------------------------------------- */
+function updateTotals() {
+  const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
+  const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
+  const subtotal     = subtotalFull - discountAmt;
+  const freight      = subtotal > 0 ? (subtotal >= 150 ? 0 : 12.50) : 0;
+  const gst          = subtotal * 0.1;
+  const grandTotal   = subtotal + gst + freight;
+
+  document.getElementById('subtotal').textContent      = PP.fmtCurrency(subtotalFull);
+  document.getElementById('totalDiscount').textContent = `-${PP.fmtCurrency(discountAmt)}`;
+  document.getElementById('gstAmount').textContent     = PP.fmtCurrency(gst);
+  document.getElementById('freightAmount').textContent = freight === 0 && subtotal > 0
+    ? 'FREE (order ≥ $150)' : PP.fmtCurrency(freight);
+  document.getElementById('grandTotal').textContent    = PP.fmtCurrency(grandTotal);
+
+  const lineCount = orderLines.length;
+  document.getElementById('footerLineCount').textContent = `${lineCount} line${lineCount !== 1 ? 's' : ''}`;
+  document.getElementById('footerTotal').textContent     = PP.fmtCurrency(grandTotal);
+  document.getElementById('lineCountBadge').textContent  = `${lineCount} item${lineCount !== 1 ? 's' : ''}`;
+
+  const categories = [...new Set(orderLines.map(l => l.category).filter(Boolean))];
+  document.getElementById('summaryNotes').innerHTML = lineCount === 0
+    ? 'No items added yet. Click "+ Add Row" above to add order lines.'
+    : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} ·
+       <strong>${orderLines.reduce((s,l)=>s+l.qty,0)}</strong> total books<br>
+       Categories: ${categories.join(', ') || '—'}<br>
+       ${subtotal >= 150
+         ? '<i class="fas fa-check" style="color:var(--success)"></i> <span style="color:var(--success)">Free freight applied</span>'
+         : `$${(150 - subtotal).toFixed(2)} more for free freight`}`;
+
+  // Step 2 submit button: enabled when at least one valid line exists
+  const hasValidLine = orderLines.some(l => (l.name || l.itemNo).trim() && l.qty >= 1);
+  const submitBtn = document.getElementById('submitOrderBtn');
+  if (submitBtn) submitBtn.disabled = !hasValidLine;
+}
+
+// customerRef is validated on click, no need to re-run updateTotals on each keystroke
+
+/* ---- Cancel order (Step 2) — delete header from SP ------- */
+async function cancelOrder() {
+  if (!confirm(`Cancel order ${savedSalesId}?\n\nThis will delete the saved order header from SharePoint. This cannot be undone.`)) return;
+
+  const btn = document.getElementById('cancelOrderBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
+
+  try {
+    if (savedSpItemId) {
+      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to delete order');
+      }
+    }
+    window.location.href = 'dashboard.html';
+  } catch (err) {
+    console.error('[Order] Cancel failed:', err);
+    PP.showToast(err.message || 'Failed to cancel order — please try again', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times"></i> Cancel Order';
+  }
+}
+
+/* ---- Save draft (Step 1 only) ---------------------------- */
+function saveDraft() {
+  PP.showToast('Draft saved locally', 'success');
+}
+
+/* ---- Pipeline navigation --------------------------------- */
+function goToStep(n) {
+  currentStep = n;
+
+  // Update indicator
+  const s1 = document.getElementById('pipStep1');
+  const s2 = document.getElementById('pipStep2');
+  const cn = document.getElementById('pipConn');
+  s1.className = 'pip-step ' + (n > 1 ? 'done' : 'active');
+  s2.className = 'pip-step ' + (n === 2 ? 'active' : '');
+  if (n > 1) cn.classList.add('done'); else cn.classList.remove('done');
+
+  // Show/hide sections
+  document.getElementById('step1Section').style.display = (n === 1) ? '' : 'none';
+  document.getElementById('step2Section').style.display = (n === 2) ? '' : 'none';
+  const locked = document.getElementById('step1LockedCard');
+  if (n === 2) locked.classList.add('show'); else locked.classList.remove('show');
+
+  // Footer button groups
+  document.getElementById('step1FooterBtns').hidden = (n !== 1);
+  document.getElementById('step2FooterBtns').hidden = (n !== 2);
+
+  // Scroll to top of content
+  document.querySelector('.main-content').scrollTop = 0;
+}
+
+function goBackToStep1() {
+  goToStep(1);
+}
+
+/* ---- Step 1: Save header to SharePoint ------------------- */
+async function saveHeaderAndContinue() {
+  if (!selectedCustomer) {
+    PP.showToast('Please select a customer first', 'warning');
+    document.getElementById('customerSearch').focus();
+    return;
+  }
+  const ref = document.getElementById('customerRef').value.trim();
+  if (!ref) {
+    PP.showToast('Please enter a Customer Reference / PO number', 'warning');
+    document.getElementById('customerRef').focus();
+    return;
+  }
+
+  const btn = document.getElementById('step1SubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+  const custName = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
+  const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
+  const currency = selectedCustomer.CurrencyCode     || selectedCustomer.currency  || 'AUD';
+  const custGroup = selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || selectedCustomer.CustGroup || '';
+  const title     = custName;
+
+  // Only include columns that exist in the SalesOrderHeader SharePoint list.
+  // Unknown columns cause Graph API to return 400 Bad Request.
+  const headerPayload = {
+    Title:          title,          // customer name e.g. "Contoso Europe"
+    CustAccount:    custAcct,
+    Currency:       currency,
+    CustGroup:      custGroup,
+    InvoiceAccount: selectedCustomer.InvoiceCustomerAccountNumber || custAcct,
+    Status:         'In Progress',
+    DeliveryTerms:  document.getElementById('deliveryTerms').value,
+    PaymentTerms:   document.getElementById('paymentTerms').value,
+    // SalesId is NOT sent — server always generates it and returns it
+  };
+
+  try {
+    let res, data;
+
+    if (savedSpItemId) {
+      // Re-save: update by SP item ID directly (no SalesId column lookup needed)
+      res = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(headerPayload)
+      });
+    } else {
+      // First save: create new header record
+      res = await fetch('/api/salesorders/header', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(headerPayload)
+      });
+    }
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save order header');
+
+    // Use server-generated SalesId; store SP item ID for subsequent edits/cancel
+    const confirmedId = data.salesId || savedSalesId || currentOrderId;
+    savedSalesId   = confirmedId;
+    savedSpItemId  = data.spItemId || savedSpItemId;
+    currentOrderId = confirmedId;
+
+    // Update locked summary card
+    document.getElementById('s1lOrderId').textContent  = confirmedId;
+    document.getElementById('s1lCustomer').textContent = custName;
+    document.getElementById('s1lRef').textContent      = ref;
+    document.getElementById('s1lPayTerms').textContent = document.getElementById('paymentTerms').value || '—';
+
+    // Also update order ID displays
+    document.getElementById('orderId').value               = confirmedId;
+    document.getElementById('orderIdDisplay').textContent  = confirmedId;
+    document.getElementById('orderIdBadge').textContent    = confirmedId;
+    document.getElementById('footerOrderId').textContent   = confirmedId;
+
+    PP.showToast('Order header saved. Now add order lines.', 'success');
+    goToStep(2);
+  } catch (err) {
+    console.error('[Order] Header save failed:', err);
+    PP.showToast(err.message || 'Failed to save order header — please try again', 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
+  }
+}
+
+/* ---- Step 2: Validate lines + open confirm modal --------- */
+function submitOrder() {
+  if (orderLines.length === 0) {
+    PP.showToast('Please add at least one product line', 'warning');
+    return;
+  }
+  const blankLine = orderLines.find(l => !(l.name || '').trim() && !(l.itemNo || '').trim());
+  if (blankLine) {
+    PP.showToast(`Line ${blankLine.lineNo}: enter a product name or item code`, 'warning');
+    return;
+  }
+  const zeroQty = orderLines.find(l => !l.qty || l.qty < 1);
+  if (zeroQty) {
+    PP.showToast(`Line ${zeroQty.lineNo}: quantity must be at least 1`, 'warning');
+    return;
+  }
+
+  const custName = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
+  const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
+  const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
+  const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
+  const subtotal     = subtotalFull - discountAmt;
+  const freight      = subtotal >= 150 ? 0 : 12.50;
+  const grandTotal   = subtotal * 1.1 + freight;
+  const ref          = document.getElementById('customerRef').value.trim();
+  const addrText     = document.getElementById('deliveryAddress').value.trim() || '—';
+
+  document.getElementById('confirmSummary').innerHTML = `
+    <div class="confirm-line"><span class="cl-label">Order ID</span><span class="cl-val" style="font-family:monospace;">${savedSalesId}</span></div>
+    <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name} (${salesRep.id})</span></div>
+    <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
+    <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
+    <div class="confirm-line"><span class="cl-label">Customer Ref (PO)</span><span class="cl-val">${ref}</span></div>
+    <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${addrText}</span></div>
+    <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${orderLines.length} product${orderLines.length!==1?'s':''}</span></div>
+    <div class="confirm-line"><span class="cl-label">Total books</span><span class="cl-val">${orderLines.reduce((s,l)=>s+l.qty,0)}</span></div>
+    <div class="confirm-line"><span class="cl-label">Subtotal (excl.GST)</span><span class="cl-val">${PP.fmtCurrency(subtotal)}</span></div>
+    <div class="confirm-line"><span class="cl-label">GST (10%)</span><span class="cl-val">${PP.fmtCurrency(subtotal * 0.1)}</span></div>
+    <div class="confirm-line"><span class="cl-label">Freight</span><span class="cl-val">${freight === 0 ? 'FREE' : PP.fmtCurrency(freight)}</span></div>
+    <div class="confirm-line" style="border-top:2px solid var(--grey-200); margin-top:4px; padding-top:10px;">
+      <span class="cl-label" style="font-weight:700; color:var(--navy); font-size:.95rem;">TOTAL (incl. GST)</span>
+      <span class="cl-val" style="font-size:1.1rem; color:var(--teal);">${PP.fmtCurrency(grandTotal)}</span>
+    </div>
+  `;
+  PP.openModal('confirmModal');
+}
+
+/* ---- Final submit: save lines + update header status ----- */
+async function finalSubmit() {
+  const btn = document.getElementById('finalSubmitBtn');
+  btn.disabled    = true;
+  btn.innerHTML   = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+  const custAcct  = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
+  const custName  = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
+  const currency  = selectedCustomer.CurrencyCode     || selectedCustomer.currency  || 'AUD';
+  const custGroup = selectedCustomer.CustomerGroupId  || selectedCustomer.customerGroup || '';
+
+  try {
+    // 1. Save each order line individually
+    for (let i = 0; i < orderLines.length; i++) {
+      const line = orderLines[i];
+      const lineTitle = (line.name || line.itemNo || `${savedSalesId}-L${i + 1}`);
+
+      // Only send columns that exist in SalesOrderLines — matches createSalesOrder field set
+      const linePayload = {
+        Title:           lineTitle,
+        lineNumber:      i + 1,
+        ItemId:          line.itemNo || '',
+        CustAccount:     custAcct,
+        Currency:        currency,
+        CustGroup:       custGroup,
+        SalesUnit:       line.unit   || 'ea',
+        SalesPrice:      line.price  || 0,
+        SalesQty:        line.qty    || 1,
+        Status:          'Submitted',
+        OrderLineStatus: 'Submitted',
+      };
+
+      const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(linePayload)
+      });
+      if (!lineRes.ok) {
+        const err = await lineRes.json();
+        throw new Error(err.error || `Line ${i + 1} failed to save`);
+      }
+    }
+
+    // 2. Update header status from "In Progress" → "Submit" (use SP item ID directly)
+    if (savedSpItemId) {
+      const updateRes = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Status: 'Submit' })
+      });
+      if (!updateRes.ok) {
+        const err = await updateRes.json();
+        throw new Error(err.error || 'Failed to update order status');
+      }
+    }
+
+    PP.closeModal('confirmModal');
+
+    const subtotal   = orderLines.reduce((s,l) => s + PP.calcNet(l.price, l.qty, l.discount), 0);
+    const grandTotal = subtotal * 1.1 + (subtotal >= 150 ? 0 : 12.50);
+
+    document.getElementById('successOrderId').textContent = `Order ${savedSalesId} Submitted`;
+    document.getElementById('successDetails').innerHTML = `
+      <div>Order ID: <strong>${savedSalesId}</strong></div>
+      <div>Rep: <strong>${salesRep.name}</strong></div>
+      <div>Customer: <strong>${custName}</strong></div>
+      <div>${orderLines.length} line(s) · ${orderLines.reduce((s,l)=>s+l.qty,0)} books</div>
+      <div>Total: <strong>${PP.fmtCurrency(grandTotal)}</strong></div>
+      <div>Submitted: ${PP.fmtDate(new Date().toISOString().slice(0,10))}</div>
+      ${selectedCustomer.PrimaryContactEmail ? `<div>Confirmation to: ${selectedCustomer.PrimaryContactEmail}</div>` : ''}
+    `;
+    PP.openModal('successModal');
+  } catch (err) {
+    console.error('[Order] Final submit failed:', err);
+    PP.showToast(err.message || 'Failed to submit order — please try again', 'error');
+    btn.disabled  = false;
+    btn.innerHTML = 'Confirm &amp; Submit Order';
+  }
+}
+</script>
+</body>
+</html>

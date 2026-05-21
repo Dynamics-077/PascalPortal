@@ -1,0 +1,15 @@
+# Environment variables — NEVER commit these (contains secrets)
+.env
+.env.local
+.env.production
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

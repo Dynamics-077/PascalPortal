@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      border-radius: var(--radius-lg); padding: 24px 28px;
+      margin-bottom: 24px; display: flex; align-items: center; gap: 20px;
+      position: relative; overflow: hidden;
+    }
+    .welcome-banner::before {
+      content: ''; position: absolute; right: -40px; top: -40px;
+      width: 200px; height: 200px; border-radius: 50%; background: rgba(0,164,166,.15);
+    }
+    .welcome-banner::after {
+      content: ''; position: absolute; right: 60px; bottom: -60px;
+      width: 140px; height: 140px; border-radius: 50%; background: rgba(244,133,31,.1);
+    }
+    .welcome-text { position: relative; z-index: 1; flex: 1; }
+    .welcome-text h2 { color: white; margin-bottom: 4px; }
+    .welcome-text p  { color: rgba(255,255,255,.65); font-size: .88rem; }
+    .welcome-action  { position: relative; z-index: 1; display: flex; gap: 8px; }
+
+    .two-col   { display: grid; grid-template-columns: 1fr 1fr;  gap: 20px; margin-bottom: 24px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr;  gap: 20px; }
+
+    /* Target progress bar */
+    .target-bar-bg   { height: 8px; background: var(--grey-200); border-radius: 4px; overflow: hidden; }
+    .target-bar-fill { height: 100%; border-radius: 4px; background: var(--teal); transition: width .6s ease; }
+
+    /* Mini chart bars */
+    .bar-chart  { display: flex; align-items: flex-end; gap: 8px; height: 80px; padding: 8px 0; }
+    .bar-item   { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .bar-fill   { width: 100%; border-radius: 4px 4px 0 0; background: var(--teal); min-height: 4px; transition: height .5s ease; }
+    .bar-label  { font-size: .65rem; color: var(--grey-400); white-space: nowrap; }
+
+    /* Donut */
+    .donut-wrap     { display: flex; align-items: center; gap: 20px; padding: 8px 0; }
+    .donut-svg-wrap { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+    .donut-svg      { transform: rotate(-90deg); }
+    .donut-center   { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .donut-center .dc-val { font-size: 1.3rem; font-weight: 700; color: var(--navy); }
+    .donut-center .dc-lbl { font-size: .65rem; color: var(--grey-400); }
+    .donut-legend   { display: flex; flex-direction: column; gap: 8px; }
+    .legend-item    { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+    .legend-dot     { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Timeline */
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .timeline-item { display: flex; gap: 12px; padding: 12px 0; position: relative; }
+    .timeline-item + .timeline-item::before {
+      content: ''; position: absolute; left: 11px; top: 0;
+      width: 2px; height: 12px; background: var(--grey-200);
+    }
+    .tl-dot {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--teal-light); border: 2px solid var(--teal);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .65rem; flex-shrink: 0; color: var(--teal);
+    }
+    .tl-dot.orange { background: var(--orange-light); border-color: var(--orange); color: var(--orange); }
+    .tl-dot.grey   { background: var(--grey-100);     border-color: var(--grey-400); color: var(--grey-400); }
+    .tl-content .tl-title { font-size: .85rem; font-weight: 600; color: var(--navy); }
+    .tl-content .tl-desc  { font-size: .78rem; color: var(--grey-400); }
+
+    /* Pending approval row */
+    .approval-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid var(--grey-100);
+      font-size: .83rem;
+    }
+    .approval-item:last-child { border: none; }
+
+    @media (max-width: 900px) {
+      .two-col, .three-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user" id="sidebarUser">
+      <div class="avatar" id="userAvatar">ST</div>
+      <div class="user-info">
+        <div class="name"  id="userName">Loading…</div>
+        <div class="role"  id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="account.html"     class="nav-item"><i class="fas fa-users nav-icon"></i> Customers</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+
+      <div class="nav-section-label" style="margin-top:8px;">Orders</div>
+      <a href="account.html#orders" class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders
+        <span class="nav-badge" id="pendingBadge">3</span>
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="page-title">Dashboard <span class="breadcrumb">/ Home</span></div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Open Orders" onclick="PP.showToast((_pendingCount||0)+' open orders in SharePoint','default')">
+          <i class="fas fa-bell"></i>
+          <span class="badge" style="background:var(--teal);color:white;position:absolute;top:-4px;right:-4px;font-size:.6rem;" id="notifBadge">0</span>
+        </button>
+        <button class="icon-btn" title="Help" onclick="PP.showToast('Help centre coming soon', 'default')"><i class="fas fa-question-circle"></i></button>
+        <a href="sales-order.html" class="btn btn-primary btn-sm">+ New Order</a>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Welcome banner -->
+      <div class="welcome-banner">
+        <div class="welcome-text">
+          <h2 id="welcomeMsg">Good morning!</h2>
+          <p id="welcomeSub">Here's your territory summary for <strong id="todayDate" style="color:rgba(255,255,255,.85)"></strong></p>
+        </div>
+        <div class="welcome-action">
+          <a href="sales-order.html" class="btn btn-primary"><i class="fas fa-plus"></i> New Order</a>
+          <a href="account.html"     class="btn btn-secondary"><i class="fas fa-users"></i> Customers</a>
+        </div>
+      </div>
+
+      <!-- Stat cards
+           TODO: Data from GET /api/dashboard/summary -->
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card">
+          <div class="stat-icon teal"><i class="fas fa-shopping-cart"></i></div>
+          <div class="stat-info">
+            <div class="label">Orders Today</div>
+            <div class="value" id="statToday">—</div>
+            <div class="delta up" id="statTodayDelta">↑ active</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon navy"><i class="fas fa-calendar-alt"></i></div>
+          <div class="stat-info">
+            <div class="label">Orders This Week</div>
+            <div class="value" id="statWeek">—</div>
+            <div class="delta" style="color:var(--grey-400)">Mon – today</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-dollar-sign"></i></div>
+          <div class="stat-info">
+            <div class="label">Revenue This Month</div>
+            <div class="value" id="statRevenue">—</div>
+            <div class="delta" id="statRevDelta" style="color:var(--grey-400);">vs target</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-folder-open"></i></div>
+          <div class="stat-info">
+            <div class="label">Open Orders</div>
+            <div class="value" id="statPending">—</div>
+            <div class="delta" style="color:var(--grey-400);">Not yet shipped</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="quick-actions">
+        <a href="sales-order.html" class="quick-action-card">
+          <span class="qa-icon"><i class="fas fa-plus-circle"></i></span>
+          <div class="qa-label">New Order</div>
+        </a>
+        <a href="account.html" class="quick-action-card">
+          <span class="qa-icon"><i class="fas fa-users"></i></span>
+          <div class="qa-label">My Customers</div>
+        </a>
+        <a href="account.html#orders" class="quick-action-card">
+          <span class="qa-icon"><i class="fas fa-search"></i></span>
+          <div class="qa-label">All Orders</div>
+        </a>
+        <a href="data-admin.html" class="quick-action-card">
+          <span class="qa-icon"><i class="fas fa-database"></i></span>
+          <div class="qa-label">Data Admin</div>
+        </a>
+        <a href="#" onclick="PP.showToast('Sales report coming soon', 'default'); return false;" class="quick-action-card">
+          <span class="qa-icon"><i class="fas fa-bullseye"></i></span>
+          <div class="qa-label">My Targets</div>
+        </a>
+      </div>
+
+      <!-- Two-col: Recent Orders + Order Status chart -->
+      <div class="two-col">
+
+        <!-- Recent Orders (rep's orders across all customers) -->
+        <div class="card">
+          <div class="card-header">
+            <h3>My Recent Orders</h3>
+            <button class="btn btn-ghost btn-sm" onclick="PP.exportOrders()" title="Export"><i class="fas fa-download"></i> Export</button>
+            <a href="account.html#orders" class="btn btn-ghost btn-sm">View all →</a>
+          </div>
+          <div class="card-body" style="padding-top:12px;">
+            <div class="table-wrap">
+              <table class="data-table" id="recentOrdersTable">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th class="text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="recentOrdersBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts column -->
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <div class="card">
+            <div class="card-header"><h3>Order Status</h3></div>
+            <div class="card-body">
+              <div class="donut-wrap" id="donutWrap"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Orders — Last 6 Months</h3></div>
+            <div class="card-body">
+              <div class="bar-chart" id="barChart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity timeline + Sales Performance -->
+      <div class="three-col">
+
+        <!-- Activity -->
+        <div class="card">
+          <div class="card-header"><h3>Recent Activity</h3></div>
+          <div class="card-body">
+            <div class="timeline" id="activityTimeline"></div>
+          </div>
+        </div>
+
+        <!-- Sales Performance / Territory Overview -->
+        <div class="card">
+          <div class="card-header"><h3>Sales Performance</h3></div>
+          <div class="card-body">
+            <div id="performanceSummary"></div>
+          </div>
+        </div>
+
+        <!-- Active Customers -->
+        <div class="card">
+          <div class="card-header"><h3>Active Customers</h3></div>
+          <div class="card-body" style="padding-top:12px;">
+            <div class="timeline" id="topCustomersList"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+<script src="db.js"></script>
+<script>
+let _pendingCount = 0;
+
+/* ---- Load session ---------------------------------------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const token = localStorage.getItem('pp_token');
+    const [bootstrap, dashboardSummary] = await Promise.all([
+      fetch('/api/bootstrap',          { headers: { Authorization: token ? `Bearer ${token}` : '' } }).then(r => r.json()),
+      fetch('/api/dashboard/summary',  { headers: { Authorization: token ? `Bearer ${token}` : '' } }).then(r => r.json())
+    ]);
+
+    const rep    = bootstrap.salesRep || PP.getSalesRep();
+    const orders = (bootstrap.salesOrders || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    /* Welcome greeting */
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('welcomeMsg').textContent = `${greeting}, ${rep.firstName || rep.name.split(' ')[0]}!`;
+    document.getElementById('todayDate').textContent  = PP.fmtDate(new Date().toISOString().slice(0,10));
+
+    /* Sidebar user */
+    const initials = rep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('userName').textContent   = rep.name;
+    document.getElementById('userRole').textContent   = rep.territory || rep.email || '';
+
+    /* Stat cards */
+    const s = dashboardSummary;
+    _pendingCount = s.pendingApprovals || 0;
+
+    document.getElementById('statToday').textContent   = s.ordersToday   || 0;
+    document.getElementById('statWeek').textContent    = s.ordersThisWeek || 0;
+    document.getElementById('statRevenue').textContent = PP.fmtCurrency(s.revenueThisMonth || 0);
+    document.getElementById('statPending').textContent = _pendingCount;
+    document.getElementById('notifBadge').textContent  = _pendingCount;
+    document.getElementById('pendingBadge').textContent = _pendingCount || '';
+
+    /* Revenue delta — show month-on-month order count instead of fake target % */
+    const prevMonth = new Date(); prevMonth.setMonth(prevMonth.getMonth() - 1);
+    const prevKey   = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2,'0')}`;
+    const prevRevenue = orders
+      .filter(o => (o.date || '').startsWith(prevKey))
+      .reduce((t, o) => t + (o.total || 0), 0);
+    const delta = s.revenueThisMonth - prevRevenue;
+    const deltaEl = document.getElementById('statRevDelta');
+    if (prevRevenue > 0) {
+      const pct = Math.round((delta / prevRevenue) * 100);
+      deltaEl.textContent = `${pct >= 0 ? '↑' : '↓'} ${Math.abs(pct)}% vs last month`;
+      deltaEl.className   = 'delta ' + (pct >= 0 ? 'up' : 'down');
+    } else {
+      deltaEl.textContent = `${s.ordersThisMonth || 0} orders this month`;
+      deltaEl.className   = 'delta';
+    }
+
+    /* Recent orders — most recent first */
+    const tbody = document.getElementById('recentOrdersBody');
+    orders.slice(0, 5).forEach(o => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><a href="account.html?order=${o.id}" class="order-id">${o.id}</a></td>
+        <td style="font-size:.82rem; color:var(--grey-600);">${o.customerName || o.customerId || '—'}</td>
+        <td>${PP.statusBadge(o.status)}</td>
+        <td class="text-right amount">${o.total > 0 ? PP.fmtCurrency(o.total) : '<span style="color:var(--grey-300)">—</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    buildDonut(orders);
+    buildBarChart(orders);
+    buildTimeline(rep, orders);
+    buildPerformanceSummary(s, orders, bootstrap.customers || []);
+    buildTopCustomers(orders);
+
+  } catch (error) {
+    console.error('Error loading dashboard data:', error);
+    PP.showToast('Failed to load dashboard data', 'error');
+  }
+});
+
+/* ---- Active Customers — from D365, ranked by orders -------- */
+async function buildTopCustomers(orders) {
+  const container = document.getElementById('topCustomersList');
+  container.innerHTML = '<div style="color:var(--grey-400);font-size:.82rem;padding:8px 0;">Loading customers…</div>';
+
+  // Count orders per customer account from real SharePoint orders
+  const orderCount = {};
+  (orders || []).forEach(o => {
+    const id = o.customerId || o.custAccount;
+    if (id) orderCount[id] = (orderCount[id] || 0) + 1;
+  });
+
+  // Get customers with orders from D365 (fast — uses server-side cache)
+  let d365Customers = [];
+  try {
+    const d = await fetch('/api/d365/customers?top=500').then(r => r.json());
+    d365Customers = d.value || [];
+  } catch (e) {
+    console.warn('D365 customer fetch failed', e);
+  }
+
+  // Merge: D365 customers that appear in SharePoint orders
+  const withOrders = d365Customers
+    .map(c => ({ ...c, _orders: orderCount[c.CustomerAccount] || 0 }))
+    .filter(c => c._orders > 0)
+    .sort((a, b) => b._orders - a._orders);
+
+  // If none match, show top D365 customers alphabetically
+  const display = withOrders.length > 0 ? withOrders : d365Customers.slice(0, 5);
+
+  container.innerHTML = '';
+  if (!display.length) {
+    container.innerHTML = '<p style="color:var(--grey-400);font-size:.85rem;">No customers found.</p>';
+    return;
+  }
+
+  display.slice(0, 5).forEach(c => {
+    const acct = c.CustomerAccount || '';
+    const name = c.OrganizationName || acct;
+    const div  = document.createElement('div');
+    div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grey-100);font-size:.85rem;cursor:pointer;';
+    div.onclick = () => { location.href = `account.html?customer=${encodeURIComponent(acct)}`; };
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:600;color:var(--navy);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+        <div style="font-size:.7rem;color:var(--grey-400);font-family:monospace;">${acct}${c.AddressCity ? ' · ' + c.AddressCity : ''}</div>
+      </div>
+      <span class="badge badge-open" style="font-size:.7rem;">${c._orders > 0 ? c._orders + ' order' + (c._orders > 1 ? 's' : '') : 'Active'}</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function buildDonut(orders) {
+  const counts  = { Open: 0, Confirmed: 0, Shipped: 0, Cancelled: 0 };
+  (orders || []).forEach(o => { 
+    const status = o.status || 'Open';
+    if (counts[status] !== undefined) counts[status]++; 
+    else counts['Open']++;
+  });
+  const total  = (orders || []).length || 1;
+  const colors = { Open: '#00a4a6', Confirmed: '#2980b9', Shipped: '#27ae60', Cancelled: '#9ba5b4' };
+
+  const radius = 36, cx = 50, cy = 50, stroke = 14;
+  const circ   = 2 * Math.PI * radius;
+  let offset   = 0, segments = '';
+  Object.entries(counts).forEach(([key, val]) => {
+    const pct  = total > 0 ? val / total : 0;
+    const dash = pct * circ;
+    segments += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none"
+      stroke="${colors[key]}" stroke-width="${stroke}"
+      stroke-dasharray="${dash} ${circ - dash}"
+      stroke-dashoffset="${-offset}" />`;
+    offset += dash;
+  });
+
+  document.getElementById('donutWrap').innerHTML = `
+    <div class="donut-svg-wrap">
+      <svg class="donut-svg" width="100" height="100" viewBox="0 0 100 100">${segments}</svg>
+      <div class="donut-center"><div class="dc-val">${total}</div><div class="dc-lbl">Orders</div></div>
+    </div>
+    <div class="donut-legend">
+      ${Object.entries(counts).map(([key, val]) => `
+        <div class="legend-item">
+          <div class="legend-dot" style="background:${colors[key]}"></div>
+          <span>${key} (${val})</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function buildBarChart(orders) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('en-AU', { month: 'short' });
+    const val = (orders || [])
+      .filter(o => (o.date || '').startsWith(key))
+      .reduce((s, o) => s + (o.total || 0), 0);
+    months.push({ label, val });
+  }
+  const max = Math.max(...months.map(m => m.val), 1);
+  const container = document.getElementById('barChart');
+  container.innerHTML = '';
+  months.forEach(m => {
+    const heightPct = (m.val / max) * 70;
+    const valStr = m.val >= 1000
+      ? `$${(m.val / 1000).toFixed(1)}k`
+      : m.val > 0 ? PP.fmtCurrency(m.val) : '$0';
+    container.innerHTML += `
+      <div class="bar-item">
+        <div class="bar-fill" style="height:${Math.max(heightPct, 2)}px; opacity:${m.val ? 1 : 0.2}"></div>
+        <div class="bar-label">${m.label}<br><strong style="color:var(--navy)">${valStr}</strong></div>
+      </div>`;
+  });
+}
+
+/* ---- Activity Timeline — real recent orders -------------- */
+function buildTimeline(rep, orders) {
+  const tl = document.getElementById('activityTimeline');
+  tl.innerHTML = '';
+
+  const recent = (orders || []).slice(0, 5);
+
+  if (recent.length === 0) {
+    tl.innerHTML = `<div class="timeline-item">
+      <div class="tl-dot grey"></div>
+      <div class="tl-content">
+        <div class="tl-title">No orders yet</div>
+        <div class="tl-desc">Orders placed from this portal will appear here</div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  recent.forEach(o => {
+    const cls  = o.status === 'Shipped' ? '' : o.status === 'Cancelled' ? 'grey' : 'orange';
+    const icon = '';
+    const amtStr = o.total > 0 ? ' · ' + PP.fmtCurrency(o.total) : '';
+    tl.innerHTML += `
+      <div class="timeline-item">
+        <div class="tl-dot ${cls}">${icon}</div>
+        <div class="tl-content">
+          <div class="tl-title">${o.id} — ${o.customerName || o.customerId || '—'}</div>
+          <div class="tl-desc">${o.status}${amtStr} · ${o.date ? PP.fmtDate(o.date) : 'Today'}</div>
+        </div>
+      </div>`;
+  });
+}
+
+/* ---- Sales Performance — real metrics only --------------- */
+function buildPerformanceSummary(s, orders, customers) {
+  const now      = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}`;
+  const yearKey  = String(now.getFullYear());
+
+  const monthOrders = (orders || []).filter(o => (o.date || '').startsWith(monthKey));
+  const ytdOrders   = (orders || []).filter(o => (o.date || '').startsWith(yearKey));
+
+  const avgOrder = monthOrders.length > 0
+    ? (s.revenueThisMonth || 0) / monthOrders.length
+    : 0;
+
+  // Top customer this month
+  const custCount = {};
+  monthOrders.forEach(o => {
+    const id = o.customerName || o.customerId || '—';
+    custCount[id] = (custCount[id] || 0) + 1;
+  });
+  const topCust = Object.entries(custCount).sort((a,b) => b[1] - a[1])[0];
+
+  // Bar showing revenue this month vs YTD daily rate
+  const dayOfMonth  = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const runRatePct  = s.revenueThisMonth > 0 && s.ytdRevenue > 0
+    ? Math.min(Math.round((s.revenueThisMonth / (s.ytdRevenue / (now.getMonth() + 1))) * 100), 150)
+    : 0;
+  const barClr = runRatePct >= 100 ? 'var(--teal)' : runRatePct >= 70 ? 'var(--warning)' : 'var(--danger)';
+
+  document.getElementById('performanceSummary').innerHTML = `
+    <div style="margin-bottom:18px;">
+      <div style="display:flex; justify-content:space-between; font-size:.8rem; color:var(--grey-400); margin-bottom:4px;">
+        <span>Revenue this month</span>
+        <span style="font-weight:600; color:var(--navy)">${PP.fmtCurrency(s.revenueThisMonth || 0)}</span>
+      </div>
+      <div class="target-bar-bg">
+        <div class="target-bar-fill" style="width:${Math.min(runRatePct,100)}%; background:${barClr};"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.75rem; color:var(--grey-400); margin-top:3px;">
+        <span>${monthOrders.length} order${monthOrders.length !== 1 ? 's' : ''} · day ${dayOfMonth}/${daysInMonth}</span>
+        <span>YTD: ${PP.fmtCurrency(s.ytdRevenue || 0)}</span>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">Orders this month</span>
+        <strong style="color:var(--navy)">${s.ordersThisMonth || 0}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">YTD orders</span>
+        <strong style="color:var(--navy)">${ytdOrders.length}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">Avg order value</span>
+        <strong style="color:var(--navy)">${avgOrder > 0 ? PP.fmtCurrency(avgOrder) : '—'}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">Top customer (month)</span>
+        <strong style="color:var(--navy); max-width:160px; text-align:right; font-size:.78rem;">${topCust ? topCust[0] : '—'}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">Active accounts</span>
+        <strong style="color:var(--navy)">${customers.length || 0}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:.85rem;">
+        <span style="color:var(--grey-600)">Open orders</span>
+        <strong style="color:var(--navy)">${s.pendingApprovals || 0}</strong>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--grey-100);">
+      <a href="account.html" class="btn btn-outline btn-sm" style="width:100%; justify-content:center;">
+        View My Customers →
+      </a>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

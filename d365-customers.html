@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D365 Customers — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ---- Stats strip ---- */
+    .stat-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .stat-icon.teal   { background: var(--teal-light); }
+    .stat-icon.navy   { background: rgba(30,58,95,.08); }
+    .stat-icon.orange { background: var(--orange-light); }
+    .stat-icon.green  { background: rgba(34,197,94,.1); }
+    .stat-val  { font-size: 1.5rem; font-weight: 700; color: var(--navy); line-height: 1; }
+    .stat-lbl  { font-size: .75rem; color: var(--grey-500); margin-top: 3px; }
+
+    /* ---- Toolbar ---- */
+    .page-toolbar {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 14px 18px;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .page-toolbar .search-bar { flex: 1; min-width: 200px; }
+    .page-toolbar select { padding: 9px 12px; border: 1px solid var(--grey-200); border-radius: 10px; font-size: .85rem; }
+
+    /* ---- Table ---- */
+    .customers-panel {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .panel-head {
+      padding: 14px 18px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-head h3 { flex: 1; font-size: .95rem; }
+
+    .cust-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .cust-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .cust-table td { padding: 10px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .cust-table tr:last-child td { border-bottom: none; }
+    .cust-table tr.data-row { cursor: pointer; transition: background var(--transition); }
+    .cust-table tr.data-row:hover td { background: var(--teal-light); }
+    .cust-table .acc-num { font-family: monospace; font-size: .78rem; color: var(--teal-dark); font-weight: 600; }
+    .cust-table .org-name { font-weight: 600; color: var(--navy); }
+    .cust-table .sub-text { font-size: .72rem; color: var(--grey-400); margin-top: 2px; }
+
+    /* ---- Pagination ---- */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; border-top: 1px solid var(--grey-200); font-size: .83rem;
+    }
+    .pagination .info { color: var(--grey-500); }
+    .pagination .btns { display: flex; gap: 6px; }
+
+    /* ---- Detail Modal ---- */
+    .detail-modal {
+      position: fixed; inset: 0; z-index: 500;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(15,25,46,.45); backdrop-filter: blur(2px);
+      padding: 16px;
+    }
+    .detail-modal.open { display: flex; }
+    .detail-box {
+      background: white; border-radius: var(--radius-lg);
+      width: 100%; max-width: 780px; max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(15,25,46,.25);
+    }
+    .detail-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .detail-avatar {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--teal-light); color: var(--teal-dark);
+      font-weight: 700; font-size: 1.2rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .detail-header h2 { font-size: 1.1rem; color: var(--navy); }
+    .detail-header .acc { font-size: .8rem; font-family: monospace; color: var(--teal); margin-top: 3px; }
+    .detail-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+    .detail-section { margin-bottom: 20px; }
+    .detail-section h4 {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--grey-400); margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid var(--grey-100);
+    }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .detail-field { }
+    .detail-field .lbl { font-size: .72rem; color: var(--grey-400); margin-bottom: 2px; }
+    .detail-field .val { font-size: .88rem; color: var(--navy); font-weight: 500; }
+    .detail-field .val.mono { font-family: monospace; color: var(--teal-dark); }
+    .detail-field.full { grid-column: span 2; }
+    .detail-footer {
+      padding: 14px 22px; border-top: 1px solid var(--grey-200);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    /* ---- States ---- */
+    .state-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 20px; color: var(--grey-400); text-align: center;
+    }
+    .state-box .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .state-box p { font-size: .9rem; max-width: 280px; line-height: 1.6; }
+    .state-box .hint { font-size: .78rem; color: var(--grey-300); margin-top: 6px; }
+
+    /* ---- Error banner ---- */
+    .error-banner {
+      background: var(--danger-bg); border: 1px solid var(--danger);
+      border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px;
+      display: none; align-items: flex-start; gap: 10px; font-size: .85rem;
+    }
+    .error-banner.show { display: flex; }
+    .error-banner .msg { color: var(--danger); flex: 1; }
+
+    @media (max-width: 900px) {
+      .stat-strip  { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-field.full { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">SR</div>
+      <div class="user-info">
+        <div class="name"  id="userName">Loading…</div>
+        <div class="role"  id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"      class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html"    class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="account.html"        class="nav-item"><i class="fas fa-users nav-icon"></i> Customers</a>
+      <a href="data-admin.html"     class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+      <div class="nav-section-label" style="margin-top:8px;">D365 F&amp;O</div>
+      <a href="d365-customers.html" class="nav-item active"><i class="fas fa-building nav-icon"></i> D365 Customers</a>
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">
+        D365 Customers
+        <span class="breadcrumb">/ Dynamics 365 F&amp;O</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="connectionBadge" class="badge" style="font-size:.75rem;"></span>
+        <button class="icon-btn" title="Refresh" onclick="loadCustomers(true)"><i class="fas fa-sync-alt"></i></button>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Error banner -->
+      <div class="error-banner" id="errorBanner">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+        <span class="msg" id="errorMsg"></span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-strip">
+        <div class="stat-card">
+          <div class="stat-icon teal"><i class="fas fa-building" style="color:var(--teal-dark);"></i></div>
+          <div><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Records loaded</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon navy"><i class="fas fa-file-alt" style="color:var(--navy);"></i></div>
+          <div><div class="stat-val" id="statPage">—</div><div class="stat-lbl">Current page</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>
+          <div><div class="stat-val" id="statActive">—</div><div class="stat-lbl">Active customers</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-globe" style="color:var(--orange);"></i></div>
+          <div><div class="stat-val" id="statEnv">DynaOne</div><div class="stat-lbl">Environment</div></div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="page-toolbar">
+        <div class="search-bar">
+          <span class="search-icon"><i class="fas fa-search"></i></span>
+          <input type="text" id="searchInput" placeholder="Search by organisation name or account number…"
+            autocomplete="off" onkeydown="if(event.key==='Enter') loadCustomers(true)" />
+        </div>
+        <select id="pageSizeSelect" onchange="loadCustomers(true)">
+          <option value="10">10 per page</option>
+          <option value="20" selected>20 per page</option>
+          <option value="50">50 per page</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Search</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSearch()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+
+      <!-- Customer Table -->
+      <div class="customers-panel">
+        <div class="panel-head">
+          <h3>Customer List — CustomersV3</h3>
+          <span class="badge badge-open" id="resultsBadge">Loading…</span>
+        </div>
+
+        <div id="tableWrap">
+          <div class="state-box">
+            <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
+            <p>Loading customers from Dynamics 365…</p>
+          </div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display:none;">
+          <span class="info" id="pageInfo">Showing 0 – 0</span>
+          <div class="btns">
+            <button class="btn btn-ghost btn-sm" id="btnPrev" onclick="prevPage()" disabled>← Prev</button>
+            <button class="btn btn-ghost btn-sm" id="btnNext" onclick="nextPage()">Next →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== CUSTOMER DETAIL MODAL ========================== -->
+<div class="detail-modal" id="detailModal" onclick="if(event.target===this) closeDetail()">
+  <div class="detail-box">
+    <div class="detail-header">
+      <div class="detail-avatar" id="detailAvatar">?</div>
+      <div style="flex:1;">
+        <h2 id="detailName">—</h2>
+        <div class="acc" id="detailAcc">—</div>
+      </div>
+      <div id="detailStatusBadge"></div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeDetail()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="detail-body">
+      <!-- Section: Identification -->
+      <div class="detail-section">
+        <h4>Identification</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Customer Account</div><div class="val mono" id="d-account">—</div></div>
+          <div class="detail-field"><div class="lbl">Customer Group</div><div class="val" id="d-group">—</div></div>
+          <div class="detail-field"><div class="lbl">Currency</div><div class="val mono" id="d-currency">—</div></div>
+          <div class="detail-field"><div class="lbl">Language</div><div class="val" id="d-lang">—</div></div>
+          <div class="detail-field"><div class="lbl">Invoice Account</div><div class="val mono" id="d-invoice-acc">—</div></div>
+          <div class="detail-field"><div class="lbl">Line of Business</div><div class="val" id="d-lob">—</div></div>
+        </div>
+      </div>
+
+      <!-- Section: Contact -->
+      <div class="detail-section">
+        <h4>Contact</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Email</div><div class="val" id="d-email">—</div></div>
+          <div class="detail-field"><div class="lbl">Phone</div><div class="val" id="d-phone">—</div></div>
+          <div class="detail-field"><div class="lbl">Fax</div><div class="val" id="d-fax">—</div></div>
+          <div class="detail-field"><div class="lbl">Contact Person ID</div><div class="val mono" id="d-contact">—</div></div>
+        </div>
+      </div>
+
+      <!-- Section: Address -->
+      <div class="detail-section">
+        <h4>Address</h4>
+        <div class="detail-grid">
+          <div class="detail-field full"><div class="lbl">Street</div><div class="val" id="d-street">—</div></div>
+          <div class="detail-field"><div class="lbl">City</div><div class="val" id="d-city">—</div></div>
+          <div class="detail-field"><div class="lbl">State / Province</div><div class="val" id="d-state">—</div></div>
+          <div class="detail-field"><div class="lbl">Postcode</div><div class="val mono" id="d-zip">—</div></div>
+          <div class="detail-field"><div class="lbl">Country</div><div class="val" id="d-country">—</div></div>
+        </div>
+      </div>
+
+      <!-- Section: Financial -->
+      <div class="detail-section">
+        <h4>Financial</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Payment Terms</div><div class="val" id="d-payment">—</div></div>
+          <div class="detail-field"><div class="lbl">Sales Tax Group</div><div class="val mono" id="d-tax">—</div></div>
+          <div class="detail-field"><div class="lbl">Credit Limit</div><div class="val" id="d-credit">—</div></div>
+          <div class="detail-field"><div class="lbl">Credit Limit Used</div><div class="val" id="d-credit-flag">—</div></div>
+          <div class="detail-field"><div class="lbl">Delivery Terms</div><div class="val" id="d-delivery">—</div></div>
+          <div class="detail-field"><div class="lbl">Default Warehouse</div><div class="val mono" id="d-warehouse">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-footer">
+      <button class="btn btn-ghost" onclick="closeDetail()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="newOrderForCustomer()"><i class="fas fa-shopping-cart"></i> New Order</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script>
+/* ============================================================
+   D365 Customers Page
+   Calls GET /api/d365/customers via our Node.js backend
+   ============================================================ */
+
+let currentSkip  = 0;
+let currentTop   = 20;
+let currentSearch = '';
+let currentCustomer = null;
+let loadedCount  = 0;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res  = await fetch('/api/bootstrap');
+    const data = await res.json();
+    const rep  = data.salesRep || {};
+    document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
+    document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
+    document.getElementById('userAvatar').textContent =
+      (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  } catch (_) {}
+
+  loadCustomers(true);
+});
+
+/* ---- Load customers from D365 API ----------------------- */
+async function loadCustomers(reset = false) {
+  if (reset) currentSkip = 0;
+  currentTop    = parseInt(document.getElementById('pageSizeSelect').value) || 20;
+  currentSearch = document.getElementById('searchInput').value.trim();
+
+  setLoading(true);
+  hideError();
+
+  try {
+    const params = new URLSearchParams({
+      search: currentSearch,
+      top:    currentTop,
+      skip:   currentSkip,
+    });
+
+    const res  = await fetch(`/api/d365/customers?${params}`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const customers = data.value || [];
+    loadedCount = customers.length;
+
+    renderTable(customers);
+    updateStats(customers);
+    updatePagination(customers.length);
+    updateConnectionBadge(true);
+
+  } catch (err) {
+    showError(err.message);
+    updateConnectionBadge(false);
+    renderEmpty('Connection Error', err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ---- Render table --------------------------------------- */
+function renderTable(customers) {
+  const wrap = document.getElementById('tableWrap');
+
+  if (customers.length === 0) {
+    renderEmpty('No customers found', currentSearch
+      ? `No results for "${currentSearch}". Try a different search.`
+      : 'No customers returned from D365.');
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const rows = customers.map((c, i) => {
+    const initials = (c.OrganizationName || c.CustomerAccount || '??')
+      .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const email = c.PrimaryContactEmail || '';
+    const phone = c.PrimaryContactPhone || '';
+    const city  = [c.AddressCity, c.AddressState].filter(Boolean).join(', ');
+    const safeC = JSON.stringify(c).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+
+    return `
+    <tr class="data-row" onclick='openDetail(${currentSkip + i})'>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--teal-light);color:var(--teal-dark);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+          <div>
+            <div class="org-name">${esc(c.OrganizationName || '—')}</div>
+            <div class="sub-text">${email || '—'}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="acc-num">${esc(c.CustomerAccount || '—')}</span></td>
+      <td>${esc(c.CustomerGroupId || '—')}</td>
+      <td>${esc(c.CurrencyCode || '—')}</td>
+      <td>${esc(city || '—')}</td>
+      <td>${esc(phone || '—')}</td>
+      <td>${esc(c.PaymentTermsName || '—')}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="cust-table">
+        <thead>
+          <tr>
+            <th>Organisation</th>
+            <th>Account #</th>
+            <th>Group</th>
+            <th>Currency</th>
+            <th>City / State</th>
+            <th>Phone</th>
+            <th>Payment Terms</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Store loaded customers for detail view
+  window._d365Customers = customers;
+  document.getElementById('pagination').style.display = 'flex';
+}
+
+function renderEmpty(title, msg) {
+  document.getElementById('tableWrap').innerHTML = `
+    <div class="state-box">
+      <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
+      <p><strong>${title}</strong></p>
+      <p class="hint">${msg}</p>
+    </div>`;
+}
+
+/* ---- Open detail modal ---------------------------------- */
+function openDetail(index) {
+  const c = (window._d365Customers || [])[index - currentSkip];
+  if (!c) return;
+  currentCustomer = c;
+
+  const initials = (c.OrganizationName || c.CustomerAccount || '??')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('detailAvatar').textContent = initials;
+  document.getElementById('detailName').textContent   = c.OrganizationName || '—';
+  document.getElementById('detailAcc').textContent    = c.CustomerAccount  || '—';
+
+  // Identification
+  set('d-account',    c.CustomerAccount);
+  set('d-group',      c.CustomerGroupId);
+  set('d-currency',   c.CurrencyCode);
+  set('d-lang',       c.LanguageId);
+  set('d-invoice-acc',c.InvoiceCustomerAccountNumber);
+  set('d-lob',        c.LineOfBusinessId);
+
+  // Contact
+  set('d-email',   c.PrimaryContactEmail);
+  set('d-phone',   c.PrimaryContactPhone);
+  set('d-fax',     c.PrimaryContactFax);
+  set('d-contact', c.ContactPersonId);
+
+  // Address
+  set('d-street',  c.AddressStreet);
+  set('d-city',    c.AddressCity);
+  set('d-state',   c.AddressState);
+  set('d-zip',     c.AddressZipCode);
+  set('d-country', c.AddressCountryRegionId);
+
+  // Financial
+  set('d-payment',      c.PaymentTermsName);
+  set('d-tax',          c.SalesTaxGroup);
+  set('d-credit',       c.CreditLimit != null ? PP.fmtCurrency(c.CreditLimit) : null);
+  set('d-credit-flag',  c.IsCreditLimitUsed != null ? (c.IsCreditLimitUsed ? 'Yes' : 'No') : null);
+  set('d-delivery',     c.DeliveryTermsCode);
+  set('d-warehouse',    c.WarehouseId);
+
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+
+function newOrderForCustomer() {
+  if (!currentCustomer) return;
+  // Pass customer to new order page via sessionStorage (D365 field names)
+  sessionStorage.setItem('d365_selected_customer', JSON.stringify({
+    CustomerAccount:     currentCustomer.CustomerAccount,
+    OrganizationName:    currentCustomer.OrganizationName    || '',
+    PrimaryContactEmail: currentCustomer.PrimaryContactEmail || '',
+    PrimaryContactPhone: currentCustomer.PrimaryContactPhone || '',
+    AddressStreet:       currentCustomer.AddressStreet       || '',
+    AddressCity:         currentCustomer.AddressCity         || '',
+    AddressState:        currentCustomer.AddressState        || '',
+    AddressZipCode:      currentCustomer.AddressZipCode      || '',
+    CustomerGroupId:     currentCustomer.CustomerGroupId     || '',
+    CurrencyCode:        currentCustomer.CurrencyCode        || '',
+    PaymentTermsName:    currentCustomer.PaymentTermsName    || '',
+    DeliveryTerms:       currentCustomer.DeliveryTerms       || '',
+  }));
+  window.location.href = 'sales-order.html';
+}
+
+/* ---- Pagination ----------------------------------------- */
+function prevPage() {
+  if (currentSkip <= 0) return;
+  currentSkip = Math.max(0, currentSkip - currentTop);
+  loadCustomers(false);
+}
+
+function nextPage() {
+  if (loadedCount < currentTop) return; // no more pages
+  currentSkip += currentTop;
+  loadCustomers(false);
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  loadCustomers(true);
+}
+
+/* ---- UI helpers ----------------------------------------- */
+function updateStats(customers) {
+  document.getElementById('statTotal').textContent  = customers.length;
+  document.getElementById('statPage').textContent   = Math.floor(currentSkip / currentTop) + 1;
+  document.getElementById('statActive').textContent = customers.length;
+  document.getElementById('resultsBadge').textContent =
+    `${customers.length} record${customers.length !== 1 ? 's' : ''}`;
+}
+
+function updatePagination(count) {
+  const from = currentSkip + 1;
+  const to   = currentSkip + count;
+  document.getElementById('pageInfo').textContent = `Showing ${from} – ${to}`;
+  document.getElementById('btnPrev').disabled = currentSkip === 0;
+  document.getElementById('btnNext').disabled = count < currentTop;
+}
+
+function updateConnectionBadge(ok) {
+  const el = document.getElementById('connectionBadge');
+  el.className = `badge ${ok ? 'badge-paid' : 'badge-overdue'}`;
+  el.textContent = ok ? 'D365 Connected' : 'D365 Disconnected';
+}
+
+function setLoading(on) {
+  document.getElementById('resultsBadge').textContent = on ? 'Loading…' : '';
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorBanner').classList.add('show');
+}
+
+function hideError() {
+  document.getElementById('errorBanner').classList.remove('show');
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val || '—';
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"]/g, s =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+}
+</script>
+</body>
+</html>

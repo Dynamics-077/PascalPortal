@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:5000/index.html\" -UseBasicParsing)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(node server.js)",
+      "PowerShell(Get-Process | Where-Object { $_.Id -eq 8680 })"
+    ]
+  }
+}

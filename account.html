@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customers — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ---- Customer Finder ---- */
+    .customer-finder {
+      background: white; border: 1.5px solid var(--teal);
+      border-radius: var(--radius-lg); padding: 14px 20px;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,164,166,.1);
+    }
+    .customer-finder label { font-weight: 600; color: var(--navy); font-size: .9rem; white-space: nowrap; }
+    .cf-wrap { position: relative; flex: 1; }
+    .cf-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: white; border: 1.5px solid var(--grey-200);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      z-index: 300; max-height: 320px; overflow-y: auto; display: none;
+    }
+    .cf-dropdown.open { display: block; }
+    .cf-option {
+      padding: 10px 14px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--grey-100); font-size: .85rem;
+      transition: background var(--transition);
+    }
+    .cf-option:last-child { border-bottom: none; }
+    .cf-option:hover { background: var(--teal-light); }
+    .cf-option .cf-avatar {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--teal-light); color: var(--teal-dark);
+      font-weight: 700; font-size: .72rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .cf-option .cf-name { font-weight: 600; color: var(--navy); }
+    .cf-option .cf-sub  { font-size: .72rem; color: var(--grey-400); font-family: monospace; }
+    .cf-loading { padding: 14px; text-align: center; color: var(--grey-400); font-size: .84rem; }
+
+    /* ---- Account header ---- */
+    .account-header-card {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      border-radius: var(--radius-lg); padding: 22px 28px;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 20px;
+      position: relative; overflow: hidden;
+    }
+    .account-header-card::before {
+      content: ''; position: absolute; right: -30px; top: -30px;
+      width: 180px; height: 180px; border-radius: 50%; background: rgba(0,164,166,.15);
+    }
+    .account-avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: var(--teal); display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 800; color: white; flex-shrink: 0;
+      position: relative; z-index: 1; box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    .account-info { flex: 1; position: relative; z-index: 1; }
+    .account-info h2 { color: white; margin-bottom: 5px; }
+    .account-info .meta { color: rgba(255,255,255,.7); font-size: .83rem; display: flex; gap: 14px; flex-wrap: wrap; }
+    .account-header-actions { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+
+    /* ---- Tabs ---- */
+    .main-tabs {
+      display: flex; gap: 2px; border-bottom: 2px solid var(--grey-200);
+      margin-bottom: 20px; overflow-x: auto;
+    }
+    .main-tab-btn {
+      padding: 10px 18px; font-size: .88rem; font-weight: 500;
+      color: var(--grey-600); background: none; border: none;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all var(--transition);
+      white-space: nowrap; display: flex; align-items: center; gap: 7px;
+    }
+    .main-tab-btn.active   { color: var(--teal); font-weight: 600; border-bottom-color: var(--teal); }
+    .main-tab-btn .tab-cnt { background: var(--grey-200); color: var(--grey-600); font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+    .main-tab-btn.active .tab-cnt { background: var(--teal-light); color: var(--teal-dark); }
+
+    /* ---- Profile grid ---- */
+    .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .detail-card  { background: white; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
+    .detail-card-header { padding: 13px 18px; border-bottom: 1px solid var(--grey-100); display: flex; align-items: center; gap: 8px; }
+    .detail-card-header h3 { flex: 1; font-size: .93rem; }
+    .detail-card-body { padding: 16px 18px; }
+    .detail-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 7px 0; border-bottom: 1px solid var(--grey-100); font-size: .86rem;
+    }
+    .detail-row:last-child { border: none; }
+    .detail-row .dr-label { color: var(--grey-400); font-size: .76rem; font-weight: 500; min-width: 130px; }
+    .detail-row .dr-value { color: var(--grey-800); font-weight: 500; text-align: right; word-break: break-all; }
+    .detail-row .dr-value.mono { font-family: monospace; color: var(--teal-dark); }
+
+    /* ---- Order filters ---- */
+    .status-filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .status-pill {
+      padding: 4px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600;
+      cursor: pointer; border: 1.5px solid var(--grey-200); background: white; color: var(--grey-600);
+      transition: all var(--transition);
+    }
+    .status-pill.active { background: var(--teal); border-color: var(--teal); color: white; }
+
+    /* ---- All customers table panel ---- */
+    .all-cust-panel {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .all-cust-panel .panel-head {
+      padding: 13px 18px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .all-cust-panel .panel-head h3 { flex: 1; font-size: .93rem; }
+    .cust-list-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .cust-list-table th {
+      background: var(--grey-50); color: var(--grey-500);
+      font-size: .71rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .cust-list-table td { padding: 9px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .cust-list-table tr.row-click { cursor: pointer; transition: background var(--transition); }
+    .cust-list-table tr.row-click:hover td { background: var(--teal-light); }
+    .cust-list-table tr:last-child td { border-bottom: none; }
+    .cust-acc  { font-family: monospace; font-size: .77rem; color: var(--teal-dark); font-weight: 600; }
+    .cust-name-main { font-weight: 600; color: var(--navy); }
+    .cust-sub  { font-size: .72rem; color: var(--grey-400); margin-top: 2px; }
+
+    /* ---- Pagination ---- */
+    .paging-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 18px; border-top: 1px solid var(--grey-200); font-size: .83rem;
+    }
+    .paging-bar .info { color: var(--grey-500); }
+    .paging-bar .btns { display: flex; gap: 6px; }
+
+    /* ---- Empty & loading states ---- */
+    .state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 20px; color: var(--grey-400); text-align: center; }
+    .state-box .icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .state-box p { font-size: .88rem; max-width: 280px; line-height: 1.6; }
+
+    @media (max-width: 900px) {
+      .profile-grid { grid-template-columns: 1fr; }
+      .account-header-card { flex-direction: column; align-items: flex-start; }
+      .account-header-actions { flex-direction: row; align-items: flex-start; }
+      .customer-finder { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">SR</div>
+      <div class="user-info">
+        <div class="name" id="userName">Loading...</div>
+        <div class="role" id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="account.html"     class="nav-item active"><i class="fas fa-users nav-icon"></i> Customers</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">
+        Customers
+        <span class="breadcrumb" id="topbarCrumb">/ All Customers</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="d365Badge" class="badge" style="font-size:.74rem;"></span>
+        <button class="icon-btn" title="Refresh" onclick="refreshAll()"><i class="fas fa-sync-alt"></i></button>
+        <a href="sales-order.html" class="btn btn-primary btn-sm">+ New Order</a>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- ===== CUSTOMER SEARCH FINDER ===================== -->
+      <div class="customer-finder">
+        <label>Find Customer:</label>
+        <div class="cf-wrap">
+          <div class="search-bar">
+            <span class="search-icon"></span>
+            <input type="text" id="cfInput"
+              placeholder="Type name or account number..."
+              autocomplete="off" />
+          </div>
+          <div class="cf-dropdown" id="cfDropdown"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="clearSelBtn"
+          onclick="clearSelection()" style="display:none; flex-shrink:0;">
+          <i class="fas fa-times"></i> Clear
+        </button>
+        <a href="sales-order.html" id="newOrderBtn"
+          class="btn btn-primary btn-sm" style="display:none; flex-shrink:0;">
+          <i class="fas fa-plus"></i> New Order
+        </a>
+      </div>
+
+      <!-- ===== STATE A: No customer selected — All Customers Table ===== -->
+      <div id="allCustomersState">
+
+        <div class="all-cust-panel">
+          <div class="panel-head">
+            <h3>All Customers — D365 F&amp;O</h3>
+            <span class="badge badge-open" id="allCustBadge">Loading...</span>
+          </div>
+
+          <div id="allCustTableWrap">
+            <div class="state-box">
+              <p>Loading customers from Dynamics 365...</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /allCustomersState -->
+
+      <!-- ===== STATE B: Customer selected — Detail + Tabs ===== -->
+      <div id="customerDetailState" style="display:none;">
+
+        <!-- Header card -->
+        <div id="accountHeaderCard" class="account-header-card"></div>
+
+        <!-- Tabs -->
+        <div class="main-tabs">
+          <button class="main-tab-btn active" data-tab="orders" onclick="switchTab('orders',this)">
+            <i class="fas fa-clipboard-list"></i> Orders <span class="tab-cnt" id="ordersCount">0</span>
+          </button>
+          <button class="main-tab-btn" data-tab="profile" onclick="switchTab('profile',this)">
+            <i class="fas fa-building"></i> Customer Details
+          </button>
+        </div>
+
+        <!-- ===== TAB: ORDERS ================================= -->
+        <div id="tab-orders">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+            <div class="status-filter-pills">
+              <span class="status-pill active" onclick="filterOrders('all',this)">All</span>
+              <span class="status-pill" onclick="filterOrders('Open',this)">Open</span>
+              <span class="status-pill" onclick="filterOrders('Confirmed',this)">Confirmed</span>
+              <span class="status-pill" onclick="filterOrders('Shipped',this)">Shipped</span>
+              <span class="status-pill" onclick="filterOrders('Cancelled',this)">Cancelled</span>
+            </div>
+            <div style="flex:1;"></div>
+            <button class="btn btn-outline btn-sm" onclick="PP.exportOrders(currentOrders)"><i class="fas fa-download"></i> Export</button>
+          </div>
+
+          <div class="card">
+            <div class="table-wrap">
+              <table class="data-table" id="ordersTable">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Customer Ref</th>
+                    <th>Delivery Date</th>
+                    <th>Status</th>
+                    <th class="text-right">Total (incl. GST)</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+              </table>
+            </div>
+            <div class="card-footer">
+              <span id="ordersLabel" style="font-size:.82rem; color:var(--grey-400);"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TAB: CUSTOMER DETAILS ====================== -->
+        <div id="tab-profile" style="display:none;">
+          <div class="profile-grid" id="profileGrid"></div>
+        </div>
+
+      </div><!-- /customerDetailState -->
+
+    </div><!-- /page-body -->
+  </main>
+</div>
+
+<!-- ===== ORDER DETAIL MODAL ============================= -->
+<div class="modal-overlay" id="orderDetailModal">
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-header">
+      <h3 id="orderDetailTitle">Order Details</h3>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="PP.closeModal('orderDetailModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="orderDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="PP.closeModal('orderDetailModal')">Close</button>
+      <button class="btn btn-outline btn-sm" style="border-color:var(--success); color:var(--success);"
+        onclick="PP.exportOrderLines(_detailOrder)"><i class="fas fa-file-export"></i> Export Lines</button>
+      <a href="sales-order.html" class="btn btn-primary btn-sm">+ New Order</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+<script>
+/* ============================================================
+   account.html — D365 Customers + SharePoint Orders
+   ============================================================ */
+
+let currentCustomer   = null;
+let currentOrders     = [];
+let currentFilter     = 'all';
+let _detailOrder      = null;
+let allOrders         = [];
+
+let skip = 0, lastCount = 0;
+
+// Debounce timer for search
+let _searchTimer = null;
+
+/* ---- Init ------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Load D365 customers immediately — no waiting for SharePoint
+  loadAllCustomers();
+  initSearchDropdown();
+
+  // Load bootstrap in parallel — only for rep info + orders (SharePoint may be slow)
+  fetch('/api/bootstrap')
+    .then(r => r.json())
+    .then(data => {
+      const rep = data.salesRep || {};
+      document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
+      document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
+      document.getElementById('userAvatar').textContent =
+        (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      allOrders = data.salesOrders || [];
+    })
+    .catch(err => console.error('Bootstrap error:', err));
+});
+
+/* ---- Load all customers (D365) --------------------------- */
+async function loadAllCustomers() {
+  const wrap  = document.getElementById('allCustTableWrap');
+  const badge = document.getElementById('allCustBadge');
+
+  badge.textContent = 'Loading...';
+  wrap.innerHTML = '<div class="state-box"><p>Connecting to Dynamics 365...</p></div>';
+
+  let customers = [];
+
+  try {
+    badge.textContent = 'Fetching...';
+    const res = await fetch('/api/d365/customers?top=500&skip=0');
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+
+    customers = Array.isArray(data.value) ? data.value : [];
+    badge.textContent = customers.length + ' customers';
+
+  } catch (err) {
+    wrap.innerHTML = '<div class="state-box"><p style="color:red">API Error: ' + err.message + '</p></div>';
+    badge.textContent = 'Error';
+    return;
+  }
+
+  if (customers.length === 0) {
+    wrap.innerHTML = '<div class="state-box"><p>No customers found.</p></div>';
+    return;
+  }
+
+  renderAllCustomersTable(customers);
+  updateD365Badge(true);
+}
+
+function renderAllCustomersTable(customers) {
+  window._d365TableData = customers;
+  const wrap = document.getElementById('allCustTableWrap');
+
+  // Build table using DOM API — avoids any innerHTML/template literal encoding issues
+  const table = document.createElement('table');
+  table.className = 'cust-list-table';
+
+  // Header
+  const thead = table.createTHead();
+  const hrow  = thead.insertRow();
+  ['Organisation', 'Account #', 'Group', 'Currency', 'City / State', 'Phone', 'Payment Terms']
+    .forEach(h => { const th = document.createElement('th'); th.textContent = h; hrow.appendChild(th); });
+
+  // Body
+  const tbody = table.createTBody();
+  customers.forEach((c, i) => {
+    const words    = (c.OrganizationName || c.CustomerAccount || 'XX').split(' ');
+    const initials = (words[0][0] || '') + (words[1] ? words[1][0] : '');
+    const city     = [c.AddressCity, c.AddressState].filter(Boolean).join(', ');
+
+    const tr = tbody.insertRow();
+    tr.className = 'row-click';
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => pickRow(i));
+
+    // Organisation cell with avatar
+    const td0 = tr.insertCell();
+    td0.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="width:34px;height:34px;border-radius:9px;background:var(--teal-light);color:var(--teal-dark);font-weight:700;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          initials.toUpperCase() +
+        '</div>' +
+        '<div>' +
+          '<div class="cust-name-main">' + (c.OrganizationName || '') + '</div>' +
+          '<div class="cust-sub">'       + (c.PrimaryContactEmail || '') + '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Remaining cells
+    const td1 = tr.insertCell(); td1.innerHTML = '<span class="cust-acc">' + (c.CustomerAccount || '') + '</span>';
+    const td2 = tr.insertCell(); td2.textContent = c.CustomerGroupId     || '';
+    const td3 = tr.insertCell(); td3.textContent = c.CurrencyCode        || '';
+    const td4 = tr.insertCell(); td4.textContent = city;
+    const td5 = tr.insertCell(); td5.textContent = c.PrimaryContactPhone || '';
+    const td6 = tr.insertCell(); td6.textContent = c.PaymentTermsName    || '';
+  });
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'table-wrap';
+  tableWrap.appendChild(table);
+
+  wrap.innerHTML = '';
+  wrap.appendChild(tableWrap);
+}
+
+function pickRow(i) {
+  const c = (window._d365TableData || [])[i];
+  if (c) selectCustomer(c);
+}
+
+/* ---- Search dropdown (live D365 search) ------------------ */
+function initSearchDropdown() {
+  const input    = document.getElementById('cfInput');
+  const dropdown = document.getElementById('cfDropdown');
+
+  input.addEventListener('input', function () {
+    clearTimeout(_searchTimer);
+    const q = this.value.trim();
+
+    if (q.length === 0) {
+      dropdown.classList.remove('open');
+      return;
+    }
+
+    // Show loading state immediately
+    dropdown.innerHTML = `<div class="cf-loading">Searching...</div>`;
+    dropdown.classList.add('open');
+
+    // Debounce 300ms then call D365 API
+    _searchTimer = setTimeout(async () => {
+      try {
+        const res  = await fetch(`/api/d365/customers?search=${encodeURIComponent(q)}&top=10`);
+        const data = await res.json();
+        const customers = data.value || [];
+
+        if (customers.length === 0) {
+          dropdown.innerHTML = `<div class="cf-loading">No results for "${q}"</div>`;
+          return;
+        }
+
+        dropdown.innerHTML = customers.map(c => {
+          const initials = (c.OrganizationName || c.CustomerAccount || '??')
+            .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+          const city = [c.AddressCity, c.AddressState].filter(Boolean).join(', ');
+          return `
+          <div class="cf-option" onclick='selectCustomer(${safeJson(c)})'>
+            <div class="cf-avatar">${initials}</div>
+            <div style="flex:1;">
+              <div class="cf-name">${esc(c.OrganizationName || '—')}</div>
+              <div class="cf-sub">${esc(c.CustomerAccount || '')} ${city ? 'Â· ' + esc(city) : ''}</div>
+            </div>
+            <span style="font-size:.72rem;color:var(--grey-400);flex-shrink:0;">${esc(c.CustomerGroupId||'')}</span>
+          </div>`;
+        }).join('');
+
+        dropdown.classList.add('open');
+      } catch (err) {
+        dropdown.innerHTML = `<div class="cf-loading" style="color:var(--danger);">Error: ${err.message}</div>`;
+      }
+    }, 300);
+  });
+
+  // Show recent / all on focus when empty
+  input.addEventListener('focus', function () {
+    if (!this.value && window._d365TableData) {
+      renderDropdownFromCache(window._d365TableData.slice(0, 8));
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.cf-wrap')) dropdown.classList.remove('open');
+  });
+}
+
+function renderDropdownFromCache(customers) {
+  const dropdown = document.getElementById('cfDropdown');
+  if (!customers.length) return;
+  dropdown.innerHTML = customers.map(c => {
+    const initials = (c.OrganizationName || c.CustomerAccount || '??')
+      .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    return `
+    <div class="cf-option" onclick='selectCustomer(${safeJson(c)})'>
+      <div class="cf-avatar">${initials}</div>
+      <div style="flex:1;">
+        <div class="cf-name">${esc(c.OrganizationName || '—')}</div>
+        <div class="cf-sub">${esc(c.CustomerAccount || '')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dropdown.classList.add('open');
+}
+
+/* ---- Select a customer ----------------------------------- */
+function selectCustomer(customer) {
+  currentCustomer = customer;
+
+  // Update search input + close dropdown
+  document.getElementById('cfInput').value = customer.OrganizationName || customer.CustomerAccount;
+  document.getElementById('cfDropdown').classList.remove('open');
+  document.getElementById('clearSelBtn').style.display = '';
+  document.getElementById('newOrderBtn').style.display = '';
+
+  // Switch states
+  document.getElementById('allCustomersState').style.display    = 'none';
+  document.getElementById('customerDetailState').style.display  = 'block';
+  document.getElementById('topbarCrumb').textContent = `/ ${customer.OrganizationName || customer.CustomerAccount}`;
+
+  // Build header
+  buildHeader(customer);
+
+  // Filter orders by CustomerAccount
+  const acct    = customer.CustomerAccount || '';
+  currentOrders = allOrders.filter(o =>
+    o.custAccount === acct || o.customerId === acct || o.customerAccount === acct
+  );
+  document.getElementById('ordersCount').textContent = currentOrders.length;
+
+  currentFilter = 'all';
+  document.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('.status-pill:first-child').classList.add('active');
+
+  renderOrders();
+
+  // Show profile tab with slim data first, then replace with full D365 detail
+  buildProfile(customer);
+  switchTab('orders', document.querySelector('[data-tab="orders"]'));
+
+  // Fetch full D365 record in background and refresh profile tab
+  fetch('/api/d365/customers/' + encodeURIComponent(customer.CustomerAccount))
+    .then(r => r.json())
+    .then(full => {
+      if (full && full.CustomerAccount) {
+        currentCustomer = full;
+        buildHeader(full);
+        buildProfile(full);
+      }
+    })
+    .catch(() => {});
+
+  // Store in session so New Order page can pre-fill (D365 field names)
+  sessionStorage.setItem('d365_selected_customer', JSON.stringify({
+    CustomerAccount:     customer.CustomerAccount,
+    OrganizationName:    customer.OrganizationName    || '',
+    PrimaryContactEmail: customer.PrimaryContactEmail || '',
+    PrimaryContactPhone: customer.PrimaryContactPhone || '',
+    AddressStreet:       customer.AddressStreet       || '',
+    AddressCity:         customer.AddressCity         || '',
+    AddressState:        customer.AddressState        || '',
+    AddressZipCode:      customer.AddressZipCode      || '',
+    CustomerGroupId:     customer.CustomerGroupId     || '',
+    CurrencyCode:        customer.CurrencyCode        || '',
+    PaymentTermsName:    customer.PaymentTermsName    || '',
+    DeliveryTerms:       customer.DeliveryTerms       || '',
+  }));
+}
+
+function clearSelection() {
+  currentCustomer = null;
+  document.getElementById('cfInput').value = '';
+  document.getElementById('clearSelBtn').style.display = 'none';
+  document.getElementById('newOrderBtn').style.display = 'none';
+  document.getElementById('allCustomersState').style.display   = 'block';
+  document.getElementById('customerDetailState').style.display = 'none';
+  document.getElementById('topbarCrumb').textContent = '/ All Customers';
+}
+
+function refreshAll() {
+  if (currentCustomer) {
+    selectCustomer(currentCustomer); // reload current customer
+  } else {
+    loadAllCustomers();
+  }
+}
+
+/* ---- Account header card --------------------------------- */
+function buildHeader(c) {
+  const initials = (c.OrganizationName || 'C').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const city = [c.AddressCity, c.AddressState].filter(Boolean).join(', ');
+  document.getElementById('accountHeaderCard').innerHTML = `
+    <div class="account-avatar">${initials}</div>
+    <div class="account-info">
+      <h2>${esc(c.OrganizationName || '—')}</h2>
+      <div class="meta">
+        <span>${esc(c.CustomerAccount || '—')}</span>
+        ${c.CustomerGroupId       ? `<span>${esc(c.CustomerGroupId)}</span>`       : ''}
+        ${c.CurrencyCode          ? `<span>${esc(c.CurrencyCode)}</span>`           : ''}
+        ${city                    ? `<span>${esc(city)}</span>`                     : ''}
+        ${c.PrimaryContactEmail   ? `<span>${esc(c.PrimaryContactEmail)}</span>`    : ''}
+        ${c.PrimaryContactPhone   ? `<span>${esc(c.PrimaryContactPhone)}</span>`   : ''}
+      </div>
+    </div>
+    <div class="account-header-actions">
+      <a href="sales-order.html" class="btn btn-primary btn-sm">New Order</a>
+    </div>
+  `;
+}
+
+/* ---- Tab switching --------------------------------------- */
+function switchTab(name, btn) {
+  document.querySelectorAll('#tab-orders, #tab-profile').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (btn) btn.classList.add('active');
+}
+
+/* ---- Orders tab ------------------------------------------ */
+function filterOrders(status, pill) {
+  currentFilter = status;
+  document.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+  if (pill) pill.classList.add('active');
+  renderOrders();
+}
+
+function renderOrders() {
+  let orders = currentFilter === 'all'
+    ? [...currentOrders]
+    : currentOrders.filter(o => o.status === currentFilter);
+
+  const tbody = document.getElementById('ordersBody');
+  tbody.innerHTML = '';
+
+  if (orders.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--grey-400);">No orders found</td></tr>`;
+    document.getElementById('ordersLabel').textContent = '0 orders';
+    return;
+  }
+
+  orders.forEach(o => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => showOrderDetail(o);
+    tr.innerHTML = `
+      <td><span class="order-id">${esc(o.id || o.salesId || '—')}</span></td>
+      <td>${PP.fmtDate(o.date || o.createdDateTime)}</td>
+      <td style="color:var(--grey-600);font-size:.82rem;">${esc(o.reference || '—')}</td>
+      <td>${PP.fmtDate(o.deliveryDate)}</td>
+      <td>${PP.statusBadge(o.status)}</td>
+      <td class="text-right amount">${PP.fmtCurrency((o.total||0)*1.1)}</td>
+      <td class="text-center">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showOrderDetail(${safeJson(o)})">View â†’</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('ordersLabel').textContent =
+    `${orders.length} order${orders.length !== 1 ? 's' : ''}`;
+}
+
+function showOrderDetail(order) {
+  _detailOrder = order;
+  document.getElementById('orderDetailTitle').textContent = `Order ${order.id || order.salesId}`;
+  const lines = order.lines || [];
+  const linesHtml = lines.length > 0 ? `
+    <table class="data-table" style="margin-top:10px;font-size:.82rem;">
+      <thead><tr><th>#</th><th>Item</th><th>Product</th><th class="text-center">Qty</th>
+        <th class="text-right">Price</th><th class="text-right">Disc</th>
+        <th class="text-right">Net</th><th>Type</th></tr></thead>
+      <tbody>
+        ${lines.map(l => `<tr>
+          <td style="color:var(--grey-400)">${l.lineNo}</td>
+          <td style="font-family:monospace;font-size:.75rem;">${esc(l.itemNo||'—')}</td>
+          <td>${esc(l.name||'—')}</td>
+          <td class="text-center">${l.qty}</td>
+          <td class="text-right">${PP.fmtCurrency(l.price)}</td>
+          <td class="text-right">${l.discount ? l.discount+'%' : '—'}</td>
+          <td class="text-right"><strong>${PP.fmtCurrency(PP.calcNet(l.price,l.qty,l.discount))}</strong></td>
+          <td><span class="badge badge-open" style="font-size:.7rem;">${esc(l.deliveryType||'Stock')}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : `<p style="color:var(--grey-400);margin-top:10px;">No line details available.</p>`;
+
+  document.getElementById('orderDetailBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+      <div class="eg-item"><div class="eg-label">Order ID</div><div class="eg-value" style="font-family:monospace;">${esc(order.id||order.salesId)}</div></div>
+      <div class="eg-item"><div class="eg-label">Customer</div><div class="eg-value">${esc(order.customerName||currentCustomer?.OrganizationName||'—')}</div></div>
+      <div class="eg-item"><div class="eg-label">Date</div><div class="eg-value">${PP.fmtDate(order.date)}</div></div>
+      <div class="eg-item"><div class="eg-label">Status</div><div class="eg-value">${PP.statusBadge(order.status)}</div></div>
+      <div class="eg-item"><div class="eg-label">Delivery Date</div><div class="eg-value">${PP.fmtDate(order.deliveryDate)}</div></div>
+      <div class="eg-item"><div class="eg-label">Ref / PO</div><div class="eg-value">${esc(order.reference||'—')}</div></div>
+      <div class="eg-item"><div class="eg-label">Total (incl.GST)</div>
+        <div class="eg-value" style="color:var(--teal);font-weight:700;">${PP.fmtCurrency((order.total||0)*1.1)}</div>
+      </div>
+    </div>
+    <h4 style="margin-bottom:6px;">Order Lines</h4>${linesHtml}`;
+  PP.openModal('orderDetailModal');
+}
+
+/* ---- Profile tab ----------------------------------------- */
+function buildProfile(c) {
+  const df = (val) => esc(val || '—');
+  const row = (lbl, val, mono=false) =>
+    `<div class="detail-row">
+       <span class="dr-label">${lbl}</span>
+       <span class="dr-value${mono?' mono':''}">${df(val)}</span>
+     </div>`;
+
+  // Normalise field names — handle both slim cached object and full D365 object
+  const currency     = c.SalesCurrencyCode || c.CurrencyCode        || '';
+  const payTerms     = c.PaymentTerms      || c.PaymentTermsName    || '';
+  const delivTerms   = c.DeliveryTerms     || c.DeliveryTermsCode   || '';
+  const invoiceAcct  = c.InvoiceAccount    || c.InvoiceCustomerAccountNumber || '';
+  const creditEnf    = c.CreditLimitIsMandatory || c.IsCreditLimitUsed;
+  const creditEnfStr = creditEnf == null ? null : (creditEnf === 'Yes' || creditEnf === true ? 'Yes' : 'No');
+  const creditLimStr = (c.CreditLimit != null && c.CreditLimit !== '') ? PP.fmtCurrency(c.CreditLimit) : null;
+
+  document.getElementById('profileGrid').innerHTML = `
+    <div class="detail-card">
+      <div class="detail-card-header"><h3>Identification</h3></div>
+      <div class="detail-card-body">
+        ${row('Account #',        c.CustomerAccount,   true)}
+        ${row('Organisation',     c.OrganizationName)}
+        ${row('Customer Group',   c.CustomerGroupId)}
+        ${row('Currency',         currency,            true)}
+        ${row('Language',         c.LanguageId)}
+        ${row('Invoice Account',  invoiceAcct,         true)}
+        ${row('Line of Business', c.LineOfBusinessId)}
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header"><h3>Contact</h3></div>
+      <div class="detail-card-body">
+        ${row('Email',      c.PrimaryContactEmail)}
+        ${row('Phone',      c.PrimaryContactPhone)}
+        ${row('Fax',        c.PrimaryContactFax)}
+        ${row('Contact ID', c.ContactPersonId,   true)}
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header"><h3>Address</h3></div>
+      <div class="detail-card-body">
+        ${row('Street',   c.AddressStreet)}
+        ${row('City',     c.AddressCity)}
+        ${row('State',    c.AddressState)}
+        ${row('Postcode', c.AddressZipCode,         true)}
+        ${row('Country',  c.AddressCountryRegionId, true)}
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header"><h3>Financial</h3></div>
+      <div class="detail-card-body">
+        ${row('Payment Terms',  payTerms)}
+        ${row('Tax Group',      c.SalesTaxGroup,  true)}
+        ${row('Credit Limit',   creditLimStr)}
+        ${row('Credit Enforced',creditEnfStr)}
+        ${row('Delivery Terms', delivTerms,       true)}
+        ${row('Warehouse',      c.WarehouseId,    true)}
+      </div>
+    </div>
+
+    <div class="detail-card" style="grid-column:span 2;">
+      <div class="detail-card-header"><h3>Order Summary (from portal)</h3></div>
+      <div class="detail-card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+        ${[['Total Orders',currentOrders.length],
+           ['Open',        currentOrders.filter(o=>o.status==='Open').length],
+           ['Confirmed',   currentOrders.filter(o=>o.status==='Confirmed').length],
+           ['Shipped',     currentOrders.filter(o=>o.status==='Shipped').length],
+           ['Cancelled',   currentOrders.filter(o=>o.status==='Cancelled').length]]
+          .map(([lbl,val]) => `
+          <div style="background:var(--grey-50);border-radius:10px;padding:12px 14px;text-align:center;">
+            <div style="font-size:1.4rem;font-weight:700;color:var(--navy);">${val}</div>
+            <div style="font-size:.75rem;color:var(--grey-500);margin-top:2px;">${lbl}</div>
+          </div>`).join('')}
+        <div style="background:var(--teal-light);border-radius:10px;padding:12px 14px;text-align:center;">
+          <div style="font-size:1.15rem;font-weight:700;color:var(--teal);">${PP.fmtCurrency(currentOrders.reduce((s,o)=>s+(o.total||0)*1.1,0))}</div>
+          <div style="font-size:.75rem;color:var(--teal-dark);margin-top:2px;">Total Value (incl.GST)</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---- Helpers --------------------------------------------- */
+function updateD365Badge(ok) {
+  const el = document.getElementById('d365Badge');
+  el.className = `badge ${ok ? 'badge-paid' : 'badge-overdue'}`;
+  el.textContent = ok ? 'D365 Live' : 'D365 Error';
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"]/g, s =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+}
+
+function safeJson(obj) {
+  return JSON.stringify(obj)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
+
