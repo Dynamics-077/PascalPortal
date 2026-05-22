@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Products — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ---- Stats strip ---- */
+    .stat-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .stat-icon.teal   { background: var(--teal-light); }
+    .stat-icon.navy   { background: rgba(30,58,95,.08); }
+    .stat-icon.orange { background: var(--orange-light); }
+    .stat-icon.green  { background: rgba(34,197,94,.1); }
+    .stat-val  { font-size: 1.5rem; font-weight: 700; color: var(--navy); line-height: 1; }
+    .stat-lbl  { font-size: .75rem; color: var(--grey-500); margin-top: 3px; }
+
+    /* ---- Search bar ---- */
+    .page-search {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .page-search .search-bar { width: 100%; }
+
+    /* ---- Table ---- */
+    .products-panel {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .panel-head {
+      padding: 14px 18px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-head h3 { flex: 1; font-size: .95rem; }
+
+    .prod-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .prod-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .prod-table td { padding: 10px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .prod-table tr:last-child td { border-bottom: none; }
+    .prod-table tr.data-row { cursor: pointer; transition: background var(--transition); }
+    .prod-table tr.data-row:hover td { background: var(--teal-light); }
+    .prod-table .item-num { font-family: monospace; font-size: .78rem; color: var(--teal-dark); font-weight: 600; }
+    .prod-table .prod-name { font-weight: 600; color: var(--navy); }
+    .prod-table .sub-text { font-size: .72rem; color: var(--grey-400); margin-top: 2px; }
+    .prod-table .price-val { font-family: monospace; font-size: .82rem; color: var(--navy); font-weight: 600; }
+
+    /* ---- Pagination ---- */
+    .pagination {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      padding: 16px 18px; border-top: 1px solid var(--grey-200);
+    }
+    .pagination .info {
+      font-size: .82rem; color: var(--grey-500);
+      min-width: 130px; text-align: center;
+    }
+    .pg-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 28px; border-radius: 20px; font-size: .82rem; font-weight: 600;
+      background: var(--grey-50); border: 1px solid var(--grey-200); color: var(--grey-600);
+      cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+      line-height: 1;
+    }
+    .pg-btn:hover:not(:disabled) {
+      background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark);
+    }
+    .pg-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ---- Detail Modal ---- */
+    .detail-modal {
+      position: fixed; inset: 0; z-index: 500;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(15,25,46,.45); backdrop-filter: blur(2px);
+      padding: 16px;
+    }
+    .detail-modal.open { display: flex; }
+    .detail-box {
+      background: white; border-radius: var(--radius-lg);
+      width: 100%; max-width: 780px; max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(15,25,46,.25);
+    }
+    .detail-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .detail-avatar {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--orange-light); color: var(--orange);
+      font-weight: 700; font-size: 1.2rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .detail-header h2 { font-size: 1.1rem; color: var(--navy); }
+    .detail-header .acc { font-size: .8rem; font-family: monospace; color: var(--teal); margin-top: 3px; }
+    .detail-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+    .detail-section { margin-bottom: 20px; }
+    .detail-section h4 {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--grey-400); margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid var(--grey-100);
+    }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .detail-field .lbl { font-size: .72rem; color: var(--grey-400); margin-bottom: 2px; }
+    .detail-field .val { font-size: .88rem; color: var(--navy); font-weight: 500; }
+    .detail-field .val.mono { font-family: monospace; color: var(--teal-dark); }
+    .detail-field .val.price { font-family: monospace; color: var(--navy); font-size: 1rem; font-weight: 700; }
+    .detail-field.full { grid-column: span 2; }
+    .detail-footer {
+      padding: 14px 22px; border-top: 1px solid var(--grey-200);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    /* ---- States ---- */
+    .state-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 20px; color: var(--grey-400); text-align: center;
+    }
+    .state-box .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .state-box p { font-size: .9rem; max-width: 280px; line-height: 1.6; }
+    .state-box .hint { font-size: .78rem; color: var(--grey-300); margin-top: 6px; }
+
+    /* ---- Error banner ---- */
+    .error-banner {
+      background: var(--danger-bg); border: 1px solid var(--danger);
+      border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px;
+      display: none; align-items: flex-start; gap: 10px; font-size: .85rem;
+    }
+    .error-banner.show { display: flex; }
+    .error-banner .msg { color: var(--danger); flex: 1; }
+
+    @media (max-width: 900px) {
+      .stat-strip  { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-field.full { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">SR</div>
+      <div class="user-info">
+        <div class="name"  id="userName">Loading…</div>
+        <div class="role"  id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"      class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html"    class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="data-admin.html"     class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+      <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
+      <a href="customers.html" class="nav-item"><i class="fas fa-building nav-icon"></i> Customers</a>
+      <a href="products.html"  class="nav-item active"><i class="fas fa-box nav-icon"></i> Products</a>
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">
+        Products
+        <span class="breadcrumb">/ Dynamics 365 F&amp;O</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="connectionBadge" class="badge" style="font-size:.75rem;"></span>
+        <button class="icon-btn" title="Refresh" onclick="loadProducts(true)"><i class="fas fa-sync-alt"></i></button>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Error banner -->
+      <div class="error-banner" id="errorBanner">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+        <span class="msg" id="errorMsg"></span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-strip">
+        <div class="stat-card">
+          <div class="stat-icon teal"><i class="fas fa-box" style="color:var(--teal-dark);"></i></div>
+          <div><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Records loaded</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon navy"><i class="fas fa-file-alt" style="color:var(--navy);"></i></div>
+          <div><div class="stat-val" id="statPage">—</div><div class="stat-lbl">Current page</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-tags" style="color:var(--orange);"></i></div>
+          <div><div class="stat-val" id="statShown">—</div><div class="stat-lbl">Products shown</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-globe" style="color:#16a34a;"></i></div>
+          <div><div class="stat-val" id="statEnv">DynaOne</div><div class="stat-lbl">Environment</div></div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="page-search">
+        <div class="search-bar">
+          <span class="search-icon"><i class="fas fa-search"></i></span>
+          <input type="text" id="searchInput" placeholder="Search by product name or item number…"
+            autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Products Table -->
+      <div class="products-panel">
+        <div class="panel-head">
+          <h3>Product List — ReleasedProductsV2</h3>
+          <span class="badge badge-open" id="resultsBadge">Loading…</span>
+        </div>
+
+        <div id="tableWrap">
+          <div class="state-box">
+            <div class="icon"><i class="fas fa-box" style="color:var(--teal);"></i></div>
+            <p>Loading products from Dynamics 365…</p>
+          </div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display:none;">
+          <button class="pg-btn" id="btnPrev" onclick="prevPage()" disabled><i class="fas fa-chevron-left" style="font-size:.7rem;"></i> Prev</button>
+          <span class="info" id="pageInfo">Showing 0 – 0</span>
+          <button class="pg-btn" id="btnNext" onclick="nextPage()">Next <i class="fas fa-chevron-right" style="font-size:.7rem;"></i></button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== PRODUCT DETAIL MODAL ========================== -->
+<div class="detail-modal" id="detailModal" onclick="if(event.target===this) closeDetail()">
+  <div class="detail-box">
+    <div class="detail-header">
+      <div class="detail-avatar" id="detailAvatar"><i class="fas fa-box"></i></div>
+      <div style="flex:1;">
+        <h2 id="detailName">—</h2>
+        <div class="acc" id="detailItemNum">—</div>
+      </div>
+      <div id="detailTypeBadge"></div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeDetail()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="detail-body">
+      <!-- Section: Identification -->
+      <div class="detail-section">
+        <h4>Identification</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Item Number</div><div class="val mono" id="d-item-num">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Number</div><div class="val mono" id="d-prod-num">—</div></div>
+          <div class="detail-field"><div class="lbl">Search Name</div><div class="val" id="d-search-name">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Group</div><div class="val" id="d-prod-group">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Type</div><div class="val" id="d-prod-type">—</div></div>
+          <div class="detail-field"><div class="lbl">Data Area</div><div class="val mono" id="d-data-area">—</div></div>
+        </div>
+      </div>
+
+      <!-- Section: Pricing -->
+      <div class="detail-section">
+        <h4>Pricing</h4>
+        <div class="detail-grid">
+          <div class="detail-field">
+            <div class="lbl">Sales Price</div>
+            <div class="val price" id="d-sales-price">—</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Purchase Price</div>
+            <div class="val price" id="d-purchase-price">—</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Unit Cost</div>
+            <div class="val price" id="d-unit-cost">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Units -->
+      <div class="detail-section">
+        <h4>Units</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Sales Unit</div><div class="val mono" id="d-sales-unit">—</div></div>
+          <div class="detail-field"><div class="lbl">Inventory Unit</div><div class="val mono" id="d-inv-unit">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-footer">
+      <button class="btn btn-ghost" onclick="closeDetail()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="newOrderWithProduct()"><i class="fas fa-shopping-cart"></i> New Order</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script>
+/* ============================================================
+   D365 Products Page
+   Calls GET /api/d365/products via our Node.js backend
+   ============================================================ */
+
+let currentSkip    = 0;
+let currentTop     = 50;
+let currentSearch  = '';
+let currentProduct = null;
+let loadedCount    = 0;
+let _searchTimer   = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res  = await fetch('/api/bootstrap');
+    const data = await res.json();
+    const rep  = data.salesRep || {};
+    document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
+    document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
+    document.getElementById('userAvatar').textContent =
+      (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  } catch (_) {}
+
+  document.getElementById('searchInput').addEventListener('input', function () {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => loadProducts(true), 350);
+  });
+
+  loadProducts(true);
+});
+
+/* ---- Load products from D365 API ----------------------- */
+async function loadProducts(reset = false) {
+  if (reset) currentSkip = 0;
+  currentSearch = document.getElementById('searchInput').value.trim();
+
+  setLoading(true);
+  hideError();
+
+  try {
+    const params = new URLSearchParams({
+      search: currentSearch,
+      top:    currentTop,
+      skip:   currentSkip,
+    });
+
+    const res  = await fetch(`/api/d365/products?${params}`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const products = data.value || [];
+    loadedCount = products.length;
+
+    renderTable(products);
+    updateStats(products);
+    updatePagination(products.length);
+    updateConnectionBadge(true);
+
+  } catch (err) {
+    showError(err.message);
+    updateConnectionBadge(false);
+    renderEmpty('Connection Error', err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ---- Render table --------------------------------------- */
+function renderTable(products) {
+  const wrap = document.getElementById('tableWrap');
+
+  if (products.length === 0) {
+    renderEmpty('No products found', currentSearch
+      ? `No results for "${currentSearch}". Try a different search.`
+      : 'No products returned from D365.');
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const rows = products.map((p, i) => {
+    const initials = (p.SearchName || p.ItemNumber || '??')
+      .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const price = p.SalesPrice > 0 ? `$${Number(p.SalesPrice).toFixed(2)}` : '—';
+    const unit  = p.SalesUnitSymbol || 'ea';
+
+    return `
+    <tr class="data-row" onclick="openDetail(${currentSkip + i})">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--orange-light);color:var(--orange);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+          <div>
+            <div class="prod-name">${esc(p.SearchName || p.ItemNumber || '—')}</div>
+            <div class="sub-text">${esc(p.ProductGroupId || '—')}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="item-num">${esc(p.ItemNumber || '—')}</span></td>
+      <td>${esc(p.ProductGroupId || '—')}</td>
+      <td>${esc(p.ProductType || '—')}</td>
+      <td><span class="price-val">${price}</span></td>
+      <td>${esc(unit)}</td>
+      <td>${esc(p.dataAreaId || '—')}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="prod-table">
+        <thead>
+          <tr>
+            <th>Product Name</th>
+            <th>Item #</th>
+            <th>Group</th>
+            <th>Type</th>
+            <th>Sales Price</th>
+            <th>Unit</th>
+            <th>Data Area</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  window._d365Products = products;
+  document.getElementById('pagination').style.display = 'flex';
+}
+
+function renderEmpty(title, msg) {
+  document.getElementById('tableWrap').innerHTML = `
+    <div class="state-box">
+      <div class="icon"><i class="fas fa-box" style="color:var(--teal);"></i></div>
+      <p><strong>${title}</strong></p>
+      <p class="hint">${msg}</p>
+    </div>`;
+}
+
+/* ---- Open detail modal ---------------------------------- */
+function openDetail(index) {
+  const p = (window._d365Products || [])[index - currentSkip];
+  if (!p) return;
+  currentProduct = p;
+
+  const initials = (p.SearchName || p.ItemNumber || '??')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('detailAvatar').textContent   = initials;
+  document.getElementById('detailName').textContent     = p.SearchName || p.ItemNumber || '—';
+  document.getElementById('detailItemNum').textContent  = p.ItemNumber || '—';
+
+  const typeBadge = document.getElementById('detailTypeBadge');
+  typeBadge.innerHTML = p.ProductType
+    ? `<span class="badge badge-open">${esc(p.ProductType)}</span>`
+    : '';
+
+  // Identification
+  set('d-item-num',    p.ItemNumber);
+  set('d-prod-num',    p.ProductNumber);
+  set('d-search-name', p.SearchName);
+  set('d-prod-group',  p.ProductGroupId);
+  set('d-prod-type',   p.ProductType);
+  set('d-data-area',   p.dataAreaId);
+
+  // Pricing
+  setPrice('d-sales-price',    p.SalesPrice);
+  setPrice('d-purchase-price', p.PurchasePrice);
+  setPrice('d-unit-cost',      p.UnitCost);
+
+  // Units
+  set('d-sales-unit', p.SalesUnitSymbol);
+  set('d-inv-unit',   p.InventoryUnitSymbol);
+
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+
+function newOrderWithProduct() {
+  if (!currentProduct) return;
+  sessionStorage.setItem('d365_selected_product', JSON.stringify({
+    ItemNumber:      currentProduct.ItemNumber      || '',
+    SearchName:      currentProduct.SearchName      || '',
+    ProductGroupId:  currentProduct.ProductGroupId  || '',
+    SalesPrice:      currentProduct.SalesPrice      || 0,
+    SalesUnitSymbol: currentProduct.SalesUnitSymbol || 'ea',
+  }));
+  window.location.href = 'sales-order.html';
+}
+
+/* ---- Pagination ----------------------------------------- */
+function prevPage() {
+  if (currentSkip <= 0) return;
+  currentSkip = Math.max(0, currentSkip - currentTop);
+  loadProducts(false);
+}
+
+function nextPage() {
+  if (loadedCount < currentTop) return;
+  currentSkip += currentTop;
+  loadProducts(false);
+}
+
+
+/* ---- UI helpers ----------------------------------------- */
+function updateStats(products) {
+  document.getElementById('statTotal').textContent = products.length;
+  document.getElementById('statPage').textContent  = Math.floor(currentSkip / currentTop) + 1;
+  document.getElementById('statShown').textContent = products.length;
+  document.getElementById('resultsBadge').textContent =
+    `${products.length} record${products.length !== 1 ? 's' : ''}`;
+}
+
+function updatePagination(count) {
+  const from = currentSkip + 1;
+  const to   = currentSkip + count;
+  document.getElementById('pageInfo').textContent = `Showing ${from} – ${to}`;
+  document.getElementById('btnPrev').disabled = currentSkip === 0;
+  document.getElementById('btnNext').disabled = count < currentTop;
+}
+
+function updateConnectionBadge(ok) {
+  const el = document.getElementById('connectionBadge');
+  el.className = `badge ${ok ? 'badge-paid' : 'badge-overdue'}`;
+  el.textContent = ok ? 'D365 Connected' : 'D365 Disconnected';
+}
+
+function setLoading(on) {
+  document.getElementById('resultsBadge').textContent = on ? 'Loading…' : '';
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorBanner').classList.add('show');
+}
+
+function hideError() {
+  document.getElementById('errorBanner').classList.remove('show');
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val || '—';
+}
+
+function setPrice(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = (val != null && val !== 0 && val !== '')
+    ? `$${Number(val).toFixed(2)}`
+    : '—';
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"]/g, s =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+}
+</script>
+</body>
+</html>

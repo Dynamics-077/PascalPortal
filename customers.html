@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>D365 Customers — Pascal Press Sales Portal</title>
+  <title>Customers — Pascal Press Sales Portal</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
@@ -29,15 +29,13 @@
     .stat-val  { font-size: 1.5rem; font-weight: 700; color: var(--navy); line-height: 1; }
     .stat-lbl  { font-size: .75rem; color: var(--grey-500); margin-top: 3px; }
 
-    /* ---- Toolbar ---- */
-    .page-toolbar {
+    /* ---- Search bar ---- */
+    .page-search {
       background: white; border: 1px solid var(--grey-200);
       border-radius: var(--radius-lg); padding: 14px 18px;
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 16px; flex-wrap: wrap;
+      margin-bottom: 16px;
     }
-    .page-toolbar .search-bar { flex: 1; min-width: 200px; }
-    .page-toolbar select { padding: 9px 12px; border: 1px solid var(--grey-200); border-radius: 10px; font-size: .85rem; }
+    .page-search .search-bar { width: 100%; }
 
     /* ---- Table ---- */
     .customers-panel {
@@ -67,11 +65,24 @@
 
     /* ---- Pagination ---- */
     .pagination {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 18px; border-top: 1px solid var(--grey-200); font-size: .83rem;
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      padding: 16px 18px; border-top: 1px solid var(--grey-200);
     }
-    .pagination .info { color: var(--grey-500); }
-    .pagination .btns { display: flex; gap: 6px; }
+    .pagination .info {
+      font-size: .82rem; color: var(--grey-500);
+      min-width: 130px; text-align: center;
+    }
+    .pg-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 28px; border-radius: 20px; font-size: .82rem; font-weight: 600;
+      background: var(--grey-50); border: 1px solid var(--grey-200); color: var(--grey-600);
+      cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+      line-height: 1;
+    }
+    .pg-btn:hover:not(:disabled) {
+      background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark);
+    }
+    .pg-btn:disabled { opacity: .35; cursor: not-allowed; }
 
     /* ---- Detail Modal ---- */
     .detail-modal {
@@ -167,10 +178,10 @@
       <div class="nav-section-label">Main</div>
       <a href="dashboard.html"      class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
       <a href="sales-order.html"    class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
-      <a href="account.html"        class="nav-item"><i class="fas fa-users nav-icon"></i> Customers</a>
       <a href="data-admin.html"     class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
-      <div class="nav-section-label" style="margin-top:8px;">D365 F&amp;O</div>
-      <a href="d365-customers.html" class="nav-item active"><i class="fas fa-building nav-icon"></i> D365 Customers</a>
+      <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
+      <a href="customers.html" class="nav-item active"><i class="fas fa-building nav-icon"></i> Customers</a>
+      <a href="products.html"  class="nav-item"><i class="fas fa-box nav-icon"></i> Products</a>
       <div class="nav-section-label" style="margin-top:8px;">Support</div>
       <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
     </nav>
@@ -183,7 +194,7 @@
   <main class="main-content">
     <div class="topbar">
       <div class="page-title">
-        D365 Customers
+        Customers
         <span class="breadcrumb">/ Dynamics 365 F&amp;O</span>
       </div>
       <div class="topbar-actions">
@@ -222,20 +233,13 @@
         </div>
       </div>
 
-      <!-- Toolbar -->
-      <div class="page-toolbar">
+      <!-- Search -->
+      <div class="page-search">
         <div class="search-bar">
           <span class="search-icon"><i class="fas fa-search"></i></span>
           <input type="text" id="searchInput" placeholder="Search by organisation name or account number…"
-            autocomplete="off" onkeydown="if(event.key==='Enter') loadCustomers(true)" />
+            autocomplete="off" />
         </div>
-        <select id="pageSizeSelect" onchange="loadCustomers(true)">
-          <option value="10">10 per page</option>
-          <option value="20" selected>20 per page</option>
-          <option value="50">50 per page</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Search</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearSearch()"><i class="fas fa-times"></i> Clear</button>
       </div>
 
       <!-- Customer Table -->
@@ -253,11 +257,9 @@
         </div>
 
         <div class="pagination" id="pagination" style="display:none;">
+          <button class="pg-btn" id="btnPrev" onclick="prevPage()" disabled><i class="fas fa-chevron-left" style="font-size:.7rem;"></i> Prev</button>
           <span class="info" id="pageInfo">Showing 0 – 0</span>
-          <div class="btns">
-            <button class="btn btn-ghost btn-sm" id="btnPrev" onclick="prevPage()" disabled>← Prev</button>
-            <button class="btn btn-ghost btn-sm" id="btnNext" onclick="nextPage()">Next →</button>
-          </div>
+          <button class="pg-btn" id="btnNext" onclick="nextPage()">Next <i class="fas fa-chevron-right" style="font-size:.7rem;"></i></button>
         </div>
       </div>
 
@@ -345,10 +347,11 @@
    ============================================================ */
 
 let currentSkip  = 0;
-let currentTop   = 20;
+let currentTop   = 50;
 let currentSearch = '';
 let currentCustomer = null;
 let loadedCount  = 0;
+let _searchTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -361,13 +364,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   } catch (_) {}
 
+  document.getElementById('searchInput').addEventListener('input', function () {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => loadCustomers(true), 350);
+  });
+
   loadCustomers(true);
 });
 
 /* ---- Load customers from D365 API ----------------------- */
 async function loadCustomers(reset = false) {
   if (reset) currentSkip = 0;
-  currentTop    = parseInt(document.getElementById('pageSizeSelect').value) || 20;
   currentSearch = document.getElementById('searchInput').value.trim();
 
   setLoading(true);
@@ -555,10 +562,6 @@ function nextPage() {
   loadCustomers(false);
 }
 
-function clearSearch() {
-  document.getElementById('searchInput').value = '';
-  loadCustomers(true);
-}
 
 /* ---- UI helpers ----------------------------------------- */
 function updateStats(customers) {
