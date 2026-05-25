@@ -199,9 +199,9 @@
   let watermark = null;
   let pollTimer = null;
 
-  // ── Auth token from MSAL session ────────────────────────────
+  // ── Auth token — prefer Power Platform token for bot ────────
   function getToken() {
-    return localStorage.getItem('pp_token') || '';
+    return localStorage.getItem('pp_bot_token') || localStorage.getItem('pp_token') || '';
   }
 
   // ── Helpers ─────────────────────────────────────────────────

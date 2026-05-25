@@ -205,21 +205,29 @@ const msalConfig = {
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 // Handle return from Microsoft Login
-msalInstance.handleRedirectPromise().then((tokenResponse) => {
+msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
   if (tokenResponse !== null) {
-    // User is successfully signed in
     const account = tokenResponse.account;
-    
-    // Map Microsoft Entra ID token claims to our Sales Rep object
+
     const realRep = PP.MOCK.salesRep;
     realRep.name = account.name || realRep.name;
     realRep.firstName = (account.name ? account.name.split(' ')[0] : realRep.firstName);
     realRep.email = account.username || realRep.email;
     realRep.entraOid = account.localAccountId || realRep.entraOid;
 
-    // Securely save the session token
     localStorage.setItem('pp_salesrep', JSON.stringify(realRep));
     localStorage.setItem('pp_token', tokenResponse.accessToken);
+
+    // Acquire Power Platform token for Copilot Studio bot
+    try {
+      const botTokenResponse = await msalInstance.acquireTokenSilent({
+        scopes: ['https://api.powerplatform.com/user_impersonation'],
+        account: account
+      });
+      localStorage.setItem('pp_bot_token', botTokenResponse.accessToken);
+    } catch (e) {
+      console.warn('[Bot] Could not acquire Power Platform token:', e.message);
+    }
 
     PP.showToast('Welcome back, ' + realRep.firstName + '!', 'success', 2000);
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
