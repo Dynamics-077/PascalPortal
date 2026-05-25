@@ -297,47 +297,13 @@ app.get('/api/sync/status', async (req, res) => {
 const BOT_BASE = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_AISalesBot';
 const BOT_API  = '2022-03-01-preview';
 
-// Get Power Platform token using app credentials (server-side)
-let _botToken = null;
-let _botTokenExpiry = 0;
-
-async function getBotToken() {
-    if (_botToken && Date.now() < _botTokenExpiry) return _botToken;
-    const params = new URLSearchParams({
-        grant_type:    'client_credentials',
-        client_id:     process.env.ENTRA_CLIENT_ID,
-        client_secret: process.env.ENTRA_CLIENT_SECRET,
-        scope:         'https://api.powerplatform.com/.default'
-    });
-    const r = await axios.post(
-        `https://login.microsoftonline.com/${process.env.ENTRA_TENANT_ID}/oauth2/v2.0/token`,
-        params.toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-    _botToken = r.data.access_token;
-    _botTokenExpiry = Date.now() + (r.data.expires_in - 60) * 1000;
-    console.log('[Bot] Power Platform token refreshed');
-    return _botToken;
-}
-
-async function botAuthHeader(req) {
-    // Prefer user's Power Platform token if provided, else use app token
-    const userAuth = req.headers.authorization;
-    if (userAuth && userAuth.startsWith('Bearer ') && userAuth.length > 20) {
-        return userAuth;
-    }
-    const token = await getBotToken();
-    return `Bearer ${token}`;
-}
-
-// Start a new bot conversation
+// Start a new bot conversation (No Authentication mode)
 app.post('/api/bot/conversations', async (req, res) => {
     try {
-        const auth = await botAuthHeader(req);
         const r = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
-            { headers: { Authorization: auth, 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json' } }
         );
         res.json(r.data);
     } catch (e) {
@@ -349,11 +315,10 @@ app.post('/api/bot/conversations', async (req, res) => {
 // Send message to bot
 app.post('/api/bot/conversations/:id/activities', async (req, res) => {
     try {
-        const auth = await botAuthHeader(req);
         const r = await axios.post(
             `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}`,
             req.body,
-            { headers: { Authorization: auth, 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json' } }
         );
         res.json(r.data);
     } catch (e) {
@@ -365,11 +330,9 @@ app.post('/api/bot/conversations/:id/activities', async (req, res) => {
 // Poll bot responses
 app.get('/api/bot/conversations/:id/activities', async (req, res) => {
     try {
-        const auth = await botAuthHeader(req);
         const wm = req.query.watermark ? `&watermark=${req.query.watermark}` : '';
         const r = await axios.get(
-            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}${wm}`,
-            { headers: { Authorization: auth } }
+            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}${wm}`
         );
         res.json(r.data);
     } catch (e) {
