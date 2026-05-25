@@ -291,6 +291,63 @@ app.get('/api/sync/status', async (req, res) => {
 });
 
 
+// ============================================================
+// Copilot Studio Bot — DirectLine Proxy
+// ============================================================
+const BOT_BASE = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_AISalesBot';
+const BOT_API  = '2022-03-01-preview';
+
+// Start a new bot conversation
+app.post('/api/bot/conversations', async (req, res) => {
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: 'No token' });
+    try {
+        const r = await axios.post(
+            `${BOT_BASE}/conversations?api-version=${BOT_API}`,
+            {},
+            { headers: { Authorization: auth, 'Content-Type': 'application/json' } }
+        );
+        res.json(r.data);
+    } catch (e) {
+        console.error('[Bot] Start conversation error:', e.response?.status, e.response?.data || e.message);
+        res.status(e.response?.status || 500).json({ error: e.message, detail: e.response?.data });
+    }
+});
+
+// Send message to bot
+app.post('/api/bot/conversations/:id/activities', async (req, res) => {
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: 'No token' });
+    try {
+        const r = await axios.post(
+            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}`,
+            req.body,
+            { headers: { Authorization: auth, 'Content-Type': 'application/json' } }
+        );
+        res.json(r.data);
+    } catch (e) {
+        console.error('[Bot] Send message error:', e.response?.status, e.response?.data || e.message);
+        res.status(e.response?.status || 500).json({ error: e.message, detail: e.response?.data });
+    }
+});
+
+// Poll bot responses
+app.get('/api/bot/conversations/:id/activities', async (req, res) => {
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: 'No token' });
+    try {
+        const wm = req.query.watermark ? `&watermark=${req.query.watermark}` : '';
+        const r = await axios.get(
+            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}${wm}`,
+            { headers: { Authorization: auth } }
+        );
+        res.json(r.data);
+    } catch (e) {
+        console.error('[Bot] Poll error:', e.response?.status, e.response?.data || e.message);
+        res.status(e.response?.status || 500).json({ error: e.message, detail: e.response?.data });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`\n🚀 Backend API Middleware started!`);

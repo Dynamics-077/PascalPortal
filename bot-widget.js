@@ -1,33 +1,38 @@
 /* ============================================================
    Pascal Press — Copilot Bot Widget
-   Bottom-left floating chat panel
+   Bottom-right floating chat panel
    Copilot Studio embed will replace sendToBot() when ready.
    ============================================================ */
 (function () {
   // ── Inject CSS ──────────────────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `
-    /* Toggle button */
+    /* Move toasts up so they don't sit behind the bot button */
+    #toast-container {
+      bottom: 100px !important;
+    }
+
+    /* Toggle button — bottom RIGHT */
     #pp-bot-toggle {
-      position: fixed; bottom: 28px; left: 28px; z-index: 9990;
-      width: 54px; height: 54px; border-radius: 50%;
+      position: fixed; bottom: 28px; right: 28px; z-index: 9990;
+      width: 56px; height: 56px; border-radius: 50%;
       background: linear-gradient(135deg, #00a4a6, #008385);
       border: none; cursor: pointer;
       box-shadow: 0 4px 16px rgba(0,164,166,.45);
       display: flex; align-items: center; justify-content: center;
       transition: transform .2s ease, box-shadow .2s ease;
-      color: white; font-size: 1.35rem;
+      color: white; font-size: 1.4rem;
     }
     #pp-bot-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,164,166,.55); }
     #pp-bot-toggle .bot-notif {
-      position: absolute; top: 1px; right: 1px;
+      position: absolute; top: 2px; right: 2px;
       width: 14px; height: 14px; border-radius: 50%;
       background: #f4851f; border: 2px solid white;
     }
 
-    /* Chat panel */
+    /* Chat panel — anchored bottom RIGHT */
     #pp-bot-panel {
-      position: fixed; bottom: 96px; left: 28px; z-index: 9989;
+      position: fixed; bottom: 96px; right: 28px; z-index: 9989;
       width: 340px; height: 480px;
       background: white; border-radius: 14px;
       box-shadow: 0 12px 40px rgba(30,58,95,.22);
@@ -190,6 +195,14 @@
   const sendBtn  = document.getElementById('pp-bot-send');
   const messages = document.getElementById('pp-bot-messages');
   let isOpen = false;
+  let conversationId = null;
+  let watermark = null;
+  let pollTimer = null;
+
+  // ── Auth token from MSAL session ────────────────────────────
+  function getToken() {
+    return localStorage.getItem('pp_token') || '';
+  }
 
   // ── Helpers ─────────────────────────────────────────────────
   function getTime() {
@@ -228,15 +241,14 @@
   }
 
   function showTyping() {
+    if (document.getElementById('pp-typing')) return;
     const el = document.createElement('div');
     el.className = 'bot-msg';
     el.id = 'pp-typing';
     el.innerHTML = `
       <div class="msg-avatar">PA</div>
       <div class="bubble" style="padding:10px 14px;">
-        <div class="typing-indicator">
-          <span></span><span></span><span></span>
-        </div>
+        <div class="typing-indicator"><span></span><span></span><span></span></div>
       </div>
     `;
     messages.appendChild(el);
@@ -248,23 +260,66 @@
     if (el) el.remove();
   }
 
-  // ── Bot response logic (replace with Copilot Studio later) ──
-  function sendToBot(userText) {
-    // TODO: Replace with Copilot Studio DirectLine/WebChat API call
-    const text = userText.toLowerCase();
-    if (text.includes('order') || text.includes('sales'))
-      return { reply: 'You can create and manage sales orders from the <b>Sales Orders</b> page. Need help placing a new order?', qr: ['New Order', 'View Orders'] };
-    if (text.includes('customer'))
-      return { reply: 'Customer details are available in the <b>Customers</b> section. You can search by name or account number.', qr: ['Search Customer', 'Add Customer'] };
-    if (text.includes('product'))
-      return { reply: 'Browse the full product catalogue in the <b>Products</b> page. You can search by item number or name.', qr: ['View Products'] };
-    if (text.includes('hello') || text.includes('hi') || text.includes('hey'))
-      return { reply: `Hello! 👋 I'm Pascal Assistant. How can I help you today?`, qr: ['Sales Orders', 'Customers', 'Products', 'Help'] };
-    if (text.includes('help'))
-      return { reply: 'I can help you with:<br>• Creating sales orders<br>• Finding customers<br>• Browsing products<br>• Account information<br><br>What would you like to do?', qr: ['Sales Orders', 'Customers', 'Products'] };
-    return { reply: "I'll connect you with the right information. This feature will be fully powered by Copilot Studio soon. For now, try asking about <b>orders</b>, <b>customers</b>, or <b>products</b>.", qr: ['Sales Orders', 'Customers', 'Products'] };
+  // ── Copilot Studio DirectLine via server proxy ───────────────
+  async function startConversation() {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const r = await fetch('/api/bot/conversations', { method: 'POST', headers });
+    if (!r.ok) throw new Error(`Bot start failed: ${r.status}`);
+    const data = await r.json();
+    conversationId = data.conversationId;
+    watermark = null;
+    return data;
   }
 
+  async function sendActivity(text) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    await fetch(`/api/bot/conversations/${conversationId}/activities`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ type: 'message', text })
+    });
+  }
+
+  async function pollActivities() {
+    const token = getToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const wm = watermark != null ? `?watermark=${watermark}` : '';
+    const r = await fetch(`/api/bot/conversations/${conversationId}/activities${wm}`, { headers });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.watermark) watermark = data.watermark;
+
+    (data.activities || []).forEach(act => {
+      if (act.type === 'message' && act.from?.role !== 'user') {
+        hideTyping();
+        const text = act.text || '';
+        const cards = act.attachments || [];
+        if (text) addMessage(text.replace(/\n/g, '<br>'), 'bot');
+        cards.forEach(c => {
+          if (c.content?.text) addMessage(c.content.text.replace(/\n/g, '<br>'), 'bot');
+        });
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    });
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(pollActivities, 1500);
+    setTimeout(stopPolling, 30000);
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  // ── Send message flow ────────────────────────────────────────
   async function handleUserMessage(text) {
     if (!text.trim()) return;
     addMessage(text, 'user');
@@ -272,23 +327,33 @@
     sendBtn.disabled = true;
     showTyping();
 
-    // Simulate network delay (remove when Copilot Studio connected)
-    await new Promise(r => setTimeout(r, 900 + Math.random() * 400));
-    hideTyping();
-
-    const { reply, qr } = sendToBot(text);
-    addMessage(reply, 'bot', { quickReplies: qr || [] });
-    sendBtn.disabled = false;
-    input.focus();
+    try {
+      if (!conversationId) await startConversation();
+      await sendActivity(text);
+      startPolling();
+    } catch (err) {
+      hideTyping();
+      addMessage('⚠️ Could not reach Pascal Assistant. Please try again.', 'bot');
+      console.error('[Bot]', err);
+      sendBtn.disabled = false;
+    }
   }
 
   // ── Welcome message ──────────────────────────────────────────
-  function showWelcome() {
-    addMessage(
-      "Hi there! 👋 I'm <b>Pascal Assistant</b>. I can help you with sales orders, customers, products, and more.",
-      'bot',
-      { quickReplies: ['Sales Orders', 'Customers', 'Products', 'Help'] }
-    );
+  async function showWelcome() {
+    try {
+      await startConversation();
+      // Send a silent greeting to trigger bot welcome message
+      await sendActivity('hello');
+      showTyping();
+      startPolling();
+    } catch {
+      addMessage(
+        "Hi there! 👋 I'm <b>Pascal Assistant</b>. I can help with sales orders, customers, products and more.",
+        'bot',
+        { quickReplies: ['Sales Orders', 'Customers', 'Products', 'Help'] }
+      );
+    }
   }
 
   // ── Events ───────────────────────────────────────────────────
@@ -303,6 +368,7 @@
   closeBtn.addEventListener('click', () => {
     isOpen = false;
     panel.classList.remove('open');
+    stopPolling();
   });
 
   sendBtn.addEventListener('click', () => handleUserMessage(input.value));
