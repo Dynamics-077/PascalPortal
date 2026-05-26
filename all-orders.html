@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Orders — Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ---- Summary strip ---- */
+    .stat-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .stat-icon.teal   { background: var(--teal-light); }
+    .stat-icon.navy   { background: rgba(30,58,95,.08); }
+    .stat-icon.orange { background: var(--orange-light); }
+    .stat-icon.green  { background: rgba(34,197,94,.1); }
+    .stat-val  { font-size: 1.5rem; font-weight: 700; color: var(--navy); line-height: 1; }
+    .stat-lbl  { font-size: .75rem; color: var(--grey-500); margin-top: 3px; }
+
+    /* ---- Section panels ---- */
+    .orders-section { margin-bottom: 26px; }
+    .orders-section h2 {
+      font-size: 1rem; font-weight: 700; color: var(--navy);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .orders-section h2 .section-badge {
+      background: var(--teal-light); color: var(--teal-dark);
+      font-size: .72rem; font-weight: 700; padding: 2px 10px; border-radius: 20px;
+    }
+
+    /* ---- Search bar ---- */
+    .panel-search {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200); flex-wrap: wrap;
+    }
+    .panel-search .search-bar { flex: 1; min-width: 200px; }
+    .panel-search .search-bar input { width: 100%; }
+
+    /* ---- Table panel ---- */
+    .data-panel {
+      background: white; border: 1px solid var(--grey-200);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .panel-head {
+      padding: 14px 18px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .panel-head h3 { flex: 1; font-size: .95rem; margin: 0; }
+
+    /* ---- Orders table ---- */
+    .orders-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .orders-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .orders-table td { padding: 9px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .orders-table tr:last-child td { border-bottom: none; }
+    .orders-table tr:hover td { background: var(--grey-50); }
+    .orders-table .mono  { font-family: monospace; font-size: .8rem; }
+    .orders-table .id-cell {
+      font-family: monospace; font-size: .72rem; color: var(--grey-400);
+      font-weight: 600; background: var(--grey-50); padding: 2px 7px;
+      border-radius: 6px; border: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .orders-table .sales-id {
+      font-family: monospace; font-size: .8rem; color: var(--teal-dark); font-weight: 700;
+    }
+    .orders-table .amount { font-family: monospace; font-weight: 700; color: var(--navy); }
+
+    /* ---- Lines table ---- */
+    .lines-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .lines-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .lines-table td { padding: 9px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .lines-table tr:last-child td { border-bottom: none; }
+    .lines-table tr:hover td { background: var(--grey-50); }
+    .lines-table .mono  { font-family: monospace; font-size: .8rem; }
+    .lines-table .id-cell {
+      font-family: monospace; font-size: .72rem; color: var(--grey-400);
+      font-weight: 600; background: var(--grey-50); padding: 2px 7px;
+      border-radius: 6px; border: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .lines-table .sales-id { font-family: monospace; font-size: .8rem; color: var(--teal-dark); font-weight: 700; }
+    .lines-table .amount   { font-family: monospace; font-weight: 700; color: var(--navy); }
+
+    /* ---- State / empty ---- */
+    .state-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 20px; color: var(--grey-400); text-align: center;
+    }
+    .state-box .icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .state-box p { font-size: .88rem; max-width: 260px; line-height: 1.6; }
+    .state-box .hint { font-size: .76rem; color: var(--grey-300); margin-top: 4px; }
+
+    /* ---- Error banner ---- */
+    .error-banner {
+      background: var(--danger-bg); border: 1px solid var(--danger);
+      border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px;
+      display: none; align-items: flex-start; gap: 10px; font-size: .85rem;
+    }
+    .error-banner.show { display: flex; }
+    .error-banner .msg { color: var(--danger); flex: 1; }
+
+    /* ---- Table scroll wrapper ---- */
+    .table-wrap { overflow-x: auto; }
+
+    @media (max-width: 900px) {
+      .stat-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===== SIDEBAR ======================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">PP</div>
+        <div class="logo-text">
+          <div class="brand">Pascal Press</div>
+          <div class="sub">Sales Rep Portal</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">SR</div>
+      <div class="user-info">
+        <div class="name" id="userName">Loading…</div>
+        <div class="role" id="userRole">Sales Rep</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="all-orders.html"  class="nav-item active"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+      <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
+      <a href="customers.html"          class="nav-item"><i class="fas fa-building nav-icon"></i> Customers</a>
+      <a href="customers.html#products" class="nav-item"><i class="fas fa-box nav-icon"></i> Products</a>
+      <div class="nav-section-label" style="margin-top:8px;">Support</div>
+      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN =========================================== -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">
+        All Orders
+        <span class="breadcrumb">/ SharePoint Lists</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Refresh" onclick="loadAll()"><i class="fas fa-sync-alt"></i></button>
+        <a href="sales-order.html" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Order</a>
+        <a href="dashboard.html"   class="btn btn-ghost btn-sm">← Dashboard</a>
+        <div class="topbar-user-chip">
+          <div class="tu-avatar" id="topbarAvatar">SR</div>
+          <span class="tu-name" id="topbarUserName">Loading…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Error banner -->
+      <div class="error-banner" id="errorBanner">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+        <span class="msg" id="errorMsg"></span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="stat-strip">
+        <div class="stat-card">
+          <div class="stat-icon teal"><i class="fas fa-file-invoice" style="color:var(--teal-dark);"></i></div>
+          <div><div class="stat-val" id="statHeaders">—</div><div class="stat-lbl">Order Headers</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-list-ul" style="color:var(--orange);"></i></div>
+          <div><div class="stat-val" id="statLines">—</div><div class="stat-lbl">Order Lines</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>
+          <div><div class="stat-val" id="statSubmitted">—</div><div class="stat-lbl">Submitted</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon navy"><i class="fas fa-clock" style="color:var(--navy);"></i></div>
+          <div><div class="stat-val" id="statPending">—</div><div class="stat-lbl">In Progress</div></div>
+        </div>
+      </div>
+
+      <!-- ================================================
+           SECTION 1 — ORDER HEADERS
+           ================================================ -->
+      <div class="orders-section">
+        <h2>
+          <i class="fas fa-file-invoice" style="color:var(--teal);"></i>
+          Order Headers — SalesOrderHeader
+          <span class="section-badge" id="headersBadge">Loading…</span>
+        </h2>
+
+        <div class="data-panel">
+          <div class="panel-head">
+            <h3>Sales Order Header List</h3>
+            <div class="search-bar" style="width:260px;">
+              <span class="search-icon"><i class="fas fa-search"></i></span>
+              <input type="text" id="headersSearch" placeholder="Search by Sales ID or customer…" autocomplete="off" oninput="renderHeaders()" />
+            </div>
+          </div>
+          <div id="headersWrap">
+            <div class="state-box">
+              <div class="icon"><i class="fas fa-file-invoice" style="color:var(--teal);"></i></div>
+              <p>Loading order headers…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================
+           SECTION 2 — ORDER LINES
+           ================================================ -->
+      <div class="orders-section">
+        <h2>
+          <i class="fas fa-list-ul" style="color:var(--orange);"></i>
+          Order Lines — SalesOrderLines
+          <span class="section-badge" id="linesBadge">Loading…</span>
+        </h2>
+
+        <div class="data-panel">
+          <div class="panel-head">
+            <h3>Sales Order Lines List</h3>
+            <div class="search-bar" style="width:260px;">
+              <span class="search-icon"><i class="fas fa-search"></i></span>
+              <input type="text" id="linesSearch" placeholder="Search by Sales ID or item code…" autocomplete="off" oninput="renderLines()" />
+            </div>
+          </div>
+          <div id="linesWrap">
+            <div class="state-box">
+              <div class="icon"><i class="fas fa-list-ul" style="color:var(--orange);"></i></div>
+              <p>Loading order lines…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </main>
+</div>
+
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script>
+/* ============================================================
+   All Orders — shows Order Headers + Order Lines from SharePoint
+   Endpoints: GET /api/salesorders and GET /api/orderlines
+   ============================================================ */
+
+let _orders = [];
+let _lines  = [];
+
+const STATUS_COLOUR = {
+  'In Progress': 'badge-open',
+  'Submitted':   'badge-paid',
+  'Submit':      'badge-paid',
+  'Complete':    'badge-paid',
+  'Completed':   'badge-paid',
+  'Cancel':      'badge-cancelled',
+  'Cancelled':   'badge-cancelled',
+};
+
+/* ---- Bootstrap ------------------------------------------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const token = localStorage.getItem('pp_token');
+    const res  = await fetch('/api/bootstrap', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+    const data = await res.json();
+    const rep  = data.salesRep || {};
+    document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
+    document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
+    document.getElementById('userAvatar').textContent =
+      (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  } catch (_) {}
+
+  loadAll();
+});
+
+/* ---- Load both datasets ----------------------------------- */
+async function loadAll() {
+  await Promise.all([loadHeaders(), loadLines()]);
+  updateStats();
+}
+
+async function loadHeaders() {
+  document.getElementById('headersBadge').textContent = 'Loading…';
+  document.getElementById('headersWrap').innerHTML = `
+    <div class="state-box">
+      <div class="icon"><i class="fas fa-spinner fa-spin" style="color:var(--teal);"></i></div>
+      <p>Loading order headers…</p>
+    </div>`;
+  try {
+    const res = await fetch('/api/salesorders');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _orders = await res.json();
+    renderHeaders();
+  } catch (err) {
+    showError(err.message);
+    document.getElementById('headersWrap').innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-exclamation-circle" style="color:var(--danger);"></i></div>
+        <p><strong>Failed to load order headers</strong></p>
+        <p class="hint">${esc(err.message)}</p>
+      </div>`;
+    document.getElementById('headersBadge').textContent = 'Error';
+  }
+}
+
+async function loadLines() {
+  document.getElementById('linesBadge').textContent = 'Loading…';
+  document.getElementById('linesWrap').innerHTML = `
+    <div class="state-box">
+      <div class="icon"><i class="fas fa-spinner fa-spin" style="color:var(--orange);"></i></div>
+      <p>Loading order lines…</p>
+    </div>`;
+  try {
+    const res = await fetch('/api/orderlines');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _lines = await res.json();
+    renderLines();
+  } catch (err) {
+    showError(err.message);
+    document.getElementById('linesWrap').innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-exclamation-circle" style="color:var(--danger);"></i></div>
+        <p><strong>Failed to load order lines</strong></p>
+        <p class="hint">${esc(err.message)}</p>
+      </div>`;
+    document.getElementById('linesBadge').textContent = 'Error';
+  }
+}
+
+/* ---- Render Order Headers -------------------------------- */
+function renderHeaders() {
+  const q = (document.getElementById('headersSearch').value || '').toLowerCase();
+  const rows = _orders
+    .filter(o => !q || (o.salesId + (o.customerName || '') + (o.customerId || '')).toLowerCase().includes(q))
+    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+
+  document.getElementById('headersBadge').textContent =
+    `${rows.length} record${rows.length !== 1 ? 's' : ''}`;
+
+  const wrap = document.getElementById('headersWrap');
+  if (rows.length === 0) {
+    wrap.innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-file-invoice" style="color:var(--teal);"></i></div>
+        <p>${q ? `No orders match "${esc(q)}"` : 'No order headers found in SharePoint.'}</p>
+        <p class="hint">Orders created via New Order will appear here.</p>
+      </div>`;
+    return;
+  }
+
+  const trs = rows.map(o => {
+    const spId    = o.spItemId || '—';
+    const salesId = o.salesId || o.SalesId || o.id || '—';
+    const custName  = o.customerName || o.CustomerName || o.customerId || '—';
+    const custAcct  = o.customerId || o.CustomerAccount || '—';
+    const status    = o.status || o.Status || 'In Progress';
+    const date      = (o.date || o.createdDateTime || o.OrderDate || '').slice(0, 10) || '—';
+    const currency  = o.currency || o.Currency || '—';
+    const total     = o.total > 0 ? PP.fmtCurrency(o.total) : (o.Total > 0 ? PP.fmtCurrency(o.Total) : '—');
+    const lineCount = Array.isArray(o.lines) ? o.lines.length : (o.LineCount || '—');
+    const payTerms  = o.paymentTerms || o.PaymentTerms || '—';
+    const delTerms  = o.deliveryTerms || o.DeliveryTerms || '—';
+    const dateTime  = fmtDT(o.dateTime || '');
+
+    return `<tr>
+      <td><span class="id-cell">${esc(String(spId))}</span></td>
+      <td><span class="sales-id">${esc(salesId)}</span></td>
+      <td style="font-weight:600; color:var(--navy);">${esc(custName)}</td>
+      <td class="mono" style="color:var(--grey-500);">${esc(custAcct)}</td>
+      <td><span class="badge ${STATUS_COLOUR[status] || 'badge-open'}" style="font-size:.72rem;">${esc(status)}</span></td>
+      <td class="mono" style="color:var(--grey-500); font-size:.76rem; white-space:nowrap;">${dateTime}</td>
+      <td class="mono" style="color:var(--grey-500);">${esc(currency)}</td>
+      <td class="amount">${total}</td>
+      <td style="text-align:center; color:var(--grey-500);">${esc(String(lineCount))}</td>
+      <td class="mono" style="color:var(--grey-500); font-size:.76rem;">${esc(payTerms)}</td>
+      <td class="mono" style="color:var(--grey-500); font-size:.76rem;">${esc(delTerms)}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="orders-table">
+        <thead><tr>
+          <th title="SharePoint Item ID">SP&nbsp;ID</th>
+          <th>Sales ID</th>
+          <th>Customer Name</th>
+          <th>Account #</th>
+          <th>Status</th>
+          <th>Date &amp; Time</th>
+          <th>Currency</th>
+          <th>Total</th>
+          <th>Lines</th>
+          <th>Payment Terms</th>
+          <th>Delivery Terms</th>
+        </tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ---- Render Order Lines ---------------------------------- */
+function renderLines() {
+  const q = (document.getElementById('linesSearch').value || '').toLowerCase();
+  const rows = _lines
+    .filter(l => !q || ((l.SalesId || l.Title || '') + (l.ItemId || '') + (l.CustAccount || '')).toLowerCase().includes(q))
+    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+
+  document.getElementById('linesBadge').textContent =
+    `${rows.length} record${rows.length !== 1 ? 's' : ''}`;
+
+  const wrap = document.getElementById('linesWrap');
+  if (rows.length === 0) {
+    wrap.innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-list-ul" style="color:var(--orange);"></i></div>
+        <p>${q ? `No lines match "${esc(q)}"` : 'No order lines found in SharePoint.'}</p>
+        <p class="hint">Lines are added when you create a new order.</p>
+      </div>`;
+    return;
+  }
+
+  const trs = rows.map(l => {
+    const spId      = l.id || '—';
+    const rawSalesId = l.SalesId || l.Title || '—';
+    const orderId   = rawSalesId.replace(/-L\d+$/, '');
+    const lineNum   = l.lineNumber ?? rawSalesId.match(/-L(\d+)$/)?.[1] ?? '—';
+    const itemCode  = l.ItemId || '—';
+    const custAcct  = l.CustAccount || '—';
+    const qty       = l.SalesQty ?? '—';
+    const unitPrice = l.SalesPrice != null ? PP.fmtCurrency(l.SalesPrice) : '—';
+    const lineTotal = (l.SalesQty != null && l.SalesPrice != null)
+      ? PP.fmtCurrency(l.SalesQty * l.SalesPrice) : '—';
+    const unit      = l.SalesUnit || 'ea';
+    const status    = l.Status || 'In Progress';
+    const lineStatus = l.OrderLineStatus || l.LineStatus || 'In Progress';
+    const itemName  = l.Title || l.ItemName || l.SearchName || '—';
+    const dateTime  = fmtDT(l.DateTime || '');
+
+    return `<tr>
+      <td><span class="id-cell">${esc(String(spId))}</span></td>
+      <td><span class="sales-id">${esc(orderId)}</span></td>
+      <td style="text-align:center; color:var(--grey-500); font-weight:600;">${esc(String(lineNum))}</td>
+      <td class="mono" style="color:var(--teal-dark); font-weight:700;">${esc(itemCode)}</td>
+      <td style="color:var(--navy);">${esc(itemName)}</td>
+      <td class="mono" style="color:var(--grey-500);">${esc(custAcct)}</td>
+      <td style="text-align:right; font-weight:600;">${esc(String(qty))}</td>
+      <td class="amount">${unitPrice}</td>
+      <td class="amount">${lineTotal}</td>
+      <td class="mono" style="color:var(--grey-500);">${esc(unit)}</td>
+      <td><span class="badge ${STATUS_COLOUR[status] || 'badge-open'}" style="font-size:.72rem;">${esc(status)}</span></td>
+      <td><span class="badge ${STATUS_COLOUR[lineStatus] || 'badge-open'}" style="font-size:.72rem;">${esc(lineStatus)}</span></td>
+      <td class="mono" style="color:var(--grey-500); font-size:.76rem; white-space:nowrap;">${dateTime}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="lines-table">
+        <thead><tr>
+          <th title="SharePoint Item ID">SP&nbsp;ID</th>
+          <th>Sales ID</th>
+          <th>Line #</th>
+          <th>Item Code</th>
+          <th>Item Name</th>
+          <th>Customer Account</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Line Total</th>
+          <th>Unit</th>
+          <th>Status</th>
+          <th>Line Status</th>
+          <th>Date &amp; Time</th>
+        </tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ---- Update summary stats -------------------------------- */
+function updateStats() {
+  document.getElementById('statHeaders').textContent  = _orders.length;
+  document.getElementById('statLines').textContent    = _lines.length;
+  const submitted = _orders.filter(o => ['Submitted','Submit','Complete','Completed'].includes(o.status || o.Status)).length;
+  const pending   = _orders.filter(o => ['In Progress'].includes(o.status || o.Status)).length;
+  document.getElementById('statSubmitted').textContent = submitted;
+  document.getElementById('statPending').textContent   = pending;
+}
+
+/* ---- Error helper ---------------------------------------- */
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorBanner').classList.add('show');
+}
+
+function fmtDT(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  const date = d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return `${date}, ${time}`;
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"]/g, s =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
+}
+</script>
+<script src="bot-widget.js"></script>
+</body>
+</html>

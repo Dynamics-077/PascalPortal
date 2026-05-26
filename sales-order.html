@@ -119,11 +119,9 @@
     .order-footer {
       position: sticky; bottom: 0;
       background: white; border-top: 1px solid var(--grey-200);
-      padding: 14px 28px; display: flex; align-items: center; gap: 12px;
+      padding: 14px 28px; display: flex; align-items: center; justify-content: center; gap: 12px;
       box-shadow: 0 -4px 12px rgba(30,58,95,.08); z-index: 40;
     }
-    .order-footer .footer-info { flex: 1; font-size: .82rem; color: var(--grey-600); }
-    .order-footer .footer-info strong { color: var(--navy); }
 
     /* Confirm modal */
     .confirm-line {
@@ -228,13 +226,12 @@
     <nav class="sidebar-nav">
       <div class="nav-section-label">Main</div>
       <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
-      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
-      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Order Booking</a>
-      <div class="nav-section-label" style="margin-top:8px;">Orders</div>
-      <a href="account.html#orders" class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
+      <a href="sales-order.html" class="nav-item active"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="all-orders.html"  class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
       <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
-      <a href="customers.html" class="nav-item"><i class="fas fa-building nav-icon"></i> Customers</a>
-      <a href="products.html"  class="nav-item"><i class="fas fa-box nav-icon"></i> Products</a>
+      <a href="customers.html"          class="nav-item"><i class="fas fa-building nav-icon"></i> Customers</a>
+      <a href="customers.html#products" class="nav-item"><i class="fas fa-box nav-icon"></i> Products</a>
       <div class="nav-section-label" style="margin-top:8px;">Support</div>
       <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
     </nav>
@@ -253,6 +250,10 @@
       <div class="topbar-actions">
         <button class="btn btn-ghost btn-sm" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</button>
         <a href="dashboard.html" class="btn btn-ghost btn-sm">Cancel</a>
+        <div class="topbar-user-chip">
+          <div class="tu-avatar" id="topbarAvatar">SR</div>
+          <span class="tu-name" id="topbarUserName">Loading…</span>
+        </div>
       </div>
     </div>
 
@@ -556,12 +557,11 @@
 
     <!-- Sticky footer -->
     <div class="order-footer">
-      <div class="footer-info">
-        Order <strong id="footerOrderId">Draft</strong> ·
-        <span id="footerCustomer" style="color:var(--teal);">No customer selected</span> ·
-        <span id="footerLineCount">0 lines</span> ·
-        Total: <strong id="footerTotal">$0.00</strong>
-      </div>
+      <!-- Hidden state holders — required by JS, not shown -->
+      <span id="footerOrderId"   style="display:none;"></span>
+      <span id="footerCustomer"  style="display:none;"></span>
+      <span id="footerLineCount" style="display:none;"></span>
+      <span id="footerTotal"     style="display:none;"></span>
       <!-- Step 1 buttons -->
       <div class="footer-btn-group" id="step1FooterBtns">
         <button class="btn btn-ghost" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</button>
@@ -626,7 +626,7 @@
     </div>
     <div class="modal-footer" style="justify-content:center; gap:12px;">
       <a href="dashboard.html"      class="btn btn-ghost">← Dashboard</a>
-      <a href="account.html#orders" class="btn btn-primary">View All Orders</a>
+      <a href="all-orders.html" class="btn btn-primary">View All Orders</a>
     </div>
   </div>
 </div>
@@ -1044,6 +1044,15 @@ function goToStep(n) {
   document.getElementById('step1FooterBtns').hidden = (n !== 1);
   document.getElementById('step2FooterBtns').hidden = (n !== 2);
 
+  // Always restore Step 1 submit button when returning to Step 1
+  if (n === 1) {
+    const s1Btn = document.getElementById('step1SubmitBtn');
+    if (s1Btn) {
+      s1Btn.disabled = false;
+      s1Btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
+    }
+  }
+
   // Scroll to top of content
   document.querySelector('.main-content').scrollTop = 0;
 }
@@ -1128,6 +1137,10 @@ async function saveHeaderAndContinue() {
     document.getElementById('orderIdDisplay').textContent  = confirmedId;
     document.getElementById('orderIdBadge').textContent    = confirmedId;
     document.getElementById('footerOrderId').textContent   = confirmedId;
+
+    // Reset button before navigating so it's ready if user returns to Step 1 to edit
+    btn.disabled = false;
+    btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
 
     PP.showToast('Order header saved. Now add order lines.', 'success');
     goToStep(2);

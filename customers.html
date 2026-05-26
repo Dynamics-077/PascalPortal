@@ -3,10 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Customers — Pascal Press Sales Portal</title>
+  <title>Catalogue — Pascal Press Sales Portal</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
+    /* ---- Tab selector ---- */
+    .cat-tabs {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .cat-tab {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 22px; border-radius: 999px; cursor: pointer;
+      font-weight: 600; font-size: .88rem; border: 1.5px solid var(--grey-200);
+      background: white; color: var(--grey-600);
+      transition: all .15s ease;
+    }
+    .cat-tab:hover { border-color: var(--teal); color: var(--teal); }
+    .cat-tab.active { background: var(--teal); color: white; border-color: var(--teal); box-shadow: 0 2px 8px rgba(0,164,166,.3); }
+    .cat-tab i { font-size: .85rem; }
+
+    .cat-section { display: none; }
+    .cat-section.active { display: block; }
+
     /* ---- Stats strip ---- */
     .stat-strip {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
@@ -37,8 +55,8 @@
     }
     .page-search .search-bar { width: 100%; }
 
-    /* ---- Table ---- */
-    .customers-panel {
+    /* ---- Shared table panel ---- */
+    .data-panel {
       background: white; border: 1px solid var(--grey-200);
       border-radius: var(--radius-lg); overflow: hidden;
     }
@@ -49,6 +67,7 @@
     }
     .panel-head h3 { flex: 1; font-size: .95rem; }
 
+    /* ---- Customer table ---- */
     .cust-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
     .cust-table th {
       background: var(--grey-50); color: var(--grey-600);
@@ -59,37 +78,46 @@
     .cust-table tr:last-child td { border-bottom: none; }
     .cust-table tr.data-row { cursor: pointer; transition: background var(--transition); }
     .cust-table tr.data-row:hover td { background: var(--teal-light); }
-    .cust-table .acc-num { font-family: monospace; font-size: .78rem; color: var(--teal-dark); font-weight: 600; }
+    .cust-table .acc-num  { font-family: monospace; font-size: .78rem; color: var(--teal-dark); font-weight: 600; }
     .cust-table .org-name { font-weight: 600; color: var(--navy); }
     .cust-table .sub-text { font-size: .72rem; color: var(--grey-400); margin-top: 2px; }
+
+    /* ---- Product table ---- */
+    .prod-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .prod-table th {
+      background: var(--grey-50); color: var(--grey-600);
+      font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--grey-200); white-space: nowrap;
+    }
+    .prod-table td { padding: 10px 14px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
+    .prod-table tr:last-child td { border-bottom: none; }
+    .prod-table tr.data-row { cursor: pointer; transition: background var(--transition); }
+    .prod-table tr.data-row:hover td { background: var(--teal-light); }
+    .prod-table .item-num  { font-family: monospace; font-size: .78rem; color: var(--teal-dark); font-weight: 600; }
+    .prod-table .prod-name { font-weight: 600; color: var(--navy); }
+    .prod-table .sub-text  { font-size: .72rem; color: var(--grey-400); margin-top: 2px; }
+    .prod-table .price-val { font-family: monospace; font-size: .82rem; color: var(--navy); font-weight: 600; }
 
     /* ---- Pagination ---- */
     .pagination {
       display: flex; align-items: center; justify-content: center; gap: 16px;
       padding: 16px 18px; border-top: 1px solid var(--grey-200);
     }
-    .pagination .info {
-      font-size: .82rem; color: var(--grey-500);
-      min-width: 130px; text-align: center;
-    }
+    .pagination .info { font-size: .82rem; color: var(--grey-500); min-width: 130px; text-align: center; }
     .pg-btn {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 7px 28px; border-radius: 20px; font-size: .82rem; font-weight: 600;
       background: var(--grey-50); border: 1px solid var(--grey-200); color: var(--grey-600);
-      cursor: pointer; transition: background .15s, border-color .15s, color .15s;
-      line-height: 1;
+      cursor: pointer; transition: background .15s, border-color .15s, color .15s; line-height: 1;
     }
-    .pg-btn:hover:not(:disabled) {
-      background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark);
-    }
+    .pg-btn:hover:not(:disabled) { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
     .pg-btn:disabled { opacity: .35; cursor: not-allowed; }
 
     /* ---- Detail Modal ---- */
     .detail-modal {
       position: fixed; inset: 0; z-index: 500;
       display: none; align-items: center; justify-content: center;
-      background: rgba(15,25,46,.45); backdrop-filter: blur(2px);
-      padding: 16px;
+      background: rgba(15,25,46,.45); backdrop-filter: blur(2px); padding: 16px;
     }
     .detail-modal.open { display: flex; }
     .detail-box {
@@ -104,10 +132,11 @@
     }
     .detail-avatar {
       width: 52px; height: 52px; border-radius: 14px;
-      background: var(--teal-light); color: var(--teal-dark);
       font-weight: 700; font-size: 1.2rem;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
+    .detail-avatar.cust-av { background: var(--teal-light); color: var(--teal-dark); }
+    .detail-avatar.prod-av { background: var(--orange-light); color: var(--orange); }
     .detail-header h2 { font-size: 1.1rem; color: var(--navy); }
     .detail-header .acc { font-size: .8rem; font-family: monospace; color: var(--teal); margin-top: 3px; }
     .detail-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
@@ -118,15 +147,12 @@
       border-bottom: 1px solid var(--grey-100);
     }
     .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .detail-field { }
     .detail-field .lbl { font-size: .72rem; color: var(--grey-400); margin-bottom: 2px; }
     .detail-field .val { font-size: .88rem; color: var(--navy); font-weight: 500; }
-    .detail-field .val.mono { font-family: monospace; color: var(--teal-dark); }
+    .detail-field .val.mono  { font-family: monospace; color: var(--teal-dark); }
+    .detail-field .val.price { font-family: monospace; color: var(--navy); font-size: 1rem; font-weight: 700; }
     .detail-field.full { grid-column: span 2; }
-    .detail-footer {
-      padding: 14px 22px; border-top: 1px solid var(--grey-200);
-      display: flex; justify-content: flex-end; gap: 10px;
-    }
+    .detail-footer { padding: 14px 22px; border-top: 1px solid var(--grey-200); display: flex; justify-content: flex-end; gap: 10px; }
 
     /* ---- States ---- */
     .state-box {
@@ -170,18 +196,19 @@
     <div class="sidebar-user">
       <div class="avatar" id="userAvatar">SR</div>
       <div class="user-info">
-        <div class="name"  id="userName">Loading…</div>
-        <div class="role"  id="userRole">Sales Rep</div>
+        <div class="name" id="userName">Loading…</div>
+        <div class="role" id="userRole">Sales Rep</div>
       </div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Main</div>
-      <a href="dashboard.html"      class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
-      <a href="sales-order.html"    class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
-      <a href="data-admin.html"     class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
+      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
+      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
+      <a href="all-orders.html"  class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
+      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
       <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
-      <a href="customers.html" class="nav-item active"><i class="fas fa-building nav-icon"></i> Customers</a>
-      <a href="products.html"  class="nav-item"><i class="fas fa-box nav-icon"></i> Products</a>
+      <a href="customers.html"            class="nav-item active"><i class="fas fa-building nav-icon"></i> Customers</a>
+      <a href="customers.html#products"   class="nav-item" id="navProducts"><i class="fas fa-box nav-icon"></i> Products</a>
       <div class="nav-section-label" style="margin-top:8px;">Support</div>
       <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
     </nav>
@@ -194,146 +221,263 @@
   <main class="main-content">
     <div class="topbar">
       <div class="page-title">
-        Customers
+        <span id="pageTitle">Customers</span>
         <span class="breadcrumb">/ Dynamics 365 F&amp;O</span>
       </div>
       <div class="topbar-actions">
         <span id="connectionBadge" class="badge" style="font-size:.75rem;"></span>
-        <button class="icon-btn" title="Refresh" onclick="loadCustomers(true)"><i class="fas fa-sync-alt"></i></button>
+        <button class="icon-btn" title="Refresh" onclick="refreshActive()"><i class="fas fa-sync-alt"></i></button>
         <a href="dashboard.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+        <div class="topbar-user-chip">
+          <div class="tu-avatar" id="topbarAvatar">SR</div>
+          <span class="tu-name" id="topbarUserName">Loading…</span>
+        </div>
       </div>
     </div>
 
     <div class="page-body">
 
-      <!-- Error banner -->
-      <div class="error-banner" id="errorBanner">
-        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
-        <span class="msg" id="errorMsg"></span>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+      <!-- ── Tab selector ───────────────────────────────── -->
+      <div class="cat-tabs">
+        <button class="cat-tab active" data-tab="customers" onclick="switchTab('customers', this)">
+          <i class="fas fa-building"></i> Customers
+        </button>
+        <button class="cat-tab" data-tab="products" onclick="switchTab('products', this)">
+          <i class="fas fa-box"></i> Products
+        </button>
       </div>
 
-      <!-- Stats -->
-      <div class="stat-strip">
-        <div class="stat-card">
-          <div class="stat-icon teal"><i class="fas fa-building" style="color:var(--teal-dark);"></i></div>
-          <div><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Records loaded</div></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon navy"><i class="fas fa-file-alt" style="color:var(--navy);"></i></div>
-          <div><div class="stat-val" id="statPage">—</div><div class="stat-lbl">Current page</div></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green"><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>
-          <div><div class="stat-val" id="statActive">—</div><div class="stat-lbl">Active customers</div></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon orange"><i class="fas fa-globe" style="color:var(--orange);"></i></div>
-          <div><div class="stat-val" id="statEnv">DynaOne</div><div class="stat-lbl">Environment</div></div>
-        </div>
-      </div>
+      <!-- ============================================================
+           CUSTOMERS SECTION
+           ============================================================ -->
+      <div id="sec-customers" class="cat-section active">
 
-      <!-- Search -->
-      <div class="page-search">
-        <div class="search-bar">
-          <span class="search-icon"><i class="fas fa-search"></i></span>
-          <input type="text" id="searchInput" placeholder="Search by organisation name or account number…"
-            autocomplete="off" />
-        </div>
-      </div>
-
-      <!-- Customer Table -->
-      <div class="customers-panel">
-        <div class="panel-head">
-          <h3>Customer List — CustomersV3</h3>
-          <span class="badge badge-open" id="resultsBadge">Loading…</span>
+        <!-- Error banner -->
+        <div class="error-banner" id="c-errorBanner">
+          <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+          <span class="msg" id="c-errorMsg"></span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('c-errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
         </div>
 
-        <div id="tableWrap">
-          <div class="state-box">
-            <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
-            <p>Loading customers from Dynamics 365…</p>
+        <!-- Stats -->
+        <div class="stat-strip">
+          <div class="stat-card">
+            <div class="stat-icon teal"><i class="fas fa-building" style="color:var(--teal-dark);"></i></div>
+            <div><div class="stat-val" id="c-statTotal">—</div><div class="stat-lbl">Records loaded</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon navy"><i class="fas fa-file-alt" style="color:var(--navy);"></i></div>
+            <div><div class="stat-val" id="c-statPage">—</div><div class="stat-lbl">Current page</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>
+            <div><div class="stat-val" id="c-statActive">—</div><div class="stat-lbl">Active customers</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-globe" style="color:var(--orange);"></i></div>
+            <div><div class="stat-val">DynaOne</div><div class="stat-lbl">Environment</div></div>
           </div>
         </div>
 
-        <div class="pagination" id="pagination" style="display:none;">
-          <button class="pg-btn" id="btnPrev" onclick="prevPage()" disabled><i class="fas fa-chevron-left" style="font-size:.7rem;"></i> Prev</button>
-          <span class="info" id="pageInfo">Showing 0 – 0</span>
-          <button class="pg-btn" id="btnNext" onclick="nextPage()">Next <i class="fas fa-chevron-right" style="font-size:.7rem;"></i></button>
+        <!-- Search -->
+        <div class="page-search">
+          <div class="search-bar">
+            <span class="search-icon"><i class="fas fa-search"></i></span>
+            <input type="text" id="c-searchInput" placeholder="Search by organisation name or account number…" autocomplete="off" />
+          </div>
         </div>
-      </div>
 
-    </div>
+        <!-- Customer Table -->
+        <div class="data-panel">
+          <div class="panel-head">
+            <h3>Customer List — CustomersV3</h3>
+            <span class="badge badge-open" id="c-resultsBadge">Loading…</span>
+          </div>
+          <div id="c-tableWrap">
+            <div class="state-box">
+              <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
+              <p>Loading customers from Dynamics 365…</p>
+            </div>
+          </div>
+          <div class="pagination" id="c-pagination" style="display:none;">
+            <button class="pg-btn" id="c-btnPrev" onclick="cPrevPage()" disabled><i class="fas fa-chevron-left" style="font-size:.7rem;"></i> Prev</button>
+            <span class="info" id="c-pageInfo">Showing 0 – 0</span>
+            <button class="pg-btn" id="c-btnNext" onclick="cNextPage()">Next <i class="fas fa-chevron-right" style="font-size:.7rem;"></i></button>
+          </div>
+        </div>
+
+      </div><!-- /sec-customers -->
+
+      <!-- ============================================================
+           PRODUCTS SECTION
+           ============================================================ -->
+      <div id="sec-products" class="cat-section">
+
+        <!-- Error banner -->
+        <div class="error-banner" id="p-errorBanner">
+          <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+          <span class="msg" id="p-errorMsg"></span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('p-errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stat-strip">
+          <div class="stat-card">
+            <div class="stat-icon teal"><i class="fas fa-box" style="color:var(--teal-dark);"></i></div>
+            <div><div class="stat-val" id="p-statTotal">—</div><div class="stat-lbl">Records loaded</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon navy"><i class="fas fa-file-alt" style="color:var(--navy);"></i></div>
+            <div><div class="stat-val" id="p-statPage">—</div><div class="stat-lbl">Current page</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-tags" style="color:var(--orange);"></i></div>
+            <div><div class="stat-val" id="p-statShown">—</div><div class="stat-lbl">Products shown</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-globe" style="color:#16a34a;"></i></div>
+            <div><div class="stat-val">DynaOne</div><div class="stat-lbl">Environment</div></div>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="page-search">
+          <div class="search-bar">
+            <span class="search-icon"><i class="fas fa-search"></i></span>
+            <input type="text" id="p-searchInput" placeholder="Search by product name or item number…" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="data-panel">
+          <div class="panel-head">
+            <h3>Product List — ReleasedProductsV2</h3>
+            <span class="badge badge-open" id="p-resultsBadge">Loading…</span>
+          </div>
+          <div id="p-tableWrap">
+            <div class="state-box">
+              <div class="icon"><i class="fas fa-box" style="color:var(--teal);"></i></div>
+              <p>Loading products from Dynamics 365…</p>
+            </div>
+          </div>
+          <div class="pagination" id="p-pagination" style="display:none;">
+            <button class="pg-btn" id="p-btnPrev" onclick="pPrevPage()" disabled><i class="fas fa-chevron-left" style="font-size:.7rem;"></i> Prev</button>
+            <span class="info" id="p-pageInfo">Showing 0 – 0</span>
+            <button class="pg-btn" id="p-btnNext" onclick="pNextPage()">Next <i class="fas fa-chevron-right" style="font-size:.7rem;"></i></button>
+          </div>
+        </div>
+
+      </div><!-- /sec-products -->
+
+    </div><!-- /page-body -->
   </main>
 </div>
 
 <!-- ===== CUSTOMER DETAIL MODAL ========================== -->
-<div class="detail-modal" id="detailModal" onclick="if(event.target===this) closeDetail()">
+<div class="detail-modal" id="custDetailModal" onclick="if(event.target===this) closeCustDetail()">
   <div class="detail-box">
     <div class="detail-header">
-      <div class="detail-avatar" id="detailAvatar">?</div>
+      <div class="detail-avatar cust-av" id="cd-avatar">?</div>
       <div style="flex:1;">
-        <h2 id="detailName">—</h2>
-        <div class="acc" id="detailAcc">—</div>
+        <h2 id="cd-name">—</h2>
+        <div class="acc" id="cd-acc">—</div>
       </div>
-      <div id="detailStatusBadge"></div>
-      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeDetail()"><i class="fas fa-times"></i></button>
+      <div id="cd-statusBadge"></div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeCustDetail()"><i class="fas fa-times"></i></button>
     </div>
-
     <div class="detail-body">
-      <!-- Section: Identification -->
       <div class="detail-section">
         <h4>Identification</h4>
         <div class="detail-grid">
-          <div class="detail-field"><div class="lbl">Customer Account</div><div class="val mono" id="d-account">—</div></div>
-          <div class="detail-field"><div class="lbl">Customer Group</div><div class="val" id="d-group">—</div></div>
-          <div class="detail-field"><div class="lbl">Currency</div><div class="val mono" id="d-currency">—</div></div>
-          <div class="detail-field"><div class="lbl">Language</div><div class="val" id="d-lang">—</div></div>
-          <div class="detail-field"><div class="lbl">Invoice Account</div><div class="val mono" id="d-invoice-acc">—</div></div>
-          <div class="detail-field"><div class="lbl">Line of Business</div><div class="val" id="d-lob">—</div></div>
+          <div class="detail-field"><div class="lbl">Customer Account</div><div class="val mono" id="cd-account">—</div></div>
+          <div class="detail-field"><div class="lbl">Customer Group</div><div class="val" id="cd-group">—</div></div>
+          <div class="detail-field"><div class="lbl">Currency</div><div class="val mono" id="cd-currency">—</div></div>
+          <div class="detail-field"><div class="lbl">Language</div><div class="val" id="cd-lang">—</div></div>
+          <div class="detail-field"><div class="lbl">Invoice Account</div><div class="val mono" id="cd-invoice-acc">—</div></div>
+          <div class="detail-field"><div class="lbl">Line of Business</div><div class="val" id="cd-lob">—</div></div>
         </div>
       </div>
-
-      <!-- Section: Contact -->
       <div class="detail-section">
         <h4>Contact</h4>
         <div class="detail-grid">
-          <div class="detail-field"><div class="lbl">Email</div><div class="val" id="d-email">—</div></div>
-          <div class="detail-field"><div class="lbl">Phone</div><div class="val" id="d-phone">—</div></div>
-          <div class="detail-field"><div class="lbl">Fax</div><div class="val" id="d-fax">—</div></div>
-          <div class="detail-field"><div class="lbl">Contact Person ID</div><div class="val mono" id="d-contact">—</div></div>
+          <div class="detail-field"><div class="lbl">Email</div><div class="val" id="cd-email">—</div></div>
+          <div class="detail-field"><div class="lbl">Phone</div><div class="val" id="cd-phone">—</div></div>
+          <div class="detail-field"><div class="lbl">Fax</div><div class="val" id="cd-fax">—</div></div>
+          <div class="detail-field"><div class="lbl">Contact Person ID</div><div class="val mono" id="cd-contact">—</div></div>
         </div>
       </div>
-
-      <!-- Section: Address -->
       <div class="detail-section">
         <h4>Address</h4>
         <div class="detail-grid">
-          <div class="detail-field full"><div class="lbl">Street</div><div class="val" id="d-street">—</div></div>
-          <div class="detail-field"><div class="lbl">City</div><div class="val" id="d-city">—</div></div>
-          <div class="detail-field"><div class="lbl">State / Province</div><div class="val" id="d-state">—</div></div>
-          <div class="detail-field"><div class="lbl">Postcode</div><div class="val mono" id="d-zip">—</div></div>
-          <div class="detail-field"><div class="lbl">Country</div><div class="val" id="d-country">—</div></div>
+          <div class="detail-field full"><div class="lbl">Street</div><div class="val" id="cd-street">—</div></div>
+          <div class="detail-field"><div class="lbl">City</div><div class="val" id="cd-city">—</div></div>
+          <div class="detail-field"><div class="lbl">State / Province</div><div class="val" id="cd-state">—</div></div>
+          <div class="detail-field"><div class="lbl">Postcode</div><div class="val mono" id="cd-zip">—</div></div>
+          <div class="detail-field"><div class="lbl">Country</div><div class="val" id="cd-country">—</div></div>
         </div>
       </div>
-
-      <!-- Section: Financial -->
       <div class="detail-section">
         <h4>Financial</h4>
         <div class="detail-grid">
-          <div class="detail-field"><div class="lbl">Payment Terms</div><div class="val" id="d-payment">—</div></div>
-          <div class="detail-field"><div class="lbl">Sales Tax Group</div><div class="val mono" id="d-tax">—</div></div>
-          <div class="detail-field"><div class="lbl">Credit Limit</div><div class="val" id="d-credit">—</div></div>
-          <div class="detail-field"><div class="lbl">Credit Limit Used</div><div class="val" id="d-credit-flag">—</div></div>
-          <div class="detail-field"><div class="lbl">Delivery Terms</div><div class="val" id="d-delivery">—</div></div>
-          <div class="detail-field"><div class="lbl">Default Warehouse</div><div class="val mono" id="d-warehouse">—</div></div>
+          <div class="detail-field"><div class="lbl">Payment Terms</div><div class="val" id="cd-payment">—</div></div>
+          <div class="detail-field"><div class="lbl">Sales Tax Group</div><div class="val mono" id="cd-tax">—</div></div>
+          <div class="detail-field"><div class="lbl">Credit Limit</div><div class="val" id="cd-credit">—</div></div>
+          <div class="detail-field"><div class="lbl">Credit Limit Used</div><div class="val" id="cd-credit-flag">—</div></div>
+          <div class="detail-field"><div class="lbl">Delivery Terms</div><div class="val" id="cd-delivery">—</div></div>
+          <div class="detail-field"><div class="lbl">Default Warehouse</div><div class="val mono" id="cd-warehouse">—</div></div>
         </div>
       </div>
     </div>
-
     <div class="detail-footer">
-      <button class="btn btn-ghost" onclick="closeDetail()">Close</button>
+      <button class="btn btn-ghost" onclick="closeCustDetail()">Close</button>
       <button class="btn btn-primary btn-sm" onclick="newOrderForCustomer()"><i class="fas fa-shopping-cart"></i> New Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PRODUCT DETAIL MODAL =========================== -->
+<div class="detail-modal" id="prodDetailModal" onclick="if(event.target===this) closeProdDetail()">
+  <div class="detail-box">
+    <div class="detail-header">
+      <div class="detail-avatar prod-av" id="pd-avatar"><i class="fas fa-box"></i></div>
+      <div style="flex:1;">
+        <h2 id="pd-name">—</h2>
+        <div class="acc" id="pd-itemNum">—</div>
+      </div>
+      <div id="pd-typeBadge"></div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeProdDetail()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section">
+        <h4>Identification</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Item Number</div><div class="val mono" id="pd-item-num">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Number</div><div class="val mono" id="pd-prod-num">—</div></div>
+          <div class="detail-field"><div class="lbl">Search Name</div><div class="val" id="pd-search-name">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Group</div><div class="val" id="pd-prod-group">—</div></div>
+          <div class="detail-field"><div class="lbl">Product Type</div><div class="val" id="pd-prod-type">—</div></div>
+          <div class="detail-field"><div class="lbl">Data Area</div><div class="val mono" id="pd-data-area">—</div></div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <h4>Pricing</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Sales Price</div><div class="val price" id="pd-sales-price">—</div></div>
+          <div class="detail-field"><div class="lbl">Purchase Price</div><div class="val price" id="pd-purchase-price">—</div></div>
+          <div class="detail-field"><div class="lbl">Unit Cost</div><div class="val price" id="pd-unit-cost">—</div></div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <h4>Units</h4>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="lbl">Sales Unit</div><div class="val mono" id="pd-sales-unit">—</div></div>
+          <div class="detail-field"><div class="lbl">Inventory Unit</div><div class="val mono" id="pd-inv-unit">—</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-footer">
+      <button class="btn btn-ghost" onclick="closeProdDetail()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="newOrderWithProduct()"><i class="fas fa-shopping-cart"></i> New Order</button>
     </div>
   </div>
 </div>
@@ -342,20 +486,26 @@
 <script src="app.js"></script>
 <script>
 /* ============================================================
-   D365 Customers Page
-   Calls GET /api/d365/customers via our Node.js backend
+   Catalogue Page — Customers + Products combined with tabs
    ============================================================ */
 
-let currentSkip  = 0;
-let currentTop   = 50;
-let currentSearch = '';
-let currentCustomer = null;
-let loadedCount  = 0;
-let _searchTimer = null;
+let _activeTab = 'customers';
 
+// ── Customer state ───────────────────────────────────────────
+let c_skip = 0, c_top = 50, c_search = '', c_count = 0;
+let currentCustomer = null;
+let _cSearchTimer = null;
+
+// ── Product state ────────────────────────────────────────────
+let p_skip = 0, p_top = 50, p_search = '', p_count = 0;
+let currentProduct = null;
+let _pSearchTimer = null;
+
+// ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const res  = await fetch('/api/bootstrap');
+    const token = localStorage.getItem('pp_token');
+    const res  = await fetch('/api/bootstrap', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
     const data = await res.json();
     const rep  = data.salesRep || {};
     document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
@@ -364,60 +514,107 @@ document.addEventListener('DOMContentLoaded', async () => {
       (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   } catch (_) {}
 
-  document.getElementById('searchInput').addEventListener('input', function () {
-    clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(() => loadCustomers(true), 350);
+  document.getElementById('c-searchInput').addEventListener('input', () => {
+    clearTimeout(_cSearchTimer);
+    _cSearchTimer = setTimeout(() => loadCustomers(true), 350);
   });
 
-  loadCustomers(true);
+  document.getElementById('p-searchInput').addEventListener('input', () => {
+    clearTimeout(_pSearchTimer);
+    _pSearchTimer = setTimeout(() => loadProducts(true), 350);
+  });
+
+  // Activate tab from URL hash
+  const hash = location.hash.replace('#', '');
+  if (hash === 'products') {
+    const btn = document.querySelector('[data-tab="products"]');
+    switchTab('products', btn);
+  } else {
+    loadCustomers(true);
+  }
 });
 
-/* ---- Load customers from D365 API ----------------------- */
-async function loadCustomers(reset = false) {
-  if (reset) currentSkip = 0;
-  currentSearch = document.getElementById('searchInput').value.trim();
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(tab, btn) {
+  _activeTab = tab;
+  document.querySelectorAll('.cat-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
+  if (btn) btn.classList.add('active');
 
-  setLoading(true);
-  hideError();
+  // Update page title and nav highlight
+  const titles = { customers: 'Customers', products: 'Products' };
+  document.getElementById('pageTitle').textContent = titles[tab] || tab;
 
-  try {
-    const params = new URLSearchParams({
-      search: currentSearch,
-      top:    currentTop,
-      skip:   currentSkip,
-    });
+  // Update sidebar active state
+  document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+  if (tab === 'customers') {
+    document.querySelector('a[href="customers.html"]')?.classList.add('active');
+  } else {
+    document.getElementById('navProducts')?.classList.add('active');
+  }
 
-    const res  = await fetch(`/api/d365/customers?${params}`);
-    const data = await res.json();
+  // Update URL hash without scroll jump
+  history.replaceState(null, '', '#' + tab);
 
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
-    const customers = data.value || [];
-    loadedCount = customers.length;
-
-    renderTable(customers);
-    updateStats(customers);
-    updatePagination(customers.length);
-    updateConnectionBadge(true);
-
-  } catch (err) {
-    showError(err.message);
-    updateConnectionBadge(false);
-    renderEmpty('Connection Error', err.message);
-  } finally {
-    setLoading(false);
+  // Load data on first visit to tab
+  if (tab === 'customers' && c_count === 0 && document.getElementById('c-tableWrap').querySelector('.state-box')) {
+    loadCustomers(true);
+  }
+  if (tab === 'products' && p_count === 0 && document.getElementById('p-tableWrap').querySelector('.state-box')) {
+    loadProducts(true);
   }
 }
 
-/* ---- Render table --------------------------------------- */
-function renderTable(customers) {
-  const wrap = document.getElementById('tableWrap');
+function refreshActive() {
+  if (_activeTab === 'customers') loadCustomers(true);
+  else loadProducts(true);
+}
 
+/* ============================================================
+   CUSTOMERS
+   ============================================================ */
+async function loadCustomers(reset = false) {
+  if (reset) c_skip = 0;
+  c_search = document.getElementById('c-searchInput').value.trim();
+  document.getElementById('c-resultsBadge').textContent = 'Loading…';
+  document.getElementById('c-errorBanner').classList.remove('show');
+
+  try {
+    const params = new URLSearchParams({ search: c_search, top: c_top, skip: c_skip });
+    const res  = await fetch(`/api/d365/customers?${params}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const customers = data.value || [];
+    c_count = customers.length;
+    renderCustTable(customers);
+    updateCustStats(customers);
+    updateCustPagination(customers.length);
+    updateConnectionBadge(true);
+  } catch (err) {
+    document.getElementById('c-errorMsg').textContent = err.message;
+    document.getElementById('c-errorBanner').classList.add('show');
+    updateConnectionBadge(false);
+    document.getElementById('c-tableWrap').innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-exclamation-circle" style="color:var(--danger);"></i></div>
+        <p><strong>Connection Error</strong></p>
+        <p class="hint">${esc(err.message)}</p>
+      </div>`;
+  }
+}
+
+function renderCustTable(customers) {
+  const wrap = document.getElementById('c-tableWrap');
   if (customers.length === 0) {
-    renderEmpty('No customers found', currentSearch
-      ? `No results for "${currentSearch}". Try a different search.`
-      : 'No customers returned from D365.');
-    document.getElementById('pagination').style.display = 'none';
+    wrap.innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
+        <p><strong>No customers found</strong></p>
+        <p class="hint">${c_search ? `No results for "${esc(c_search)}". Try a different search.` : 'No customers returned from D365.'}</p>
+      </div>`;
+    document.getElementById('c-pagination').style.display = 'none';
     return;
   }
 
@@ -427,16 +624,14 @@ function renderTable(customers) {
     const email = c.PrimaryContactEmail || '';
     const phone = c.PrimaryContactPhone || '';
     const city  = [c.AddressCity, c.AddressState].filter(Boolean).join(', ');
-    const safeC = JSON.stringify(c).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-
     return `
-    <tr class="data-row" onclick='openDetail(${currentSkip + i})'>
+    <tr class="data-row" onclick="openCustDetail(${c_skip + i})">
       <td>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="width:34px;height:34px;border-radius:10px;background:var(--teal-light);color:var(--teal-dark);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
           <div>
             <div class="org-name">${esc(c.OrganizationName || '—')}</div>
-            <div class="sub-text">${email || '—'}</div>
+            <div class="sub-text">${esc(email || '—')}</div>
           </div>
         </div>
       </td>
@@ -452,86 +647,92 @@ function renderTable(customers) {
   wrap.innerHTML = `
     <div class="table-wrap">
       <table class="cust-table">
-        <thead>
-          <tr>
-            <th>Organisation</th>
-            <th>Account #</th>
-            <th>Group</th>
-            <th>Currency</th>
-            <th>City / State</th>
-            <th>Phone</th>
-            <th>Payment Terms</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Organisation</th>
+          <th>Account #</th>
+          <th>Group</th>
+          <th>Currency</th>
+          <th>City / State</th>
+          <th>Phone</th>
+          <th>Payment Terms</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 
-  // Store loaded customers for detail view
   window._d365Customers = customers;
-  document.getElementById('pagination').style.display = 'flex';
+  document.getElementById('c-pagination').style.display = 'flex';
 }
 
-function renderEmpty(title, msg) {
-  document.getElementById('tableWrap').innerHTML = `
-    <div class="state-box">
-      <div class="icon"><i class="fas fa-building" style="color:var(--teal);"></i></div>
-      <p><strong>${title}</strong></p>
-      <p class="hint">${msg}</p>
-    </div>`;
+function updateCustStats(customers) {
+  document.getElementById('c-statTotal').textContent  = customers.length;
+  document.getElementById('c-statPage').textContent   = Math.floor(c_skip / c_top) + 1;
+  document.getElementById('c-statActive').textContent = customers.length;
+  document.getElementById('c-resultsBadge').textContent =
+    `${customers.length} record${customers.length !== 1 ? 's' : ''}`;
 }
 
-/* ---- Open detail modal ---------------------------------- */
-function openDetail(index) {
-  const c = (window._d365Customers || [])[index - currentSkip];
+function updateCustPagination(count) {
+  const from = c_skip + 1, to = c_skip + count;
+  document.getElementById('c-pageInfo').textContent = `Showing ${from} – ${to}`;
+  document.getElementById('c-btnPrev').disabled = c_skip === 0;
+  document.getElementById('c-btnNext').disabled = count < c_top;
+}
+
+function cPrevPage() {
+  if (c_skip <= 0) return;
+  c_skip = Math.max(0, c_skip - c_top);
+  loadCustomers(false);
+}
+
+function cNextPage() {
+  if (c_count < c_top) return;
+  c_skip += c_top;
+  loadCustomers(false);
+}
+
+function openCustDetail(index) {
+  const c = (window._d365Customers || [])[index - c_skip];
   if (!c) return;
   currentCustomer = c;
 
   const initials = (c.OrganizationName || c.CustomerAccount || '??')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  document.getElementById('detailAvatar').textContent = initials;
-  document.getElementById('detailName').textContent   = c.OrganizationName || '—';
-  document.getElementById('detailAcc').textContent    = c.CustomerAccount  || '—';
+  document.getElementById('cd-avatar').textContent = initials;
+  document.getElementById('cd-name').textContent   = c.OrganizationName || '—';
+  document.getElementById('cd-acc').textContent    = c.CustomerAccount  || '—';
 
-  // Identification
-  set('d-account',    c.CustomerAccount);
-  set('d-group',      c.CustomerGroupId);
-  set('d-currency',   c.CurrencyCode);
-  set('d-lang',       c.LanguageId);
-  set('d-invoice-acc',c.InvoiceCustomerAccountNumber);
-  set('d-lob',        c.LineOfBusinessId);
+  setEl('cd-account',    c.CustomerAccount);
+  setEl('cd-group',      c.CustomerGroupId);
+  setEl('cd-currency',   c.CurrencyCode);
+  setEl('cd-lang',       c.LanguageId);
+  setEl('cd-invoice-acc',c.InvoiceCustomerAccountNumber);
+  setEl('cd-lob',        c.LineOfBusinessId);
+  setEl('cd-email',      c.PrimaryContactEmail);
+  setEl('cd-phone',      c.PrimaryContactPhone);
+  setEl('cd-fax',        c.PrimaryContactFax);
+  setEl('cd-contact',    c.ContactPersonId);
+  setEl('cd-street',     c.AddressStreet);
+  setEl('cd-city',       c.AddressCity);
+  setEl('cd-state',      c.AddressState);
+  setEl('cd-zip',        c.AddressZipCode);
+  setEl('cd-country',    c.AddressCountryRegionId);
+  setEl('cd-payment',    c.PaymentTermsName);
+  setEl('cd-tax',        c.SalesTaxGroup);
+  setEl('cd-credit',     c.CreditLimit != null ? PP.fmtCurrency(c.CreditLimit) : null);
+  setEl('cd-credit-flag',c.IsCreditLimitUsed != null ? (c.IsCreditLimitUsed ? 'Yes' : 'No') : null);
+  setEl('cd-delivery',   c.DeliveryTermsCode);
+  setEl('cd-warehouse',  c.WarehouseId);
 
-  // Contact
-  set('d-email',   c.PrimaryContactEmail);
-  set('d-phone',   c.PrimaryContactPhone);
-  set('d-fax',     c.PrimaryContactFax);
-  set('d-contact', c.ContactPersonId);
-
-  // Address
-  set('d-street',  c.AddressStreet);
-  set('d-city',    c.AddressCity);
-  set('d-state',   c.AddressState);
-  set('d-zip',     c.AddressZipCode);
-  set('d-country', c.AddressCountryRegionId);
-
-  // Financial
-  set('d-payment',      c.PaymentTermsName);
-  set('d-tax',          c.SalesTaxGroup);
-  set('d-credit',       c.CreditLimit != null ? PP.fmtCurrency(c.CreditLimit) : null);
-  set('d-credit-flag',  c.IsCreditLimitUsed != null ? (c.IsCreditLimitUsed ? 'Yes' : 'No') : null);
-  set('d-delivery',     c.DeliveryTermsCode);
-  set('d-warehouse',    c.WarehouseId);
-
-  document.getElementById('detailModal').classList.add('open');
+  document.getElementById('custDetailModal').classList.add('open');
 }
 
-function closeDetail() {
-  document.getElementById('detailModal').classList.remove('open');
+function closeCustDetail() {
+  document.getElementById('custDetailModal').classList.remove('open');
 }
 
 function newOrderForCustomer() {
   if (!currentCustomer) return;
-  // Pass customer to new order page via sessionStorage (D365 field names)
   sessionStorage.setItem('d365_selected_customer', JSON.stringify({
     CustomerAccount:     currentCustomer.CustomerAccount,
     OrganizationName:    currentCustomer.OrganizationName    || '',
@@ -549,64 +750,193 @@ function newOrderForCustomer() {
   window.location.href = 'sales-order.html';
 }
 
-/* ---- Pagination ----------------------------------------- */
-function prevPage() {
-  if (currentSkip <= 0) return;
-  currentSkip = Math.max(0, currentSkip - currentTop);
-  loadCustomers(false);
+/* ============================================================
+   PRODUCTS
+   ============================================================ */
+async function loadProducts(reset = false) {
+  if (reset) p_skip = 0;
+  p_search = document.getElementById('p-searchInput').value.trim();
+  document.getElementById('p-resultsBadge').textContent = 'Loading…';
+  document.getElementById('p-errorBanner').classList.remove('show');
+
+  try {
+    const params = new URLSearchParams({ search: p_search, top: p_top, skip: p_skip });
+    const res  = await fetch(`/api/d365/products?${params}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const products = data.value || [];
+    p_count = products.length;
+    renderProdTable(products);
+    updateProdStats(products);
+    updateProdPagination(products.length);
+    updateConnectionBadge(true);
+  } catch (err) {
+    document.getElementById('p-errorMsg').textContent = err.message;
+    document.getElementById('p-errorBanner').classList.add('show');
+    updateConnectionBadge(false);
+    document.getElementById('p-tableWrap').innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-exclamation-circle" style="color:var(--danger);"></i></div>
+        <p><strong>Connection Error</strong></p>
+        <p class="hint">${esc(err.message)}</p>
+      </div>`;
+  }
 }
 
-function nextPage() {
-  if (loadedCount < currentTop) return; // no more pages
-  currentSkip += currentTop;
-  loadCustomers(false);
+function renderProdTable(products) {
+  const wrap = document.getElementById('p-tableWrap');
+  if (products.length === 0) {
+    wrap.innerHTML = `
+      <div class="state-box">
+        <div class="icon"><i class="fas fa-box" style="color:var(--teal);"></i></div>
+        <p><strong>No products found</strong></p>
+        <p class="hint">${p_search ? `No results for "${esc(p_search)}". Try a different search.` : 'No products returned from D365.'}</p>
+      </div>`;
+    document.getElementById('p-pagination').style.display = 'none';
+    return;
+  }
+
+  const rows = products.map((p, i) => {
+    const initials = (p.SearchName || p.ItemNumber || '??')
+      .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const price = p.SalesPrice > 0 ? `$${Number(p.SalesPrice).toFixed(2)}` : '—';
+    const unit  = p.SalesUnitSymbol || 'ea';
+    return `
+    <tr class="data-row" onclick="openProdDetail(${p_skip + i})">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--orange-light);color:var(--orange);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
+          <div>
+            <div class="prod-name">${esc(p.SearchName || p.ItemNumber || '—')}</div>
+            <div class="sub-text">${esc(p.ProductGroupId || '—')}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="item-num">${esc(p.ItemNumber || '—')}</span></td>
+      <td>${esc(p.ProductGroupId || '—')}</td>
+      <td>${esc(p.ProductType || '—')}</td>
+      <td><span class="price-val">${price}</span></td>
+      <td>${esc(unit)}</td>
+      <td>${esc(p.dataAreaId || '—')}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="prod-table">
+        <thead><tr>
+          <th>Product Name</th>
+          <th>Item #</th>
+          <th>Group</th>
+          <th>Type</th>
+          <th>Sales Price</th>
+          <th>Unit</th>
+          <th>Data Area</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  window._d365Products = products;
+  document.getElementById('p-pagination').style.display = 'flex';
 }
 
-
-/* ---- UI helpers ----------------------------------------- */
-function updateStats(customers) {
-  document.getElementById('statTotal').textContent  = customers.length;
-  document.getElementById('statPage').textContent   = Math.floor(currentSkip / currentTop) + 1;
-  document.getElementById('statActive').textContent = customers.length;
-  document.getElementById('resultsBadge').textContent =
-    `${customers.length} record${customers.length !== 1 ? 's' : ''}`;
+function updateProdStats(products) {
+  document.getElementById('p-statTotal').textContent = products.length;
+  document.getElementById('p-statPage').textContent  = Math.floor(p_skip / p_top) + 1;
+  document.getElementById('p-statShown').textContent = products.length;
+  document.getElementById('p-resultsBadge').textContent =
+    `${products.length} record${products.length !== 1 ? 's' : ''}`;
 }
 
-function updatePagination(count) {
-  const from = currentSkip + 1;
-  const to   = currentSkip + count;
-  document.getElementById('pageInfo').textContent = `Showing ${from} – ${to}`;
-  document.getElementById('btnPrev').disabled = currentSkip === 0;
-  document.getElementById('btnNext').disabled = count < currentTop;
+function updateProdPagination(count) {
+  const from = p_skip + 1, to = p_skip + count;
+  document.getElementById('p-pageInfo').textContent = `Showing ${from} – ${to}`;
+  document.getElementById('p-btnPrev').disabled = p_skip === 0;
+  document.getElementById('p-btnNext').disabled = count < p_top;
 }
 
+function pPrevPage() {
+  if (p_skip <= 0) return;
+  p_skip = Math.max(0, p_skip - p_top);
+  loadProducts(false);
+}
+
+function pNextPage() {
+  if (p_count < p_top) return;
+  p_skip += p_top;
+  loadProducts(false);
+}
+
+function openProdDetail(index) {
+  const p = (window._d365Products || [])[index - p_skip];
+  if (!p) return;
+  currentProduct = p;
+
+  const initials = (p.SearchName || p.ItemNumber || '??')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('pd-avatar').textContent   = initials;
+  document.getElementById('pd-name').textContent     = p.SearchName || p.ItemNumber || '—';
+  document.getElementById('pd-itemNum').textContent  = p.ItemNumber || '—';
+
+  const tb = document.getElementById('pd-typeBadge');
+  tb.innerHTML = p.ProductType ? `<span class="badge badge-open">${esc(p.ProductType)}</span>` : '';
+
+  setEl('pd-item-num',    p.ItemNumber);
+  setEl('pd-prod-num',    p.ProductNumber);
+  setEl('pd-search-name', p.SearchName);
+  setEl('pd-prod-group',  p.ProductGroupId);
+  setEl('pd-prod-type',   p.ProductType);
+  setEl('pd-data-area',   p.dataAreaId);
+  setPriceEl('pd-sales-price',    p.SalesPrice);
+  setPriceEl('pd-purchase-price', p.PurchasePrice);
+  setPriceEl('pd-unit-cost',      p.UnitCost);
+  setEl('pd-sales-unit', p.SalesUnitSymbol);
+  setEl('pd-inv-unit',   p.InventoryUnitSymbol);
+
+  document.getElementById('prodDetailModal').classList.add('open');
+}
+
+function closeProdDetail() {
+  document.getElementById('prodDetailModal').classList.remove('open');
+}
+
+function newOrderWithProduct() {
+  if (!currentProduct) return;
+  sessionStorage.setItem('d365_selected_product', JSON.stringify({
+    ItemNumber:      currentProduct.ItemNumber      || '',
+    SearchName:      currentProduct.SearchName      || '',
+    ProductGroupId:  currentProduct.ProductGroupId  || '',
+    SalesPrice:      currentProduct.SalesPrice      || 0,
+    SalesUnitSymbol: currentProduct.SalesUnitSymbol || 'ea',
+  }));
+  window.location.href = 'sales-order.html';
+}
+
+/* ============================================================
+   Shared helpers
+   ============================================================ */
 function updateConnectionBadge(ok) {
   const el = document.getElementById('connectionBadge');
   el.className = `badge ${ok ? 'badge-paid' : 'badge-overdue'}`;
   el.textContent = ok ? 'D365 Connected' : 'D365 Disconnected';
 }
 
-function setLoading(on) {
-  document.getElementById('resultsBadge').textContent = on ? 'Loading…' : '';
-}
-
-function showError(msg) {
-  document.getElementById('errorMsg').textContent = msg;
-  document.getElementById('errorBanner').classList.add('show');
-}
-
-function hideError() {
-  document.getElementById('errorBanner').classList.remove('show');
-}
-
-function set(id, val) {
+function setEl(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val || '—';
 }
 
+function setPriceEl(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = (val != null && val !== 0 && val !== '') ? `$${Number(val).toFixed(2)}` : '—';
+}
+
 function esc(str) {
   return String(str ?? '').replace(/[&<>"]/g, s =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
 }
 </script>
 <script src="bot-widget.js"></script>

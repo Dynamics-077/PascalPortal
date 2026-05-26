@@ -78,14 +78,20 @@ function initTabs(containerSelector) {
     if (panels[0])  panels[0].classList.add('active');
   });
 }
-document.addEventListener('DOMContentLoaded', () => initTabs());
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  // Pre-fill topbar chip from MSAL-stored salesrep (written by index.html on SSO login)
+  const cached = getSalesRep();
+  if (cached && cached.name) setTopbarUser(cached.name);
+});
 
 /* ---- Logout (Entra ID: clear session + redirect) ---------- */
 function logout() {
   // 1. Clear local memory and session storage tokens
   localStorage.removeItem('pp_salesrep');
+  localStorage.removeItem('pp_rep_name');
   localStorage.removeItem('pp_token');
-  sessionStorage.clear(); 
+  sessionStorage.clear();
 
   showToast('Signing out...', 'default', 1000);
 
@@ -311,9 +317,23 @@ function exportOrderLines(order) {
   _downloadXLSX(wb, `PascalPress_Order_${order.id}.xlsx`);
 }
 
+/* ---- Topbar user chip ------------------------------------- */
+function setTopbarUser(name) {
+  if (!name) return;
+  const nameEl   = document.getElementById('topbarUserName');
+  const avatarEl = document.getElementById('topbarAvatar');
+  if (!nameEl) return;
+  nameEl.textContent = name;
+  if (avatarEl) {
+    avatarEl.textContent = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  }
+  // Cache so next page load shows name immediately
+  try { localStorage.setItem('pp_rep_name', name); } catch (_) {}
+}
+
 /* ---- Expose globals --------------------------------------- */
 window.PP = {
-  MOCK, searchCustomers, getSalesRep,
+  MOCK, searchCustomers, getSalesRep, setTopbarUser,
   fmtCurrency, fmtDate, statusBadge, calcNet, nextOrderId,
   showToast, openModal, closeModal,
   exportOrders, exportOrderLines,

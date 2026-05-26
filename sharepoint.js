@@ -213,8 +213,9 @@ function mapOrder(item, customerMap) {
     const custNameInTitle = titleParts.length >= 2 ? titleParts[1].replace(/^PO:.*/, '').trim() : '';
 
     return {
-        id:      cleanText(fields.SalesId || fields.Title || item.id),
-        salesId: cleanText(fields.SalesId || fields.Title || item.id),
+        id:       cleanText(fields.SalesId || fields.Title || item.id),
+        spItemId: item.id,
+        salesId:  cleanText(fields.SalesId || fields.Title || item.id),
         customerId,
         custAccount:  customerId,
         customerName: cleanText(customer?.name || custNameInTitle || fields.CustomerName || customerId),
@@ -225,6 +226,7 @@ function mapOrder(item, customerMap) {
         deliveryTerms:  cleanText(fields.DeliveryTerms || ''),
         paymentTerms:   cleanText(fields.PaymentTerms  || ''),
         currency:       cleanText(fields.Currency      || 'AUD'),
+        dateTime:       fields.DateTime || '',
         customerGroup:  cleanText(fields.CustGroup     || ''),
         invoiceAccount: cleanText(fields.InvoiceAccount || ''),
         deliveryDate: '',

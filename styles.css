@@ -191,6 +191,24 @@ p  { color: var(--grey-600); }
 .topbar .page-title { font-size: 1.05rem; font-weight: 700; color: var(--navy); flex: 1; }
 .topbar .breadcrumb { font-size: .78rem; color: var(--grey-400); margin-left: 8px; font-weight: 400; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+/* --- Topbar user chip -------------------------------------- */
+.topbar-user-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid var(--grey-200); border-radius: 24px;
+  background: var(--grey-50); margin-left: 4px;
+}
+.topbar-user-chip .tu-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--teal); color: white;
+  font-size: .68rem; font-weight: 700; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.topbar-user-chip .tu-name {
+  font-size: .82rem; font-weight: 600; color: var(--navy);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .topbar .icon-btn {
   width: 36px; height: 36px; border-radius: var(--radius);
   border: 1px solid var(--grey-200); background: white;
