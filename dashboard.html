@@ -333,7 +333,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('statRevenue').textContent = PP.fmtCurrency(s.revenueThisMonth || 0);
     document.getElementById('statPending').textContent = _pendingCount;
     document.getElementById('notifBadge').textContent  = _pendingCount;
-    document.getElementById('pendingBadge').textContent = _pendingCount || '';
+    const _pb = document.getElementById('pendingBadge');
+    if (_pb) _pb.textContent = _pendingCount || '';
 
     /* Revenue delta — show month-on-month order count instead of fake target % */
     const prevMonth = new Date(); prevMonth.setMonth(prevMonth.getMonth() - 1);
