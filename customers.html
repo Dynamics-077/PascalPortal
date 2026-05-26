@@ -524,13 +524,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     _pSearchTimer = setTimeout(() => loadProducts(true), 350);
   });
 
-  // Activate tab from URL hash
+  // Activate tab from URL hash on initial load
   const hash = location.hash.replace('#', '');
   if (hash === 'products') {
     const btn = document.querySelector('[data-tab="products"]');
     switchTab('products', btn);
   } else {
     loadCustomers(true);
+  }
+});
+
+// Handle sidebar clicks when already on customers.html (hash changes without page reload)
+window.addEventListener('hashchange', () => {
+  const tab = location.hash.replace('#', '') || 'customers';
+  if (tab === 'products' || tab === 'customers') {
+    const btn = document.querySelector(`[data-tab="${tab}"]`);
+    switchTab(tab, btn);
   }
 });
 
