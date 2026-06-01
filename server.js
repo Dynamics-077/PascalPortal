@@ -82,9 +82,25 @@ const validateToken = (req, res, next) => {
 app.use('/api', validateToken);
 
 
+// ── RBAC middleware ─────────────────────────────────────────────
+// Usage: router.get('/admin-route', requireRole('admin'), handler)
+const ROLE_LEVELS = { salesrep: 1, manager: 2, admin: 3 };
+
+function requireRole(minRole) {
+    return (req, res, next) => {
+        const userRole  = req.user?.role || 'salesrep';
+        const userLevel = ROLE_LEVELS[userRole]  || 1;
+        const minLevel  = ROLE_LEVELS[minRole]   || 1;
+        if (userLevel >= minLevel) return next();
+        res.status(403).json({ error: `Access denied — requires role: ${minRole}` });
+    };
+}
+
 function buildFallbackSalesRep(user = {}) {
     const name = user.name || user.given_name || user.preferred_username || 'Mock Rep';
     const firstName = name.split(' ')[0] || 'Rep';
+    // Role: read from JWT 'roles' claim, or from env DEV_REP_ROLE, default salesrep
+    const role = (user.roles && user.roles[0]) || user.role || process.env.DEV_REP_ROLE || 'salesrep';
 
     return {
         id: 'REP-003',
@@ -95,6 +111,7 @@ function buildFallbackSalesRep(user = {}) {
         territory: 'NSW Metro Schools',
         d365WorkerId: 'D365-WORKER-0042',
         entraOid: user.oid || 'mock-user-id',
+        role,
         targets: {
             monthly: 50000.00,
             ytd: 350000.00
@@ -269,8 +286,8 @@ app.get('/api/salesorders/:id', async (req, res) => {
     }
 });
 
-// 9. Data sync status (check if SharePoint is configured)
-app.get('/api/sync/status', async (req, res) => {
+// 9. Data sync status (check if SharePoint is configured) — admin only
+app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
     try {
         const bootstrap = await sharepoint.getBootstrapData(req.user);
         res.json({

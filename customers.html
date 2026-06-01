@@ -182,40 +182,8 @@
 <body>
 <div class="layout">
 
-  <!-- ===== SIDEBAR ======================================== -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-mark">
-        <div class="logo-icon">PP</div>
-        <div class="logo-text">
-          <div class="brand">Pascal Press</div>
-          <div class="sub">Sales Rep Portal</div>
-        </div>
-      </div>
-    </div>
-    <div class="sidebar-user">
-      <div class="avatar" id="userAvatar">SR</div>
-      <div class="user-info">
-        <div class="name" id="userName">Loading…</div>
-        <div class="role" id="userRole">Sales Rep</div>
-      </div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section-label">Main</div>
-      <a href="dashboard.html"   class="nav-item"><i class="fas fa-chart-bar nav-icon"></i> Dashboard</a>
-      <a href="sales-order.html" class="nav-item"><i class="fas fa-plus-circle nav-icon"></i> New Order</a>
-      <a href="all-orders.html"  class="nav-item"><i class="fas fa-clipboard-list nav-icon"></i> All Orders</a>
-      <a href="data-admin.html"  class="nav-item"><i class="fas fa-database nav-icon"></i> Data Admin</a>
-      <div class="nav-section-label" style="margin-top:8px;">Dynamics 365</div>
-      <a href="customers.html"            class="nav-item active"><i class="fas fa-building nav-icon"></i> Customers</a>
-      <a href="customers.html#products"   class="nav-item" id="navProducts"><i class="fas fa-box nav-icon"></i> Products</a>
-      <div class="nav-section-label" style="margin-top:8px;">Support</div>
-      <a href="mailto:orders@pascalpress.com.au" class="nav-item"><i class="fas fa-envelope nav-icon"></i> Contact</a>
-    </nav>
-    <div class="sidebar-footer">
-      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
-    </div>
-  </aside>
+  <!-- ===== SIDEBAR (injected by layout.js) =============== -->
+  <div id="pp-sidebar"></div>
 
   <!-- ===== MAIN =========================================== -->
   <main class="main-content">
@@ -484,6 +452,7 @@
 
 <div id="toast-container"></div>
 <script src="app.js"></script>
+<script src="layout.js"></script>
 <script>
 /* ============================================================
    Catalogue Page — Customers + Products combined with tabs
