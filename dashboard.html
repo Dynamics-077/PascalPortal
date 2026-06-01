@@ -451,16 +451,14 @@ function buildDonut(orders) {
     });
   }
 
-  // Legend — show all statuses (greyed out if 0)
-  const legendHtml = Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-    const val     = counts[key] || 0;
-    const opacity = val > 0 ? '1' : '0.35';
-    return `
-      <div class="legend-item" style="opacity:${opacity}">
+  // Legend — only show statuses with count > 0
+  const legendHtml = Object.entries(STATUS_CONFIG)
+    .filter(([key]) => (counts[key] || 0) > 0)
+    .map(([key, cfg]) => `
+      <div class="legend-item">
         <div class="legend-dot" style="background:${cfg.color}"></div>
-        <span>${cfg.label} (${val})</span>
-      </div>`;
-  }).join('');
+        <span>${cfg.label} (${counts[key]})</span>
+      </div>`).join('');
 
   document.getElementById('donutWrap').innerHTML = `
     <div class="donut-svg-wrap">
