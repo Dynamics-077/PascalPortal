@@ -50,6 +50,7 @@ function generateId(prefix) {
 function buildSalesRep(user = {}) {
     const name      = cleanText(user.name || user.given_name || user.preferred_username || process.env.DEV_REP_NAME || 'Sales Rep');
     const firstName = name.split(' ')[0] || 'Rep';
+    const role      = (user.roles && user.roles[0]) || user.role || process.env.DEV_REP_ROLE || 'salesrep';
 
     return {
         id:           cleanText(user.oid || 'dev-user'),
@@ -60,6 +61,7 @@ function buildSalesRep(user = {}) {
         territory:    cleanText(process.env.DEV_REP_TERRITORY || ''),
         d365WorkerId: cleanText(user.d365WorkerId || ''),
         entraOid:     cleanText(user.oid || 'dev-user'),
+        role,
     };
 }
 
