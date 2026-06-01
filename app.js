@@ -173,17 +173,20 @@ function fmtDate(str) {
 
 /* ---- Status badge HTML ------------------------------------ */
 function statusBadge(status) {
+  // Matches SharePoint SalesOrderHeader Status choices exactly
   const map = {
-    'Open':      'badge-open',
-    'Confirmed': 'badge-confirmed',
-    'Shipped':   'badge-shipped',
-    'Cancelled': 'badge-cancelled',
-    'Overdue':   'badge-overdue',
-    'Paid':      'badge-paid',
-    'Pending':   'badge-pending',
-    'Partial':   'badge-partial',
-    'On Hold':   'badge-overdue',
-    'Good':      'badge-paid',
+    'Draft':       'badge-pending',
+    'In Progress': 'badge-open',
+    'Submit':      'badge-confirmed',
+    'Complete':    'badge-paid',
+    'Shipped':     'badge-shipped',
+    'Invoiced':    'badge-partial',
+    'Cancelled':   'badge-cancelled',
+    // Legacy / fallback
+    'Open':        'badge-open',
+    'Confirmed':   'badge-confirmed',
+    'On Hold':     'badge-overdue',
+    'Overdue':     'badge-overdue',
   };
   const cls = map[status] || 'badge-open';
   return `<span class="badge ${cls}">${status}</span>`;

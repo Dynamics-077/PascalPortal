@@ -401,40 +401,76 @@ async function buildTopCustomers(orders) {
 }
 
 function buildDonut(orders) {
-  const counts  = { Open: 0, Confirmed: 0, Shipped: 0, Cancelled: 0 };
-  (orders || []).forEach(o => { 
-    const status = o.status || 'Open';
-    if (counts[status] !== undefined) counts[status]++; 
-    else counts['Open']++;
+  // SharePoint SalesOrderHeader Status choices (exact values)
+  const STATUS_CONFIG = {
+    'Draft':       { color: '#94a3b8', label: 'Draft'       },
+    'In Progress': { color: '#f59e0b', label: 'In Progress' },
+    'Submit':      { color: '#3b82f6', label: 'Submitted'   },
+    'Complete':    { color: '#00a4a6', label: 'Complete'     },
+    'Shipped':     { color: '#10b981', label: 'Shipped'      },
+    'Invoiced':    { color: '#8b5cf6', label: 'Invoiced'     },
+    'Cancelled':   { color: '#ef4444', label: 'Cancelled'    },
+  };
+
+  // Count per status — unknown statuses go into their own bucket
+  const counts = {};
+  Object.keys(STATUS_CONFIG).forEach(k => { counts[k] = 0; });
+
+  (orders || []).forEach(o => {
+    const s = o.status || 'In Progress';
+    if (counts[s] !== undefined) counts[s]++;
+    else {
+      counts[s] = (counts[s] || 0) + 1;
+      if (!STATUS_CONFIG[s]) STATUS_CONFIG[s] = { color: '#9ba5b4', label: s };
+    }
   });
-  const total  = (orders || []).length || 1;
-  const colors = { Open: '#00a4a6', Confirmed: '#2980b9', Shipped: '#27ae60', Cancelled: '#9ba5b4' };
+
+  // Only show statuses that have > 0 OR are active types
+  const active = Object.entries(counts).filter(([k, v]) => v > 0);
+  const total  = (orders || []).length;
+  const displayTotal = total || 0;
 
   const radius = 36, cx = 50, cy = 50, stroke = 14;
   const circ   = 2 * Math.PI * radius;
-  let offset   = 0, segments = '';
-  Object.entries(counts).forEach(([key, val]) => {
-    const pct  = total > 0 ? val / total : 0;
-    const dash = pct * circ;
-    segments += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none"
-      stroke="${colors[key]}" stroke-width="${stroke}"
-      stroke-dasharray="${dash} ${circ - dash}"
-      stroke-dashoffset="${-offset}" />`;
-    offset += dash;
-  });
+  let offset = 0, segments = '';
+
+  if (total === 0) {
+    // Empty state ring
+    segments = `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none"
+      stroke="#e2e8f0" stroke-width="${stroke}" />`;
+  } else {
+    active.forEach(([key, val]) => {
+      const pct  = val / total;
+      const dash = pct * circ;
+      const col  = (STATUS_CONFIG[key] || {}).color || '#9ba5b4';
+      segments += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none"
+        stroke="${col}" stroke-width="${stroke}"
+        stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}"
+        stroke-dashoffset="${(-offset).toFixed(2)}" />`;
+      offset += dash;
+    });
+  }
+
+  // Legend — show all statuses (greyed out if 0)
+  const legendHtml = Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+    const val     = counts[key] || 0;
+    const opacity = val > 0 ? '1' : '0.35';
+    return `
+      <div class="legend-item" style="opacity:${opacity}">
+        <div class="legend-dot" style="background:${cfg.color}"></div>
+        <span>${cfg.label} (${val})</span>
+      </div>`;
+  }).join('');
 
   document.getElementById('donutWrap').innerHTML = `
     <div class="donut-svg-wrap">
       <svg class="donut-svg" width="100" height="100" viewBox="0 0 100 100">${segments}</svg>
-      <div class="donut-center"><div class="dc-val">${total}</div><div class="dc-lbl">Orders</div></div>
+      <div class="donut-center">
+        <div class="dc-val">${displayTotal}</div>
+        <div class="dc-lbl">Orders</div>
+      </div>
     </div>
-    <div class="donut-legend">
-      ${Object.entries(counts).map(([key, val]) => `
-        <div class="legend-item">
-          <div class="legend-dot" style="background:${colors[key]}"></div>
-          <span>${key} (${val})</span>
-        </div>`).join('')}
-    </div>`;
+    <div class="donut-legend">${legendHtml}</div>`;
 }
 
 function buildBarChart(orders) {
