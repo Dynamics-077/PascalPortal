@@ -205,27 +205,45 @@ const msalConfig = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+const APP_CLIENT_ID = '6bc856af-36d8-424d-a089-1860d402627b';
+
 // Handle return from Microsoft Login
 msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
   if (tokenResponse !== null) {
     const account = tokenResponse.account;
 
+    // ── Acquire APP token — this one contains App Roles ──────
+    // The login token (User.Read) does NOT have roles.
+    // We need a token scoped to our own app to get roles claim.
+    let appToken = tokenResponse.accessToken;
+    try {
+      const appTokenRes = await msalInstance.acquireTokenSilent({
+        scopes: [`api://${APP_CLIENT_ID}/.default`],
+        account: account
+      });
+      appToken = appTokenRes.accessToken;
+      console.log('[Auth] App token acquired — roles will be in this token');
+    } catch (e) {
+      console.warn('[Auth] Could not get app token, using login token:', e.message);
+    }
+
+    // ── Store user info ───────────────────────────────────────
     const realRep = PP.MOCK.salesRep;
-    realRep.name = account.name || realRep.name;
+    realRep.name      = account.name     || realRep.name;
     realRep.firstName = (account.name ? account.name.split(' ')[0] : realRep.firstName);
-    realRep.email = account.username || realRep.email;
-    realRep.entraOid = account.localAccountId || realRep.entraOid;
+    realRep.email     = account.username || realRep.email;
+    realRep.entraOid  = account.localAccountId || realRep.entraOid;
 
     localStorage.setItem('pp_salesrep', JSON.stringify(realRep));
-    localStorage.setItem('pp_token', tokenResponse.accessToken);
+    localStorage.setItem('pp_token',    appToken);
 
-    // Acquire Power Platform token for Copilot Studio bot
+    // ── Acquire Power Platform token for Copilot Studio bot ──
     try {
-      const botTokenResponse = await msalInstance.acquireTokenSilent({
+      const botTokenRes = await msalInstance.acquireTokenSilent({
         scopes: ['https://api.powerplatform.com/user_impersonation'],
         account: account
       });
-      localStorage.setItem('pp_bot_token', botTokenResponse.accessToken);
+      localStorage.setItem('pp_bot_token', botTokenRes.accessToken);
     } catch (e) {
       console.warn('[Bot] Could not acquire Power Platform token:', e.message);
     }
@@ -234,10 +252,9 @@ msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
   }
 }).catch((error) => {
-  console.error("Login Error: ", error);
+  console.error('[Auth] Login error:', error);
   document.getElementById('login-alert').style.display = 'flex';
   document.getElementById('login-alert-msg').textContent = error.message;
-  
   const btn = document.getElementById('msSignInBtn');
   btn.classList.remove('loading');
   btn.disabled = false;
@@ -247,15 +264,12 @@ function handleMsSignIn() {
   const btn   = document.getElementById('msSignInBtn');
   const alert = document.getElementById('login-alert');
   alert.style.display = 'none';
-
   btn.classList.add('loading');
   btn.disabled = true;
 
-  // Trigger Microsoft login redirect
-  const loginRequest = {
-    scopes: ["User.Read"]
-  };
-  msalInstance.loginRedirect(loginRequest);
+  msalInstance.loginRedirect({
+    scopes: ['openid', 'profile', 'email', 'User.Read']
+  });
 }
 </script>
 </body>

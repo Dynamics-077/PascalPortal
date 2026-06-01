@@ -71,9 +71,10 @@ const validateToken = (req, res, next) => {
             // return res.status(401).json({ error: 'Invalid Token' });
         }
         
-        // Token is valid! Attach the decoded user claims to the request
-        req.user = decoded;
-        console.log(`✅ Request authenticated for: ${req.user.preferred_username || req.user.name}`);
+        // Token is valid — attach decoded claims + extract role
+        req.user      = decoded;
+        req.user.role = (decoded.roles && decoded.roles[0]) || 'salesrep';
+        console.log(`✅ Authenticated: ${req.user.preferred_username || req.user.name} | role: ${req.user.role}`);
         next();
     });
 };
