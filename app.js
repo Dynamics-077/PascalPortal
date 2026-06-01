@@ -181,6 +181,7 @@ function statusBadge(status) {
     'Complete':    'badge-paid',
     'Shipped':     'badge-shipped',
     'Invoiced':    'badge-partial',
+    'Cancel':      'badge-cancelled',
     'Cancelled':   'badge-cancelled',
     // Legacy / fallback
     'Open':        'badge-open',

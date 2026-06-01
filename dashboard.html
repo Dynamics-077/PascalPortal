@@ -403,13 +403,13 @@ async function buildTopCustomers(orders) {
 function buildDonut(orders) {
   // SharePoint SalesOrderHeader Status choices (exact values)
   const STATUS_CONFIG = {
-    'Draft':       { color: '#94a3b8', label: 'Draft'       },
     'In Progress': { color: '#f59e0b', label: 'In Progress' },
     'Submit':      { color: '#3b82f6', label: 'Submitted'   },
     'Complete':    { color: '#00a4a6', label: 'Complete'     },
+    'Cancel':      { color: '#ef4444', label: 'Cancel'       },
+    'Draft':       { color: '#94a3b8', label: 'Draft'        },
     'Shipped':     { color: '#10b981', label: 'Shipped'      },
     'Invoiced':    { color: '#8b5cf6', label: 'Invoiced'     },
-    'Cancelled':   { color: '#ef4444', label: 'Cancelled'    },
   };
 
   // Count per status — unknown statuses go into their own bucket
