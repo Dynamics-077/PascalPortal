@@ -451,14 +451,18 @@ function buildDonut(orders) {
     });
   }
 
-  // Legend — only show statuses with count > 0
+  // Legend — show core statuses (In Progress, Submit, Complete, Cancel) always, hide others if 0
+  const CORE_STATUSES = ['In Progress', 'Submit', 'Complete', 'Cancel'];
   const legendHtml = Object.entries(STATUS_CONFIG)
-    .filter(([key]) => (counts[key] || 0) > 0)
-    .map(([key, cfg]) => `
+    .filter(([key]) => (counts[key] || 0) > 0 || CORE_STATUSES.includes(key))
+    .map(([key, cfg]) => {
+      const c = counts[key] || 0;
+      return `
       <div class="legend-item">
         <div class="legend-dot" style="background:${cfg.color}"></div>
-        <span>${cfg.label} (${counts[key]})</span>
-      </div>`).join('');
+        <span>${cfg.label} (${c})</span>
+      </div>`;
+    }).join('');
 
   document.getElementById('donutWrap').innerHTML = `
     <div class="donut-svg-wrap">
