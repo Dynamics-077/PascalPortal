@@ -135,22 +135,18 @@
 
   // ── Bootstrap: fetch user + inject ─────────────────────────
   async function boot() {
-    // 1. Show cached data immediately (no flash)
-    let user = { name: '' };
-    let role = 'salesrep';
-
+    // 1. Show cached NAME immediately to avoid flash — but NEVER
+    //    cache role, always fetch from server so .env changes
+    //    take effect on next page load without clearing storage.
+    let cachedName = '';
     try {
       const raw = localStorage.getItem('pp_salesrep');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        user = parsed;
-        role = parsed.role || 'salesrep';
-      }
+      if (raw) cachedName = JSON.parse(raw).name || '';
     } catch (_) {}
 
-    inject(user, role);
+    inject({ name: cachedName }, 'salesrep');
 
-    // 2. Fetch fresh data from server
+    // 2. Fetch authoritative role + user from server
     try {
       const token = localStorage.getItem('pp_token');
       const res   = await fetch('/api/bootstrap', {
@@ -159,17 +155,15 @@
       if (!res.ok) return;
       const data = await res.json();
       const rep  = data.salesRep || data.rep || {};
-      role       = rep.role || 'salesrep';
+      const role = rep.role || 'salesrep';
 
-      // Cache role for next page load
-      const cached = JSON.parse(localStorage.getItem('pp_salesrep') || '{}');
-      cached.role  = role;
-      localStorage.setItem('pp_salesrep', JSON.stringify(cached));
+      // Only cache name — never cache role (always read fresh from server)
+      localStorage.setItem('pp_salesrep', JSON.stringify({ name: rep.name }));
 
-      // Re-render sidebar with authoritative data
+      // Re-render sidebar with correct role
       inject(rep, role);
 
-      // Enforce page access AFTER we know the real role
+      // Enforce page access after real role confirmed
       enforcePageAccess(role);
 
     } catch (_) {}
