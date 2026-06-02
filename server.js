@@ -312,7 +312,7 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 // ============================================================
 // Copilot Studio Bot — DirectLine Proxy
 // ============================================================
-const BOT_BASE = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_AISalesBot';
+const BOT_BASE = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
 const BOT_API  = '2022-03-01-preview';
 
 // Start a new bot conversation (No Authentication mode)
