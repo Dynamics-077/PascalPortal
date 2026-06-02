@@ -310,18 +310,26 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 
 
 // ============================================================
-// Copilot Studio Bot — DirectLine Proxy
 // ============================================================
-const BOT_BASE = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
-const BOT_API  = '2022-03-01-preview';
+// Copilot Studio Bot — DirectLine Proxy (authenticated mode)
+// ============================================================
+const BOT_BASE   = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
+const BOT_API    = '2022-03-01-preview';
+const BOT_SCOPE  = 'https://api.powerplatform.com/.default';
 
-// Start a new bot conversation (No Authentication mode)
+// Forward the user's Power Platform token (pp_bot_token from browser)
+function getBotAuthHeader(req) {
+    const auth = req.headers.authorization || '';
+    return auth.startsWith('Bearer ') ? { Authorization: auth } : {};
+}
+
+// Start a new bot conversation
 app.post('/api/bot/conversations', async (req, res) => {
     try {
         const r = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
-            { headers: { 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json', ...getBotAuthHeader(req) } }
         );
         res.json(r.data);
     } catch (e) {
@@ -336,7 +344,7 @@ app.post('/api/bot/conversations/:id/activities', async (req, res) => {
         const r = await axios.post(
             `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}`,
             req.body,
-            { headers: { 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json', ...getBotAuthHeader(req) } }
         );
         res.json(r.data);
     } catch (e) {
@@ -349,8 +357,9 @@ app.post('/api/bot/conversations/:id/activities', async (req, res) => {
 app.get('/api/bot/conversations/:id/activities', async (req, res) => {
     try {
         const wm = req.query.watermark ? `&watermark=${req.query.watermark}` : '';
-        const r = await axios.get(
-            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}${wm}`
+        const r  = await axios.get(
+            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}${wm}`,
+            { headers: getBotAuthHeader(req) }
         );
         res.json(r.data);
     } catch (e) {
