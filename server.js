@@ -379,7 +379,7 @@ app.listen(PORT, () => {
 // -------------------------------
 // Admin CRUD for Company
 // -------------------------------
-app.post('/api/companies', async (req, res) => {
+app.post('/api/companies', requireRole('admin'), async (req, res) => {
     try {
         const fields = Object.assign({}, req.body);
         if (!fields.CompanyId) fields.CompanyId = generateId('COMP');
@@ -392,7 +392,7 @@ app.post('/api/companies', async (req, res) => {
     }
 });
 
-app.put('/api/companies/:id', async (req, res) => {
+app.put('/api/companies/:id', requireRole('admin'), async (req, res) => {
     try {
         const itemId = req.params.id;
         const fields = req.body;
@@ -404,7 +404,7 @@ app.put('/api/companies/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/companies/:id', async (req, res) => {
+app.delete('/api/companies/:id', requireRole('admin'), async (req, res) => {
     try {
         const itemId = req.params.id;
         await sharepoint.deleteListItem('Company', itemId);
@@ -418,7 +418,7 @@ app.delete('/api/companies/:id', async (req, res) => {
 // -------------------------------
 // Admin CRUD for Customers (AllCustomers)
 // -------------------------------
-app.post('/api/customers', async (req, res) => {
+app.post('/api/customers', requireRole('admin'), async (req, res) => {
     try {
         const fields = Object.assign({}, req.body);
         if (!fields.AccountNum) fields.AccountNum = generateId('CUST');
@@ -431,7 +431,7 @@ app.post('/api/customers', async (req, res) => {
     }
 });
 
-app.put('/api/customers/:id', async (req, res) => {
+app.put('/api/customers/:id', requireRole('admin'), async (req, res) => {
     try {
         const id = req.params.id;
         let item = null;
@@ -452,7 +452,7 @@ app.put('/api/customers/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/customers/:id', async (req, res) => {
+app.delete('/api/customers/:id', requireRole('admin'), async (req, res) => {
     try {
         const id = req.params.id;
         let item = null;
@@ -515,7 +515,7 @@ app.put('/api/salesorders/:salesId', async (req, res) => {
     }
 });
 
-app.delete('/api/salesorders/:salesId', async (req, res) => {
+app.delete('/api/salesorders/:salesId', requireRole('manager'), async (req, res) => {
     try {
         const salesId = req.params.salesId;
         const item = await sharepoint.findItemByField('SalesOrderHeader', 'SalesId', salesId);
@@ -539,7 +539,7 @@ app.put('/api/salesorders/item/:itemId', async (req, res) => {
     }
 });
 
-app.delete('/api/salesorders/item/:itemId', async (req, res) => {
+app.delete('/api/salesorders/item/:itemId', requireRole('manager'), async (req, res) => {
     try {
         await sharepoint.deleteListItem('SalesOrderHeader', req.params.itemId);
         res.json({ success: true });
@@ -584,7 +584,7 @@ app.put('/api/salesorders/lines/:itemId', async (req, res) => {
     }
 });
 
-app.delete('/api/salesorders/lines/:itemId', async (req, res) => {
+app.delete('/api/salesorders/lines/:itemId', requireRole('manager'), async (req, res) => {
     try {
         const itemId = req.params.itemId;
         await sharepoint.deleteListItem('SalesOrderLines', itemId);
