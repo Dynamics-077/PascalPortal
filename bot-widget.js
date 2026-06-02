@@ -30,7 +30,7 @@
 
     #pp-bot-panel {
       position: fixed; bottom: 96px; right: 28px; z-index: 9989;
-      width: 380px; height: 580px;
+      width: 340px; height: 480px;
       background: white; border-radius: 14px;
       box-shadow: 0 12px 40px rgba(30,58,95,.22);
       display: flex; flex-direction: column;
