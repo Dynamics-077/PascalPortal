@@ -565,9 +565,8 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
     try {
         const salesId     = req.params.salesId;
         const lineNumber  = parseInt(req.body.lineNumber) || 1;
-        const lineSalesId = `${salesId}-L${lineNumber}`;
-        const fields = Object.assign({}, req.body, { SalesId: lineSalesId });
-        console.log('[SP] Creating SalesOrderLine', lineSalesId, 'fields:', JSON.stringify(fields));
+        const fields = Object.assign({}, req.body, { SalesId: salesId });
+        console.log('[SP] Creating SalesOrderLine', salesId, 'fields:', JSON.stringify(fields));
         const created = await sharepoint.createListItem('SalesOrderLines', fields);
         console.log('[SP] Line created, item id:', created?.id);
         res.status(201).json(created);

@@ -1051,7 +1051,7 @@ async function saveHeaderAndContinue() {
 
   const custName = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
   const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
-  const currency = selectedCustomer.CurrencyCode     || selectedCustomer.currency  || 'AUD';
+  const currency = 'AUD';
   const custGroup = selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || selectedCustomer.CustGroup || '';
   const title     = custName;
 
