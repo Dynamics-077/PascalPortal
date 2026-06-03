@@ -180,10 +180,21 @@
       showStatus('Connecting to assistant...');
 
       // 3. Create authenticated Direct Line connection
-      const directLine = await window.WebChat.createDirectLineAppServiceExtension({
-        domain: DIRECT_CONNECT_URL,
-        token:  token,
-      });
+      // createDirectLineAppServiceExtension uses WebSocket streaming (ASE protocol)
+      // If WebSocket fails, fall back to standard DirectLine polling
+      let directLine;
+      try {
+        directLine = await window.WebChat.createDirectLineAppServiceExtension({
+          domain: DIRECT_CONNECT_URL,
+          token:  token,
+        });
+      } catch (aseErr) {
+        console.warn('[Bot] ASE failed, trying DirectLine:', aseErr.message);
+        directLine = window.WebChat.createDirectLine({
+          domain: DIRECT_CONNECT_URL.replace('/conversations', ''),
+          token:  token,
+        });
+      }
 
       // 4. Hide status overlay
       statusEl.classList.add('hidden');
