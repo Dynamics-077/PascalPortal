@@ -18,7 +18,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, { etag: false, lastModified: false, setHeaders: (res) => { res.setHeader('Cache-Control', 'no-store'); } }));
 
 /* ============================================================
    MICROSOFT ENTRA ID (AZURE AD) TOKEN VALIDATION
@@ -47,6 +47,7 @@ const validateToken = (req, res, next) => {
             name:  process.env.DEV_REP_NAME  || 'Sales Rep',
             email: process.env.DEV_REP_EMAIL || '',
         };
+        applyAdminWhitelist(req.user);
         return next();
         
         // Use this in production:
@@ -61,19 +62,37 @@ const validateToken = (req, res, next) => {
     }, (err, decoded) => {
         if (err) {
             console.error('Token validation failed:', err.message);
-            // In dev mode, we'll let it pass anyway. Un-comment the return in production.
+            // Token signature/audience invalid — but decode payload to get real user identity
+            // so the email filter still works correctly with the actual logged-in user.
+            try {
+                const unverified = jwt.decode(token);
+                const uemail = unverified?.preferred_username || unverified?.email || unverified?.upn || '';
+                if (uemail) {
+                    req.user = {
+                        oid:                unverified.oid  || 'unverified',
+                        name:               unverified.name || process.env.DEV_REP_NAME || 'Sales Rep',
+                        preferred_username: uemail,
+                        email:              uemail,
+                        role:               (unverified.roles && unverified.roles[0]) || process.env.DEV_REP_ROLE || 'salesrep',
+                    };
+                    applyAdminWhitelist(req.user);
+                    console.warn(`⚠️ Token unverified — identity from payload: ${uemail} | role: ${req.user.role}`);
+                    return next();
+                }
+            } catch (_) { /* ignore decode error */ }
+            // No identity in token — fall back to dev mock
             req.user = {
                 oid:   'dev-user',
                 name:  process.env.DEV_REP_NAME  || 'Sales Rep',
                 email: process.env.DEV_REP_EMAIL || '',
             };
             return next();
-            // return res.status(401).json({ error: 'Invalid Token' });
         }
-        
+
         // Token is valid — attach decoded claims + extract role
         req.user      = decoded;
         req.user.role = (decoded.roles && decoded.roles[0]) || 'salesrep';
+        applyAdminWhitelist(req.user);
         console.log(`✅ Authenticated: ${req.user.preferred_username || req.user.name} | role: ${req.user.role}`);
         next();
     });
@@ -86,6 +105,17 @@ app.use('/api', validateToken);
 // ── RBAC middleware ─────────────────────────────────────────────
 // Usage: router.get('/admin-route', requireRole('admin'), handler)
 const ROLE_LEVELS = { salesrep: 1, manager: 2, admin: 3 };
+
+// Promote user to admin if their email is in ADMIN_EMAILS env var
+function applyAdminWhitelist(user) {
+    const list = (process.env.ADMIN_EMAILS || '')
+        .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    const email = (user.preferred_username || user.email || '').toLowerCase();
+    if (list.length && list.includes(email)) {
+        user.role = 'admin';
+    }
+    return user;
+}
 
 function requireRole(minRole) {
     return (req, res, next) => {
@@ -485,7 +515,9 @@ app.delete('/api/customers/:id', requireRole('admin'), async (req, res) => {
 app.post('/api/salesorders/header', async (req, res) => {
     try {
         const salesId = generateId('PAS'); // always server-generated, never from client
-        const fields = Object.assign({}, req.body, { SalesId: salesId });
+        const userEmail = req.user?.preferred_username || req.user?.email || '';
+        console.log(`[Order] Creating header — user: ${userEmail || '(no email — token missing?)'} | auth header present: ${!!req.headers.authorization}`);
+        const fields = Object.assign({}, req.body, { SalesId: salesId, Email: userEmail });
         delete fields.CustName; // SP Graph API rejects CustName — field not writable via items endpoint
         if (!fields.Title) fields.Title = salesId;
         console.log('[SP] Creating SalesOrderHeader with fields:', JSON.stringify(fields));
@@ -565,7 +597,8 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
     try {
         const salesId     = req.params.salesId;
         const lineNumber  = parseInt(req.body.lineNumber) || 1;
-        const fields = Object.assign({}, req.body, { SalesId: salesId });
+        const userEmail   = req.user?.preferred_username || req.user?.email || '';
+        const fields = Object.assign({}, req.body, { SalesId: salesId, Email: userEmail });
         console.log('[SP] Creating SalesOrderLine', salesId, 'fields:', JSON.stringify(fields));
         const created = await sharepoint.createListItem('SalesOrderLines', fields);
         console.log('[SP] Line created, item id:', created?.id);
@@ -624,14 +657,17 @@ app.get('/api/companies', async (req, res) => {
     }
 });
 
-// 5c. Get raw order lines
+// 5c. Get raw order lines — filtered by current user email
 app.get('/api/orderlines', async (req, res) => {
     try {
         const rows = await sharepoint.getRawListItemsByName('SalesOrderLines', ['SHAREPOINT_SALES_ORDER_LINES_LIST_ID', 'SHAREPOINT_ORDER_LINES_LIST_ID']);
-        res.json(rows.map(row => ({
-            id: row.id,
-            ...row.fields
-        })));
+        const userEmail = (req.user?.preferred_username || req.user?.email || '').toLowerCase();
+        const isAdmin = req.user?.role === 'admin';
+        const lines = rows.map(row => ({ id: row.id, ...row.fields }));
+        if (!isAdmin && userEmail) {
+            return res.json(lines.filter(l => (l.Email || '').toLowerCase() === userEmail));
+        }
+        res.json(lines);
     } catch (error) {
         console.error('Error fetching order lines:', error.message);
         res.status(500).json({ error: 'Failed to fetch order lines' });

@@ -620,6 +620,11 @@ let currentStep      = 1;
 let savedSalesId     = null;   // set after step 1 SP save
 let savedSpItemId    = null;   // SP item ID for direct PUT/DELETE (no SalesId column lookup)
 
+function authHeaders(extra = {}) {
+    const token = localStorage.getItem('pp_token');
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const token = localStorage.getItem('pp_token');
@@ -972,7 +977,7 @@ async function cancelOrder() {
 
   try {
     if (savedSpItemId) {
-      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, { method: 'DELETE', headers: authHeaders() });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Failed to delete order');
@@ -1076,14 +1081,14 @@ async function saveHeaderAndContinue() {
       // Re-save: update by SP item ID directly (no SalesId column lookup needed)
       res = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(headerPayload)
       });
     } else {
       // First save: create new header record
       res = await fetch('/api/salesorders/header', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(headerPayload)
       });
     }
@@ -1203,7 +1208,7 @@ async function finalSubmit() {
 
       const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(linePayload)
       });
       if (!lineRes.ok) {
@@ -1216,7 +1221,7 @@ async function finalSubmit() {
     if (savedSpItemId) {
       const updateRes = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ Status: 'Submit' })
       });
       if (!updateRes.ok) {

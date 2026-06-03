@@ -251,6 +251,11 @@
 let _orders = [];
 let _lines  = [];
 
+function authHeaders(extra = {}) {
+    const token = localStorage.getItem('pp_token');
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+}
+
 const STATUS_COLOUR = {
   'In Progress': 'badge-open',
   'Submitted':   'badge-paid',
@@ -291,7 +296,7 @@ async function loadHeaders() {
       <p>Loading order headers…</p>
     </div>`;
   try {
-    const res = await fetch('/api/salesorders');
+    const res = await fetch('/api/salesorders', { headers: authHeaders() });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _orders = await res.json();
     renderHeaders();
@@ -315,7 +320,7 @@ async function loadLines() {
       <p>Loading order lines…</p>
     </div>`;
   try {
-    const res = await fetch('/api/orderlines');
+    const res = await fetch('/api/orderlines', { headers: authHeaders() });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _lines = await res.json();
     renderLines();

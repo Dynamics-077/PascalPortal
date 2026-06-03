@@ -222,6 +222,7 @@ function mapOrder(item, customerMap) {
         custAccount:  customerId,
         customerName: cleanText(customer?.name || custNameInTitle || fields.CustomerName || customerId),
         customerRef:  titleParts.find(p => p.startsWith('PO:'))?.replace('PO:', '') || '',
+        userEmail:    cleanText(fields.Email || fields.UserEmail || ''),
         date: getDateKey(item.createdDateTime),
         createdDateTime: cleanText(item.createdDateTime || ''),
         status:         cleanText(fields.Status        || 'In Progress'),
@@ -320,7 +321,14 @@ async function getBootstrapData(user = {}) {
     const companies = companyRows.map(mapCompany);
     let customers = customerRows.map(mapCustomer);
     const customerMap = new Map(customers.map(customer => [customer.id, customer]));
-    const salesOrders = orderRows.map(item => mapOrder(item, customerMap));
+    let salesOrders = orderRows.map(item => mapOrder(item, customerMap));
+
+    // Filter by current user email
+    const currentUserEmail = cleanText(user?.preferred_username || user?.email || '').toLowerCase();
+    if (user?.role !== 'admin' && currentUserEmail) {
+        salesOrders = salesOrders.filter(order => (order.userEmail || '').toLowerCase() === currentUserEmail);
+    }
+
     const orderLines = orderLineRows.map(mapOrderLine);
 
     // If customer master list is empty, derive lightweight customer records from order history.
@@ -420,6 +428,7 @@ async function createSalesOrder(orderPayload, user = {}) {
         Status:         cleanText(orderPayload.status        || 'In Progress'),
         DeliveryTerms:  cleanText(orderPayload.deliveryTerms || ''),
         PaymentTerms:   cleanText(orderPayload.paymentTerms  || ''),
+        Email:          cleanText(user?.preferred_username || user?.email || ''),
     };
 
     if (ordersListId) {
@@ -451,6 +460,7 @@ async function createSalesOrder(orderPayload, user = {}) {
                 SalesQty:        asNumber(line.qty),
                 Status:          cleanText(line.status             || 'In Progress'),
                 OrderLineStatus: cleanText(line.orderLineStatus    || 'In Progress'),
+                Email:           cleanText(user?.preferred_username || user?.email || ''),
             };
 
             await graphRequest(

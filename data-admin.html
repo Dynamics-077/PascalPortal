@@ -268,6 +268,11 @@ let _lines       = [];
 let _deleteCtx   = null;    // { type, id, label }
 let _editCtx     = null;    // { type, id } — used for update vs create
 
+function authHeaders(extra = {}) {
+    const token = localStorage.getItem('pp_token');
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+}
+
 /* ---- Bootstrap ------------------------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -309,7 +314,7 @@ function loadActive() {
    ============================================================ */
 async function loadCompanies() {
   try {
-    _companies = await fetch('/api/companies').then(r => r.json());
+    _companies = await fetch('/api/companies', { headers: authHeaders() }).then(r => r.json());
     renderCompany();
   } catch (e) {
     PP.showToast('Failed to load companies', 'error');
@@ -372,12 +377,12 @@ async function saveCompany() {
   try {
     if (_editCtx) {
       await fetch(`/api/companies/${_editCtx.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields)
+        method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(fields)
       });
       PP.showToast('Company updated', 'success');
     } else {
       await fetch('/api/companies', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields)
+        method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(fields)
       });
       PP.showToast('Company created', 'success');
     }
@@ -393,7 +398,7 @@ async function saveCompany() {
    ============================================================ */
 async function loadCustomers() {
   try {
-    _customers = await fetch('/api/customers').then(r => r.json());
+    _customers = await fetch('/api/customers', { headers: authHeaders() }).then(r => r.json());
     renderCustomers();
   } catch (e) {
     PP.showToast('Failed to load customers', 'error');
@@ -445,12 +450,12 @@ async function saveCustomer() {
   try {
     if (_editCtx) {
       await fetch(`/api/customers/${_editCtx.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields)
+        method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(fields)
       });
       PP.showToast('Customer updated', 'success');
     } else {
       await fetch('/api/customers', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields)
+        method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(fields)
       });
       PP.showToast('Customer created', 'success');
     }
@@ -466,7 +471,7 @@ async function saveCustomer() {
    ============================================================ */
 async function loadOrders() {
   try {
-    _orders = await fetch('/api/salesorders').then(r => r.json());
+    _orders = await fetch('/api/salesorders', { headers: authHeaders() }).then(r => r.json());
     renderOrders();
   } catch (e) {
     PP.showToast('Failed to load orders', 'error');
@@ -507,7 +512,7 @@ function renderOrders() {
    ============================================================ */
 async function loadLines() {
   try {
-    const raw = await fetch('/api/orderlines').then(r => r.json());
+    const raw = await fetch('/api/orderlines', { headers: authHeaders() }).then(r => r.json());
     _lines = raw;
     renderLines();
   } catch (e) {
@@ -573,7 +578,7 @@ async function confirmDelete() {
   };
 
   try {
-    const res = await fetch(urlMap[type], { method: 'DELETE' });
+    const res = await fetch(urlMap[type], { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       throw new Error(d.error || `Delete failed (${res.status})`);
