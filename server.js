@@ -4,6 +4,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
+const http = require('http');
+const WebSocket = require('ws');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
 
@@ -348,10 +350,28 @@ const BOT_API    = '2022-03-01-preview';
 const BOT_SCOPE  = 'https://api.powerplatform.com/.default';
 
 // Forward the user's Power Platform token (pp_bot_token from browser)
+// Checks X-Bot-Token header first, then falls back to Authorization
 function getBotAuthHeader(req) {
+    const xBot = req.headers['x-bot-token'] || '';
+    if (xBot) return { Authorization: `Bearer ${xBot}` };
     const auth = req.headers.authorization || '';
     return auth.startsWith('Bearer ') ? { Authorization: auth } : {};
 }
+
+// Exchange user's Power Platform token for a DirectLine conversation token
+app.post('/api/bot/directline-token', async (req, res) => {
+    try {
+        const r = await axios.post(
+            `${BOT_BASE}/conversations?api-version=${BOT_API}`,
+            {},
+            { headers: { 'Content-Type': 'application/json', ...getBotAuthHeader(req) } }
+        );
+        res.json(r.data);
+    } catch (e) {
+        console.error('[Bot] Token exchange error:', e.response?.status, JSON.stringify(e.response?.data) || e.message);
+        res.status(e.response?.status || 500).json({ error: e.message, detail: e.response?.data });
+    }
+});
 
 // Start a new bot conversation
 app.post('/api/bot/conversations', async (req, res) => {
@@ -398,8 +418,84 @@ app.get('/api/bot/conversations/:id/activities', async (req, res) => {
     }
 });
 
+// ============================================================
+// WebSocket Proxy — Copilot Studio streaming via server
+// Browser connects → server proxies to Copilot Studio WS
+// ============================================================
+const server = http.createServer(app);
+const wss    = new WebSocket.Server({ noServer: true });
+
+server.on('upgrade', (req, socket, head) => {
+    if (req.url && req.url.startsWith('/api/bot/stream')) {
+        wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+    } else {
+        socket.destroy();
+    }
+});
+
+wss.on('connection', async (clientWs, req) => {
+    const url       = new URL(req.url, `http://localhost`);
+    const userToken = url.searchParams.get('token');
+    if (!userToken) { clientWs.close(4001, 'Missing token'); return; }
+
+    console.log('[BotWS] Browser connected — starting Copilot conversation...');
+    let botWs = null;
+
+    try {
+        // 1. Start a conversation to get conversationId
+        const convResp = await axios.post(
+            `${BOT_BASE}/conversations?api-version=${BOT_API}`,
+            {},
+            { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
+        );
+        const { conversationId } = convResp.data;
+        console.log('[BotWS] Conversation started:', conversationId);
+
+        // 2. Send initial activities to browser
+        if (convResp.data.activities?.length) {
+            clientWs.send(JSON.stringify({ type: 'activities', activities: convResp.data.activities }));
+        }
+        // Signal ready
+        clientWs.send(JSON.stringify({ type: 'ready', conversationId }));
+
+        // 3. Handle messages FROM browser → forward to Copilot Studio via REST
+        clientWs.on('message', async (raw) => {
+            try {
+                const msg = JSON.parse(raw);
+                if (msg.type === 'message' && msg.text) {
+                    const actResp = await axios.post(
+                        `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`,
+                        { type: 'message', text: msg.text },
+                        { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
+                    );
+                    // Forward bot response activities to browser
+                    const acts = actResp.data?.activities || (actResp.data?.type === 'message' ? [actResp.data] : []);
+                    if (acts.length) {
+                        clientWs.send(JSON.stringify({ type: 'activities', activities: acts }));
+                    }
+                }
+            } catch (e) {
+                console.error('[BotWS] Activity error:', e.response?.status, e.message);
+                if (clientWs.readyState === WebSocket.OPEN) {
+                    clientWs.send(JSON.stringify({ type: 'error', message: e.message }));
+                }
+            }
+        });
+
+    } catch (e) {
+        console.error('[BotWS] Init error:', e.response?.status, e.message);
+        clientWs.send(JSON.stringify({ type: 'error', message: e.response?.data?.message || e.message }));
+        clientWs.close();
+    }
+
+    clientWs.on('close', () => {
+        console.log('[BotWS] Browser disconnected');
+        if (botWs) botWs.close();
+    });
+});
+
 // Start Server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`\n🚀 Backend API Middleware started!`);
     console.log(`   Listening directly on http://localhost:${PORT}`);
     console.log(`   Ready to route requests towards Dynamics 365.\n`);
@@ -517,8 +613,12 @@ app.post('/api/salesorders/header', async (req, res) => {
         const salesId = generateId('PAS'); // always server-generated, never from client
         const userEmail = req.user?.preferred_username || req.user?.email || '';
         console.log(`[Order] Creating header — user: ${userEmail || '(no email — token missing?)'} | auth header present: ${!!req.headers.authorization}`);
-        const fields = Object.assign({}, req.body, { SalesId: salesId, Email: userEmail });
-        delete fields.CustName; // SP Graph API rejects CustName — field not writable via items endpoint
+        // Whitelist: only columns that exist in SalesOrderHeader SharePoint list
+        const HEADER_COLS = ['Title','CustAccount','Currency','CustGroup','InvoiceAccount','Status','DeliveryTerms','PaymentTerms'];
+        const fields = {};
+        HEADER_COLS.forEach(k => { if (req.body[k] !== undefined) fields[k] = req.body[k]; });
+        fields.SalesId = salesId;
+        fields.Email   = userEmail;
         if (!fields.Title) fields.Title = salesId;
         console.log('[SP] Creating SalesOrderHeader with fields:', JSON.stringify(fields));
         const created = await sharepoint.createListItem('SalesOrderHeader', fields);
@@ -598,7 +698,12 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
         const salesId     = req.params.salesId;
         const lineNumber  = parseInt(req.body.lineNumber) || 1;
         const userEmail   = req.user?.preferred_username || req.user?.email || '';
-        const fields = Object.assign({}, req.body, { SalesId: salesId, Email: userEmail });
+        // Whitelist: only columns that exist in SalesOrderLines SharePoint list
+        const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','OrderLineStatus'];
+        const fields = {};
+        LINE_COLS.forEach(k => { if (req.body[k] !== undefined) fields[k] = req.body[k]; });
+        fields.SalesId = salesId;
+        fields.Email   = userEmail;
         console.log('[SP] Creating SalesOrderLine', salesId, 'fields:', JSON.stringify(fields));
         const created = await sharepoint.createListItem('SalesOrderLines', fields);
         console.log('[SP] Line created, item id:', created?.id);

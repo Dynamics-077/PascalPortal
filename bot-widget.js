@@ -1,18 +1,14 @@
 /* ============================================================
    Pascal Press — Copilot Studio Bot Widget
-   M365 Agents SDK Direct Connect (authenticated, no iframe)
+   WebSocket proxy through backend server
    ============================================================ */
 (function () {
-
-  const DIRECT_CONNECT_URL = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_AISalesBot/conversations?api-version=2022-03-01-preview';
-  const WEBCHAT_CDN        = 'https://cdn.botframework.com/botframework-webchat/latest/webchat.js';
 
   // ── CSS ────────────────────────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `
     #toast-container { bottom: 100px !important; }
 
-    /* ── Toggle button ── */
     #pp-bot-toggle {
       position: fixed; bottom: 28px; right: 28px; z-index: 9990;
       width: 56px; height: 56px; border-radius: 50%;
@@ -20,32 +16,25 @@
       border: none; cursor: pointer;
       box-shadow: 0 4px 16px rgba(0,164,166,.45);
       display: flex; align-items: center; justify-content: center;
-      transition: transform .2s, box-shadow .2s;
-      color: white; font-size: 1.4rem;
+      transition: transform .2s, box-shadow .2s; color: white; font-size: 1.4rem;
     }
-    #pp-bot-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,164,166,.55); }
+    #pp-bot-toggle:hover { transform: scale(1.08); }
     #pp-bot-toggle .bot-notif {
-      position: absolute; top: 2px; right: 2px;
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #f4851f; border: 2px solid white;
+      position: absolute; top: 2px; right: 2px; width: 14px; height: 14px;
+      border-radius: 50%; background: #f4851f; border: 2px solid white;
     }
 
-    /* ── Chat panel ── */
     #pp-bot-panel {
       position: fixed; bottom: 96px; right: 28px; z-index: 9989;
-      width: 340px; height: 480px;
-      background: white; border-radius: 14px;
+      width: 340px; height: 480px; background: white; border-radius: 14px;
       box-shadow: 0 12px 40px rgba(30,58,95,.22);
       display: flex; flex-direction: column; overflow: hidden;
-      transform: scale(.92) translateY(16px);
-      opacity: 0; pointer-events: none;
-      transition: transform .22s ease, opacity .22s ease;
-      border: 1px solid #d8dde6;
+      transform: scale(.92) translateY(16px); opacity: 0; pointer-events: none;
+      transition: transform .22s ease, opacity .22s ease; border: 1px solid #d8dde6;
     }
     #pp-bot-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
 
-    /* ── Custom header ── */
-    #pp-bot-panel .bot-header {
+    .bot-header {
       background: linear-gradient(135deg, #1e3a5f 0%, #2a4d7a 100%);
       padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
     }
@@ -53,55 +42,73 @@
       width: 36px; height: 36px; border-radius: 50%; background: #00a4a6;
       display: flex; align-items: center; justify-content: center;
       font-size: .95rem; color: white; flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(0,164,166,.4);
     }
     .bot-header .bot-info { flex: 1; }
-    .bot-header .bot-info .bot-name  { font-size: .88rem; font-weight: 700; color: white; }
-    .bot-header .bot-info .bot-status {
-      font-size: .72rem; color: rgba(255,255,255,.6);
+    .bot-header .bot-name  { font-size: .88rem; font-weight: 700; color: white; }
+    .bot-header .bot-status {
+      font-size: .72rem; color: rgba(255,255,255,.7);
       display: flex; align-items: center; gap: 4px;
     }
-    .bot-header .bot-info .bot-status::before {
+    .bot-header .bot-status::before {
       content: ''; width: 6px; height: 6px; border-radius: 50%;
       background: #27ae60; display: inline-block;
     }
     .bot-header .bot-close {
       background: none; border: none; color: rgba(255,255,255,.6);
-      cursor: pointer; font-size: 1rem; padding: 4px;
-      border-radius: 6px; transition: color .15s; line-height: 1;
+      cursor: pointer; font-size: 1rem; padding: 4px; border-radius: 6px; line-height: 1;
     }
     .bot-header .bot-close:hover { color: white; background: rgba(255,255,255,.1); }
 
-    /* ── Chat area ── */
-    #pp-bot-chat {
-      flex: 1; overflow: hidden; position: relative;
-      display: flex; flex-direction: column;
+    #pp-bot-messages {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 8px; background: #f9fafb;
     }
+    #pp-bot-messages::-webkit-scrollbar { width: 4px; }
+    #pp-bot-messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 
-    /* ── Loading / Error state inside chat area ── */
-    #pp-bot-status {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
+    .pp-msg { max-width: 82%; padding: 9px 13px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
+    .pp-msg.bot  { background: white; border: 1px solid #e5e7eb; color: #1f2937; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .pp-msg.user { background: #00a4a6; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .pp-msg.sys  { background: none; color: #9ca3af; font-size: 11px; align-self: center; border: none; padding: 2px 0; }
+
+    .pp-typing { align-self: flex-start; padding: 10px 14px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; border-bottom-left-radius: 4px; display: flex; gap: 4px; align-items: center; }
+    .pp-typing span { width: 6px; height: 6px; background: #9ca3af; border-radius: 50%; animation: pp-b 1.2s infinite; }
+    .pp-typing span:nth-child(2) { animation-delay: .2s; }
+    .pp-typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes pp-b { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1.1);opacity:1} }
+
+    #pp-bot-input-row {
+      padding: 10px 12px; border-top: 1px solid #e5e7eb;
+      display: flex; gap: 8px; align-items: flex-end;
+      background: white; flex-shrink: 0;
+    }
+    #pp-bot-input {
+      flex: 1; border: 1px solid #d1d5db; border-radius: 8px;
+      padding: 8px 11px; font-size: 13px; resize: none; outline: none;
+      line-height: 1.4; max-height: 80px; font-family: inherit; background: #f9fafb;
+    }
+    #pp-bot-input:focus { border-color: #00a4a6; background: white; }
+    #pp-bot-send {
+      width: 34px; height: 34px; border-radius: 8px; background: #00a4a6;
+      border: none; color: white; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s;
+    }
+    #pp-bot-send:hover { background: #008385; }
+    #pp-bot-send:disabled { background: #d1d5db; cursor: default; }
+
+    #pp-bot-overlay {
+      position: absolute; inset: 52px 0 0 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 12px; padding: 24px; text-align: center;
-      background: white; z-index: 1;
-      font-size: 13px; color: #555;
+      background: #f9fafb; z-index: 5; font-size: 13px; color: #6b7280;
     }
-    #pp-bot-status.hidden { display: none; }
-    #pp-bot-status .bot-spinner {
-      border: 3px solid #e0e0e0;
-      border-top: 3px solid #00a4a6;
-      border-radius: 50%;
-      width: 32px; height: 32px;
-      animation: pp-spin 0.8s linear infinite;
+    #pp-bot-overlay.hidden { display: none; }
+    #pp-bot-overlay .pp-spin {
+      border: 3px solid #e5e7eb; border-top: 3px solid #00a4a6;
+      border-radius: 50%; width: 28px; height: 28px; animation: pp-s .8s linear infinite;
     }
-    @keyframes pp-spin { to { transform: rotate(360deg); } }
-    #pp-bot-status .bot-err {
-      color: #dc2626; font-size: 12px; line-height: 1.5;
-    }
-
-    /* ── WebChat overrides — fill panel ── */
-    #pp-bot-chat > div { height: 100% !important; }
+    #pp-bot-overlay .pp-err { color: #dc2626; font-size: 12px; line-height: 1.6; }
+    @keyframes pp-s { to { transform: rotate(360deg); } }
   `;
   document.head.appendChild(style);
 
@@ -117,128 +124,163 @@
         <div class="bot-avatar"><i class="fa-solid fa-robot"></i></div>
         <div class="bot-info">
           <div class="bot-name">Pascal Assistant</div>
-          <div class="bot-status">Online — Ready to help</div>
+          <div class="bot-status">Online</div>
         </div>
-        <button class="bot-close" id="pp-bot-close" title="Close">✕</button>
+        <button class="bot-close" id="pp-bot-close">✕</button>
       </div>
-      <div id="pp-bot-chat">
-        <div id="pp-bot-status">
-          <div class="bot-spinner"></div>
-          <span id="pp-bot-status-text">Connecting to assistant...</span>
+      <div id="pp-bot-messages">
+        <div id="pp-bot-overlay">
+          <div class="pp-spin"></div>
+          <span id="pp-bot-overlay-txt">Connecting...</span>
         </div>
+      </div>
+      <div id="pp-bot-input-row">
+        <textarea id="pp-bot-input" rows="1" placeholder="Type a message..." disabled></textarea>
+        <button id="pp-bot-send" disabled title="Send">
+          <i class="fa-solid fa-paper-plane" style="font-size:.75rem"></i>
+        </button>
       </div>
     </div>
   `;
   document.body.appendChild(wrap);
 
-  // ── Toggle logic ───────────────────────────────────────────
-  const panel  = document.getElementById('pp-bot-panel');
-  const toggle = document.getElementById('pp-bot-toggle');
-  const close  = document.getElementById('pp-bot-close');
-  let isOpen   = false;
-  let chatReady = false;
+  // ── Refs ───────────────────────────────────────────────────
+  const panel   = document.getElementById('pp-bot-panel');
+  const toggle  = document.getElementById('pp-bot-toggle');
+  const closeB  = document.getElementById('pp-bot-close');
+  const msgs    = document.getElementById('pp-bot-messages');
+  const overlay = document.getElementById('pp-bot-overlay');
+  const oTxt    = document.getElementById('pp-bot-overlay-txt');
+  const input   = document.getElementById('pp-bot-input');
+  const sendBtn = document.getElementById('pp-bot-send');
 
+  let isOpen = false, ws = null, ready = false;
+
+  // ── Toggle ─────────────────────────────────────────────────
   toggle.addEventListener('click', () => {
     isOpen = !isOpen;
     panel.classList.toggle('open', isOpen);
     toggle.querySelector('.bot-notif').style.display = isOpen ? 'none' : '';
-    if (isOpen && !chatReady) initWebChat();
+    if (isOpen && !ready) connect();
+    if (isOpen) setTimeout(() => input.focus(), 300);
   });
+  closeB.addEventListener('click', () => { isOpen = false; panel.classList.remove('open'); });
 
-  close.addEventListener('click', () => {
-    isOpen = false;
-    panel.classList.remove('open');
-  });
-
-  // ── Init WebChat (runs once on first open) ─────────────────
-  async function initWebChat() {
-    const statusEl  = document.getElementById('pp-bot-status');
-    const statusTxt = document.getElementById('pp-bot-status-text');
-
-    function showStatus(msg, isError) {
-      statusEl.classList.remove('hidden');
-      if (isError) {
-        statusEl.innerHTML = `<div class="bot-err">⚠️ ${msg}</div>`;
-      } else {
-        statusTxt.textContent = msg;
-      }
+  // ── Connect via WebSocket proxy ────────────────────────────
+  function connect() {
+    const token = getValidToken();
+    if (!token) {
+      showOverlay('Session expired. Please <a href="index.html" style="color:#00a4a6">sign in again</a>.', true);
+      return;
     }
 
-    try {
-      // 1. Get bot token stored during login
-      const token = localStorage.getItem('pp_bot_token');
-      if (!token) {
-        showStatus('Session token missing.<br>Please sign out and sign in again.', true);
-        return;
-      }
+    showOverlay('Connecting to assistant...');
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${proto}://${location.host}/api/bot/stream?token=${encodeURIComponent(token)}`;
+    console.log('[Bot] Connecting WebSocket proxy...');
 
-      showStatus('Loading chat engine...');
+    ws = new WebSocket(wsUrl);
 
-      // 2. Load WebChat SDK if not already loaded
-      await loadScript(WEBCHAT_CDN);
+    ws.onopen = () => console.log('[Bot] WS proxy connected');
 
-      showStatus('Connecting to assistant...');
-
-      // 3. Create authenticated Direct Line connection
-      // createDirectLineAppServiceExtension uses WebSocket streaming (ASE protocol)
-      // If WebSocket fails, fall back to standard DirectLine polling
-      let directLine;
+    ws.onmessage = (e) => {
       try {
-        directLine = await window.WebChat.createDirectLineAppServiceExtension({
-          domain: DIRECT_CONNECT_URL,
-          token:  token,
-        });
-      } catch (aseErr) {
-        console.warn('[Bot] ASE failed, trying DirectLine:', aseErr.message);
-        directLine = window.WebChat.createDirectLine({
-          domain: DIRECT_CONNECT_URL.replace('/conversations', ''),
-          token:  token,
-        });
-      }
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'ready') {
+          hideOverlay();
+          ready = true;
+          input.disabled = false;
+          sendBtn.disabled = false;
+          input.focus();
+        } else if (msg.type === 'activities') {
+          (msg.activities || []).forEach(renderAct);
+        } else if (msg.type === 'error') {
+          addMsg('⚠️ ' + msg.message, 'sys');
+        }
+      } catch (_) {}
+    };
 
-      // 4. Hide status overlay
-      statusEl.classList.add('hidden');
-      chatReady = true;
+    ws.onerror = (e) => {
+      console.error('[Bot] WS error', e);
+      msgs.querySelectorAll('.pp-typing').forEach(el => el.remove());
+      sendBtn.disabled = false;
+      showOverlay('Could not connect. Please try again.', true);
+    };
 
-      // 5. Render WebChat inside the chat div
-      const chatDiv = document.getElementById('pp-bot-chat');
-      window.WebChat.renderWebChat(
-        {
-          directLine,
-          locale: 'en-US',
-          styleOptions: {
-            accent:                     '#00a4a6',
-            backgroundColor:            '#f9fafb',
-            bubbleBackground:           '#ffffff',
-            bubbleBorderColor:          '#e0e0e0',
-            bubbleBorderRadius:         10,
-            bubbleFromUserBackground:   '#00a4a6',
-            bubbleFromUserTextColor:    '#ffffff',
-            bubbleFromUserBorderRadius: 10,
-            sendBoxBackground:          '#ffffff',
-            sendBoxBorderTop:           '1px solid #e5e7eb',
-            fontSizeSmall:              '12px',
-            hideUploadButton:           true,
-            hideScrollToEndButton:      false,
-          }
-        },
-        chatDiv
-      );
-
-    } catch (err) {
-      console.error('[Bot] Init failed:', err);
-      showStatus('Could not connect: ' + err.message, true);
-    }
+    ws.onclose = (e) => {
+      console.log('[Bot] WS closed:', e.code, e.reason);
+      msgs.querySelectorAll('.pp-typing').forEach(el => el.remove());
+      sendBtn.disabled = false;
+      if (ready) addMsg('Connection closed.', 'sys');
+    };
   }
 
-  // ── Helper: load external script once ─────────────────────
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) return resolve();
-      const s = document.createElement('script');
-      s.src = src; s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  // ── Send ───────────────────────────────────────────────────
+  function send() {
+    const text = input.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    input.value = ''; input.style.height = 'auto';
+    addMsg(text, 'user');
+    const typing = addTyping();
+    sendBtn.disabled = true;
+    ws.send(JSON.stringify({ type: 'message', text }));
+    // Remove typing indicator after response arrives (handled in onmessage)
+    const origMsg = ws.onmessage;
+    ws.onmessage = (e) => {
+      typing.remove();
+      sendBtn.disabled = false;
+      ws.onmessage = origMsg;
+      origMsg(e);
+    };
+  }
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+  input.addEventListener('input',   () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 80) + 'px'; });
+  sendBtn.addEventListener('click', send);
+
+  // ── Render ─────────────────────────────────────────────────
+  function renderAct(act) {
+    if (act.type !== 'message') return;
+    if (act.from?.role === 'user') return;
+    const text = act.text || act.speak || '';
+    if (text) addMsg(text, 'bot');
+  }
+
+  function addMsg(text, cls) {
+    const d = document.createElement('div');
+    d.className = `pp-msg ${cls}`;
+    d.textContent = text;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+    return d;
+  }
+
+  function addTyping() {
+    const d = document.createElement('div');
+    d.className = 'pp-typing';
+    d.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+    return d;
+  }
+
+  function showOverlay(msg, err) {
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = err
+      ? `<div class="pp-err">⚠️ ${msg}</div>`
+      : `<div class="pp-spin"></div><span>${msg}</span>`;
+  }
+  function hideOverlay() { overlay.classList.add('hidden'); }
+
+  // ── Token ──────────────────────────────────────────────────
+  function getValidToken() {
+    const token = localStorage.getItem('pp_bot_token');
+    if (!token) return null;
+    try {
+      const p = JSON.parse(atob(token.split('.')[1]));
+      if (Date.now() > (p.exp * 1000) - 120000) return null;
+      return token;
+    } catch (_) { return null; }
   }
 
 })();

@@ -269,6 +269,11 @@
 <script>
 let _pendingCount = 0;
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 /* ---- Load session ---------------------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -284,14 +289,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Welcome greeting */
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    document.getElementById('welcomeMsg').textContent = `${greeting}, ${rep.firstName || rep.name.split(' ')[0]}!`;
+    const firstName = rep.firstName || (rep.name || '').split(' ')[0] || 'there';
+    document.getElementById('welcomeMsg').textContent = `${greeting}, ${firstName}!`;
     document.getElementById('todayDate').textContent  = PP.fmtDate(new Date().toISOString().slice(0,10));
 
-    /* Sidebar user */
-    const initials = rep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
-    document.getElementById('userAvatar').textContent = initials;
-    document.getElementById('userName').textContent   = rep.name;
-    document.getElementById('userRole').textContent   = rep.territory || rep.email || '';
+    const initials = (rep.name || '').split(' ').map(w=>w[0]).join('').slice(0,2) || 'SR';
+    const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
+    const _un = document.getElementById('userName');   if (_un) _un.textContent = rep.name;
+    const _ur = document.getElementById('userRole');   if (_ur) _ur.textContent = rep.territory || rep.email || '';
 
     /* Stat cards */
     const s = dashboardSummary;
@@ -328,7 +333,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><a href="all-orders.html" class="order-id">${o.id}</a></td>
-        <td style="font-size:.82rem; color:var(--grey-600);">${o.customerName || o.customerId || '—'}</td>
+        <td style="font-size:.82rem; color:var(--grey-600);">${esc(o.customerName || o.customerId || '—')}</td>
         <td>${PP.statusBadge(o.status)}</td>
         <td class="text-right amount">${o.total > 0 ? PP.fmtCurrency(o.total) : '<span style="color:var(--grey-300)">—</span>'}</td>
       `;
@@ -529,7 +534,7 @@ function buildTimeline(rep, orders) {
       <div class="timeline-item">
         <div class="tl-dot ${cls}">${icon}</div>
         <div class="tl-content">
-          <div class="tl-title">${o.id} — ${o.customerName || o.customerId || '—'}</div>
+          <div class="tl-title">${esc(o.id)} — ${esc(o.customerName || o.customerId || '—')}</div>
           <div class="tl-desc">${o.status}${amtStr} · ${o.date ? PP.fmtDate(o.date) : 'Today'}</div>
         </div>
       </div>`;

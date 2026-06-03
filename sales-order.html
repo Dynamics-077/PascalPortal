@@ -257,10 +257,6 @@
           <div class="lbl">Customer</div>
           <div class="val" id="s1lCustomer">—</div>
         </div>
-        <div class="s1l-field" style="flex:1; min-width:120px;">
-          <div class="lbl">PO / Customer Ref</div>
-          <div class="val" id="s1lRef">—</div>
-        </div>
         <div class="s1l-field" style="flex:1; min-width:100px;">
           <div class="lbl">Payment Terms</div>
           <div class="val" id="s1lPayTerms">—</div>
@@ -369,8 +365,8 @@
           </div>
           <div class="form-row cols-4">
             <div class="form-group" style="grid-column: span 2;">
-              <label>Customer Reference (PO#) <span class="required">*</span></label>
-              <input type="text" id="customerRef" placeholder="e.g. PO-2026-0112" maxlength="30" />
+              <label>Customer Reference (PO#)</label>
+              <input type="text" id="customerRef" readonly style="background:var(--grey-50);color:var(--grey-500);cursor:default;" />
             </div>
             <div class="form-group">
               <label>Requested Ship Date</label>
@@ -611,6 +607,10 @@
    Step 1: Customer + Header → save to SP (status = In Progress)
    Step 2: Order Lines → save lines + update header to Submit
    ============================================================ */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 let orderLines       = [];
 let currentOrderId   = PP.nextOrderId();
@@ -625,7 +625,18 @@ function authHeaders(extra = {}) {
     return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
 }
 
+function generatePORef() {
+  const now  = new Date();
+  const y    = now.getFullYear();
+  const m    = String(now.getMonth() + 1).padStart(2, '0');
+  const d    = String(now.getDate()).padStart(2, '0');
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return 'PO-' + y + m + d + '-' + rand;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('customerRef').value = generatePORef();
+
   try {
     const token = localStorage.getItem('pp_token');
     const bootstrap = await fetch('/api/bootstrap', {
@@ -638,9 +649,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('repId').value   = salesRep.id + ' (' + salesRep.d365WorkerId + ')';
 
     const initials = salesRep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
-    document.getElementById('userAvatar').textContent = initials;
-    document.getElementById('userName').textContent   = salesRep.name;
-    document.getElementById('userRole').textContent   = salesRep.territory;
+    const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
+    const _un = document.getElementById('userName');   if (_un) _un.textContent = salesRep.name;
+    const _ur = document.getElementById('userRole');   if (_ur) _ur.textContent = salesRep.territory;
 
     document.getElementById('orderId').value               = currentOrderId;
     document.getElementById('orderIdDisplay').textContent  = currentOrderId;
@@ -965,7 +976,6 @@ function updateTotals() {
   if (submitBtn) submitBtn.disabled = !hasValidLine;
 }
 
-// customerRef is validated on click, no need to re-run updateTotals on each keystroke
 
 /* ---- Cancel order (Step 2) — delete header from SP ------- */
 async function cancelOrder() {
@@ -1043,13 +1053,6 @@ async function saveHeaderAndContinue() {
     document.getElementById('customerSearch').focus();
     return;
   }
-  const ref = document.getElementById('customerRef').value.trim();
-  if (!ref) {
-    PP.showToast('Please enter a Customer Reference / PO number', 'warning');
-    document.getElementById('customerRef').focus();
-    return;
-  }
-
   const btn = document.getElementById('step1SubmitBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -1058,12 +1061,12 @@ async function saveHeaderAndContinue() {
   const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
   const currency = 'AUD';
   const custGroup = selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || selectedCustomer.CustGroup || '';
-  const title     = custName;
+  const title = custName;
 
   // Only include columns that exist in the SalesOrderHeader SharePoint list.
   // Unknown columns cause Graph API to return 400 Bad Request.
   const headerPayload = {
-    Title:          title,          // customer name e.g. "Contoso Europe"
+    Title:          title,
     CustAccount:    custAcct,
     Currency:       currency,
     CustGroup:      custGroup,
@@ -1104,7 +1107,6 @@ async function saveHeaderAndContinue() {
     // Update locked summary card
     document.getElementById('s1lOrderId').textContent  = confirmedId;
     document.getElementById('s1lCustomer').textContent = custName;
-    document.getElementById('s1lRef').textContent      = ref;
     document.getElementById('s1lPayTerms').textContent = document.getElementById('paymentTerms').value || '—';
 
     // Also update order ID displays
@@ -1151,7 +1153,6 @@ function submitOrder() {
   const subtotal     = subtotalFull - discountAmt;
   const freight      = subtotal >= 150 ? 0 : 12.50;
   const grandTotal   = subtotal * 1.1 + freight;
-  const ref          = document.getElementById('customerRef').value.trim();
   const addrText     = document.getElementById('deliveryAddress').value.trim() || '—';
 
   document.getElementById('confirmSummary').innerHTML = `
@@ -1159,8 +1160,8 @@ function submitOrder() {
     <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name} (${salesRep.id})</span></div>
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
     <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
-    <div class="confirm-line"><span class="cl-label">Customer Ref (PO)</span><span class="cl-val">${ref}</span></div>
-    <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${addrText}</span></div>
+    <div class="confirm-line"><span class="cl-label">Customer Ref (PO#)</span><span class="cl-val" style="font-family:monospace;">${document.getElementById('customerRef').value}</span></div>
+    <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${esc(addrText)}</span></div>
     <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${orderLines.length} product${orderLines.length!==1?'s':''}</span></div>
     <div class="confirm-line"><span class="cl-label">Total books</span><span class="cl-val">${orderLines.reduce((s,l)=>s+l.qty,0)}</span></div>
     <div class="confirm-line"><span class="cl-label">Subtotal (excl.GST)</span><span class="cl-val">${PP.fmtCurrency(subtotal)}</span></div>
@@ -1191,18 +1192,18 @@ async function finalSubmit() {
       const line = orderLines[i];
       const lineTitle = (line.name || line.itemNo || `${savedSalesId}-L${i + 1}`);
 
-      // Only send columns that exist in SalesOrderLines — matches createSalesOrder field set
+      // Only send columns that exist in SalesOrderLines SharePoint list.
+      // Unknown columns cause Graph API 400 Bad Request.
+      // SalesId and Email are added server-side from the URL param and JWT.
       const linePayload = {
-        Title:           lineTitle,
+        Title:           lineTitle,   // default SP column — stores item name / order-line ref
         lineNumber:      i + 1,
-        ItemId:          line.itemNo || '',
         CustAccount:     custAcct,
         Currency:        currency,
         CustGroup:       custGroup,
-        SalesUnit:       line.unit   || 'ea',
-        SalesPrice:      line.price  || 0,
-        SalesQty:        line.qty    || 1,
-        Status:          'Submitted',
+        SalesUnit:       line.unit  || 'ea',
+        SalesPrice:      line.price || 0,
+        SalesQty:        line.qty   || 1,
         OrderLineStatus: 'Submitted',
       };
 

@@ -17,6 +17,7 @@
   --grey-50:    #f5f7fa;
   --grey-100:   #edf0f4;
   --grey-200:   #d8dde6;
+  --grey-300:   #c5ccd4;
   --grey-400:   #9ba5b4;
   --grey-600:   #5f6e83;
   --grey-800:   #2d3a4a;
@@ -77,7 +78,7 @@ p  { color: var(--grey-600); }
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  overflow-y: hidden;
   z-index: 100;
   transition: width var(--transition);
 }

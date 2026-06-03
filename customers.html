@@ -259,7 +259,7 @@
         <!-- Customer Table -->
         <div class="data-panel">
           <div class="panel-head">
-            <h3>Customer List — CustomersV3</h3>
+            <h3>Customer List</h3>
             <span class="badge badge-open" id="c-resultsBadge">Loading…</span>
           </div>
           <div id="c-tableWrap">
@@ -320,7 +320,7 @@
         <!-- Products Table -->
         <div class="data-panel">
           <div class="panel-head">
-            <h3>Product List — ReleasedProductsV2</h3>
+            <h3>Product List</h3>
             <span class="badge badge-open" id="p-resultsBadge">Loading…</span>
           </div>
           <div id="p-tableWrap">
@@ -478,10 +478,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res  = await fetch('/api/bootstrap', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
     const data = await res.json();
     const rep  = data.salesRep || {};
-    document.getElementById('userName').textContent   = rep.name || 'Sales Rep';
-    document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
-    document.getElementById('userAvatar').textContent =
-      (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const _un = document.getElementById('userName');   if (_un) _un.textContent = rep.name || 'Sales Rep';
+    const _ur = document.getElementById('userRole');   if (_ur) _ur.textContent = rep.territory || 'Sales Rep';
+    const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = (rep.name || 'SR').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   } catch (_) {}
 
   document.getElementById('c-searchInput').addEventListener('input', () => {
@@ -671,7 +670,7 @@ function cNextPage() {
 }
 
 function openCustDetail(index) {
-  const c = (window._d365Customers || [])[index - c_skip];
+  const c = (window._d365Customers || [])[index];
   if (!c) return;
   currentCustomer = c;
 
@@ -849,7 +848,7 @@ function pNextPage() {
 }
 
 function openProdDetail(index) {
-  const p = (window._d365Products || [])[index - p_skip];
+  const p = (window._d365Products || [])[index];
   if (!p) return;
   currentProduct = p;
 

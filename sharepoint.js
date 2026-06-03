@@ -451,15 +451,13 @@ async function createSalesOrder(orderPayload, user = {}) {
                 Title:           lineTitle,
                 SalesId:         lineSalesId,
                 lineNumber:      index + 1,
-                ItemId:          cleanText(line.itemNo),
                 CustAccount:     cleanText(orderPayload.customerId || orderPayload.custAccount),
                 Currency:        cleanText(orderPayload.currency   || 'AUD'),
                 CustGroup:       cleanText(orderPayload.customerGroup || orderPayload.custGroup),
                 SalesUnit:       cleanText(line.unit               || 'ea'),
                 SalesPrice:      asNumber(line.unitPrice           || line.price),
                 SalesQty:        asNumber(line.qty),
-                Status:          cleanText(line.status             || 'In Progress'),
-                OrderLineStatus: cleanText(line.orderLineStatus    || 'In Progress'),
+                OrderLineStatus: cleanText(line.orderLineStatus    || line.status || 'In Progress'),
                 Email:           cleanText(user?.preferred_username || user?.email || ''),
             };
 
