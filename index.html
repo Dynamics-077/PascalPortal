@@ -240,7 +240,7 @@ msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
     // ── Acquire Power Platform token for Copilot Studio bot ──
     try {
       const botTokenRes = await msalInstance.acquireTokenSilent({
-        scopes: ['https://api.powerplatform.com/user_impersonation'],
+        scopes: ['https://api.powerplatform.com/CopilotStudio.Copilots.Invoke'],
         account: account
       });
       localStorage.setItem('pp_bot_token', botTokenRes.accessToken);
