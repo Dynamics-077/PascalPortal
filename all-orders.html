@@ -412,38 +412,58 @@ function openOrderDetail(idx) {
   var grandTotal = subtotal + gst + freight;
   var totalBooks = orderLines.reduce(function (s, l) { return s + Number(l.SalesQty || 0); }, 0);
 
-  document.getElementById('modalTitle').textContent = 'Order — ' + sid;
+  document.getElementById('modalTitle').textContent = 'Order ' + sid;
 
   var b = '';
 
-  b += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;'
-     + 'background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--radius);'
-     + 'font-size:.84rem;color:var(--teal-dark);margin-bottom:14px;">'
-     + '<i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0;"></i>'
-     + '<span>Order details below. Status: <span class="badge ' + sc + '" style="margin-left:4px">' + esc(stat) + '</span></span></div>';
+  // ── Status + summary strip ────────────────────────────────
+  b += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">';
+  b += odKpi('<i class="fas fa-hashtag"></i>', 'Order ID',    '<span style="font-family:monospace;font-size:.95rem;color:var(--teal-dark);font-weight:700">' + esc(sid) + '</span>');
+  b += odKpi('<i class="fas fa-tag"></i>',     'Status',      '<span class="badge ' + sc + '">' + esc(stat) + '</span>');
+  b += odKpi('<i class="fas fa-book"></i>',    'Total Books', '<span style="font-size:1.1rem;font-weight:700;color:var(--navy)">' + totalBooks + '</span>');
+  b += odKpi('<i class="fas fa-receipt"></i>', 'Grand Total', '<span style="font-size:1.1rem;font-weight:700;color:var(--teal)">' + fmt(grandTotal) + '</span>');
+  b += '</div>';
 
-  b += cl('Order ID',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(sid) + '</span>');
-  b += cl('Sales Rep',         esc(rep));
-  b += cl('Customer',          esc(cust));
-  b += cl('Account #',         '<span style="font-family:monospace">' + esc(acct) + '</span>');
-  b += cl('Customer Ref (PO#)','<span style="font-family:monospace">' + esc(ref) + '</span>');
-  b += cl('Date &amp; Time',   dt);
-  b += cl('Lines',             orderLines.length + ' product' + (orderLines.length !== 1 ? 's' : ''));
-  b += cl('Total books',       String(totalBooks));
-  b += cl('Subtotal (excl. GST)', fmt(subtotal));
-  b += cl('GST (10%)',         fmt(gst));
-  b += cl('Freight',           freight === 0 && subtotal > 0 ? 'FREE (order &ge; $150)' : fmt(freight));
+  // ── Order info grid ───────────────────────────────────────
+  b += '<div style="background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;">';
+  b += '<div style="font-size:.75rem;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">'
+     + '<i class="fas fa-info-circle" style="color:var(--teal);margin-right:6px;"></i>Order Details</div>';
+  b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">';
+  b += odRow('Customer',           esc(cust));
+  b += odRow('Account #',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(acct) + '</span>');
+  b += odRow('Sales Rep',          esc(rep));
+  b += odRow('Customer Ref (PO#)', ref !== '—' ? '<span style="font-family:monospace">' + esc(ref) + '</span>' : '<span style="color:var(--grey-400)">—</span>');
+  b += odRow('Date &amp; Time',    dt);
+  b += odRow('Line Count',         orderLines.length + ' product' + (orderLines.length !== 1 ? 's' : ''));
+  b += '</div></div>';
 
-  b += '<div class="confirm-line" style="border-top:2px solid var(--grey-200);margin-top:4px;padding-top:10px;">'
-     + '<span class="cl-label" style="font-weight:700;color:var(--navy);font-size:.95rem;">TOTAL (incl. GST)</span>'
-     + '<span class="cl-val" style="font-size:1.1rem;color:var(--teal);">' + fmt(grandTotal) + '</span></div>';
+  // ── Financial summary ─────────────────────────────────────
+  b += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:18px;align-items:center;">';
+  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
+     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">Subtotal (excl. GST)</div>'
+     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + fmt(subtotal) + '</div></div>';
+  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
+     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">GST (10%)</div>'
+     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + fmt(gst) + '</div></div>';
+  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
+     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">Freight</div>'
+     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + (freight === 0 && subtotal > 0 ? '<span style="color:#16a34a;font-size:.75rem;">FREE</span>' : fmt(freight)) + '</div></div>';
+  b += '<div style="background:linear-gradient(135deg,var(--teal),var(--teal-dark));border-radius:var(--radius);padding:14px 20px;text-align:center;min-width:130px;">'
+     + '<div style="font-size:.72rem;color:rgba(255,255,255,.75);margin-bottom:4px;">TOTAL (incl. GST)</div>'
+     + '<div style="font-weight:800;color:white;font-family:monospace;font-size:1.15rem">' + fmt(grandTotal) + '</div></div>';
+  b += '</div>';
 
-  b += '<div class="modal-section-title" style="margin-top:18px;">'
-     + '<i class="fas fa-list-ul" style="color:var(--orange)"></i> Order Lines '
-     + '<span class="count-chip">' + orderLines.length + '</span></div>';
+  // ── Order lines ───────────────────────────────────────────
+  b += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
+     + '<i class="fas fa-list-ul" style="color:var(--orange)"></i>'
+     + '<span style="font-size:.85rem;font-weight:700;color:var(--navy)">Order Lines</span>'
+     + '<span style="background:var(--grey-200);color:var(--grey-600);font-size:.7rem;padding:1px 8px;border-radius:20px;">' + orderLines.length + '</span>'
+     + '</div>';
 
   if (orderLines.length === 0) {
-    b += '<div class="state-box" style="padding:24px"><p>No lines found for this order.</p></div>';
+    b += '<div style="text-align:center;padding:32px 20px;color:var(--grey-400);background:var(--grey-50);border:1px dashed var(--grey-300);border-radius:var(--radius);">'
+       + '<i class="fas fa-box-open" style="font-size:1.8rem;margin-bottom:10px;display:block;color:var(--grey-300)"></i>'
+       + '<div style="font-size:.85rem;">No order lines found for this order.</div></div>';
   } else {
     var lineRows = orderLines.map(function (l) {
       var ln  = l.lineNumber != null ? l.lineNumber : '—';
@@ -454,19 +474,19 @@ function openOrderDetail(idx) {
       var lt  = (l.SalesQty != null && l.SalesPrice != null) ? fmt(Number(l.SalesQty) * Number(l.SalesPrice)) : '—';
       var un  = l.SalesUnit || 'ea';
       return '<tr>'
-        + '<td style="text-align:center;font-weight:600;color:var(--grey-500)">' + esc(String(ln)) + '</td>'
-        + '<td class="mono" style="color:var(--teal-dark);font-weight:700">' + esc(ic) + '</td>'
-        + '<td>' + esc(inm) + '</td>'
-        + '<td style="text-align:right;font-weight:600">' + esc(String(qty)) + '</td>'
-        + '<td class="mono" style="color:var(--grey-500)">' + esc(un) + '</td>'
+        + '<td style="text-align:center;font-weight:600;color:var(--grey-400);font-size:.78rem;">' + esc(String(ln)) + '</td>'
+        + '<td><span style="font-family:monospace;font-size:.78rem;background:var(--teal-light);color:var(--teal-dark);padding:2px 7px;border-radius:4px;font-weight:700">' + esc(ic) + '</span></td>'
+        + '<td style="font-weight:500;color:var(--navy)">' + esc(inm) + '</td>'
+        + '<td style="text-align:right;font-weight:700;color:var(--navy)">' + esc(String(qty)) + '</td>'
+        + '<td style="font-size:.76rem;color:var(--grey-500);font-family:monospace">' + esc(un) + '</td>'
         + '<td class="amount">' + up + '</td>'
-        + '<td class="amount">' + lt + '</td>'
+        + '<td class="amount" style="color:var(--teal-dark)">' + lt + '</td>'
         + '</tr>';
     }).join('');
-    b += '<div class="data-panel" style="border-radius:var(--radius)">'
+    b += '<div style="border:1px solid var(--grey-200);border-radius:var(--radius);overflow:hidden;">'
        + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
-       + '<th>Line #</th><th>Item Code</th><th>Item Name</th>'
-       + '<th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th>'
+       + '<th style="width:50px">Line</th><th>Item Code</th><th>Description</th>'
+       + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Line Total</th>'
        + '</tr></thead><tbody>' + lineRows + '</tbody></table></div></div>';
   }
 
@@ -479,8 +499,17 @@ function openOrderDetail(idx) {
   }
 }
 
-function cl(label, val) {
-  return '<div class="confirm-line"><span class="cl-label">' + label + '</span><span class="cl-val">' + val + '</span></div>';
+function odKpi(icon, label, val) {
+  return '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:14px 16px;">'
+    + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:6px;display:flex;align-items:center;gap:5px;">'
+    + icon + ' ' + label + '</div>'
+    + '<div>' + val + '</div></div>';
+}
+
+function odRow(label, val) {
+  return '<div style="padding:9px 0;border-bottom:1px solid var(--grey-200);display:flex;flex-direction:column;gap:2px;padding-right:20px;">'
+    + '<span style="font-size:.72rem;color:var(--grey-500)">' + label + '</span>'
+    + '<span style="font-weight:600;color:var(--navy);font-size:.875rem">' + val + '</span></div>';
 }
 
 
