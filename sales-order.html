@@ -1193,7 +1193,9 @@ async function finalSubmit() {
       });
       if (!lineRes.ok) {
         const err = await lineRes.json();
-        throw new Error(err.error || `Line ${i + 1} failed to save`);
+        console.error('[Line 400] SharePoint error detail:', JSON.stringify(err.detail));
+        const spMsg = err.detail?.error?.message || err.detail?.message || err.error || '';
+        throw new Error(`Line ${i + 1} failed: ${spMsg}`);
       }
     }
 
