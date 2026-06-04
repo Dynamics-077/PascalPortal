@@ -85,16 +85,6 @@
           </div>
         </div>
 
-        <div class="sidebar-user" id="sidebarUser">
-          <div class="avatar" id="userAvatar">${userInit}</div>
-          <div class="user-info">
-            <div class="name" id="userName">${user.name || 'Loading…'}</div>
-            <div class="role" id="userRole" style="color:${rc.color}">
-              ${rc.label}
-            </div>
-          </div>
-        </div>
-
         <nav class="sidebar-nav">${navHtml}</nav>
 
         <div class="sidebar-footer">

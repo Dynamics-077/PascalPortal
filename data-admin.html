@@ -282,9 +282,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).then(r => r.json());
     const rep = boot.salesRep || PP.getSalesRep();
     const initials = rep.name.split(' ').map(w => w[0]).join('').slice(0, 2);
-    document.getElementById('userAvatar').textContent = initials;
-    document.getElementById('userName').textContent   = rep.name;
-    document.getElementById('userRole').textContent   = rep.territory || 'Sales Rep';
+    const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
+    const _un = document.getElementById('userName');   if (_un) _un.textContent = rep.name;
+    const _ur = document.getElementById('userRole');   if (_ur) _ur.textContent = rep.territory || 'Sales Rep';
   } catch (e) { /* non-fatal */ }
   loadActive();
 });
