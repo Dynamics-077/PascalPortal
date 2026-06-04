@@ -347,15 +347,24 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 // ============================================================
 const BOT_BASE   = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
 const BOT_API    = '2022-03-01-preview';
-const BOT_SCOPE  = 'https://api.powerplatform.com/.default';
+const BOT_PP_SCOPE = 'https://api.powerplatform.com/CopilotStudio.Copilots.Invoke';
 
-// Forward the user's Power Platform token (pp_bot_token from browser)
-// Checks X-Bot-Token header first, then falls back to Authorization
-function getBotAuthHeader(req) {
-    const xBot = req.headers['x-bot-token'] || '';
-    if (xBot) return { Authorization: `Bearer ${xBot}` };
-    const auth = req.headers.authorization || '';
-    return auth.startsWith('Bearer ') ? { Authorization: auth } : {};
+// Exchange the user's portal JWT (pp_token) for a Power Platform token via OBO.
+// Requires CopilotStudio.Copilots.Invoke delegated permission on the Entra app.
+async function getPPTokenOBO(userToken) {
+    const resp = await axios.post(
+        `https://login.microsoftonline.com/${process.env.ENTRA_TENANT_ID}/oauth2/v2.0/token`,
+        new URLSearchParams({
+            grant_type:          'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            client_id:           process.env.ENTRA_CLIENT_ID,
+            client_secret:       process.env.ENTRA_CLIENT_SECRET,
+            assertion:           userToken,
+            scope:               BOT_PP_SCOPE,
+            requested_token_use: 'on_behalf_of',
+        }),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    return resp.data.access_token;
 }
 
 // Exchange user's Power Platform token for a DirectLine conversation token
@@ -438,24 +447,35 @@ wss.on('connection', async (clientWs, req) => {
     const userToken = url.searchParams.get('token');
     if (!userToken) { clientWs.close(4001, 'Missing token'); return; }
 
-    console.log('[BotWS] Browser connected — starting Copilot conversation...');
-    let botWs = null;
+    console.log('[BotWS] Browser connected — exchanging token via OBO...');
+
+    // Exchange the portal JWT for a Power Platform token via OBO
+    let ppToken;
+    try {
+        ppToken = await getPPTokenOBO(userToken);
+        console.log('[BotWS] OBO token acquired OK');
+    } catch (e) {
+        const detail = e.response?.data?.error_description || e.message;
+        console.error('[BotWS] OBO failed:', detail);
+        clientWs.send(JSON.stringify({ type: 'error', message: 'Bot auth failed: ' + detail }));
+        clientWs.close();
+        return;
+    }
 
     try {
-        // 1. Start a conversation to get conversationId
+        // 1. Start a Copilot Studio conversation
         const convResp = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
-            { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
+            { headers: { Authorization: `Bearer ${ppToken}`, 'Content-Type': 'application/json' } }
         );
         const { conversationId } = convResp.data;
         console.log('[BotWS] Conversation started:', conversationId);
 
-        // 2. Send initial activities to browser
-        if (convResp.data.activities?.length) {
+        // 2. Send any greeting activities then signal ready
+        if (convResp.data.activities && convResp.data.activities.length) {
             clientWs.send(JSON.stringify({ type: 'activities', activities: convResp.data.activities }));
         }
-        // Signal ready
         clientWs.send(JSON.stringify({ type: 'ready', conversationId }));
 
         // 3. Handle messages FROM browser → forward to Copilot Studio via REST
@@ -466,10 +486,10 @@ wss.on('connection', async (clientWs, req) => {
                     const actResp = await axios.post(
                         `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`,
                         { type: 'message', text: msg.text },
-                        { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
+                        { headers: { Authorization: `Bearer ${ppToken}`, 'Content-Type': 'application/json' } }
                     );
-                    // Forward bot response activities to browser
-                    const acts = actResp.data?.activities || (actResp.data?.type === 'message' ? [actResp.data] : []);
+                    const acts = (actResp.data && actResp.data.activities)
+                        || (actResp.data && actResp.data.type === 'message' ? [actResp.data] : []);
                     if (acts.length) {
                         clientWs.send(JSON.stringify({ type: 'activities', activities: acts }));
                     }
@@ -490,7 +510,6 @@ wss.on('connection', async (clientWs, req) => {
 
     clientWs.on('close', () => {
         console.log('[BotWS] Browser disconnected');
-        if (botWs) botWs.close();
     });
 });
 

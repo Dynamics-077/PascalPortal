@@ -273,14 +273,10 @@
   function hideOverlay() { overlay.classList.add('hidden'); }
 
   // ── Token ──────────────────────────────────────────────────
+  // Use the portal JWT (pp_token). Server exchanges it for a
+  // Power Platform token via OBO before calling Copilot Studio.
   function getValidToken() {
-    const token = localStorage.getItem('pp_bot_token');
-    if (!token) return null;
-    try {
-      const p = JSON.parse(atob(token.split('.')[1]));
-      if (Date.now() > (p.exp * 1000) - 120000) return null;
-      return token;
-    } catch (_) { return null; }
+    return localStorage.getItem('pp_token') || null;
   }
 
 })();
