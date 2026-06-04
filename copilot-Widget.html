@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Copilot Chat Widget</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    #copilot-btn {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 60px; height: 60px; border-radius: 50%;
+      background: #0078d4; color: white; border: none;
+      cursor: pointer; font-size: 26px;
+      box-shadow: 0 4px 16px rgba(0,120,212,0.45);
+      z-index: 9999; transition: transform 0.2s, background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #copilot-btn:hover { background: #106ebe; transform: scale(1.08); }
+
+    #copilot-panel {
+      position: fixed; bottom: 100px; right: 28px;
+      width: 380px; height: 580px; background: white;
+      border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+      display: none; flex-direction: column; overflow: hidden;
+      z-index: 9998; animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(20px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    #copilot-panel.open { display: flex; }
+
+    #copilot-header {
+      background: #0078d4; color: white; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .htitle { font-weight: 600; font-size: 15px; }
+    .huser  { font-size: 12px; opacity: 0.80; margin-top: 2px; }
+    #copilot-close {
+      background: none; border: none; color: white;
+      font-size: 20px; cursor: pointer; opacity: 0.85; padding: 4px;
+    }
+    #copilot-close:hover { opacity: 1; }
+
+    #copilot-login {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 32px 24px; text-align: center;
+    }
+    #copilot-login .icon { font-size: 44px; margin-bottom: 14px; }
+    #copilot-login h3 { font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
+    #copilot-login p  { font-size: 13px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+    #copilot-signin-btn {
+      background: #0078d4; color: white; border: none; border-radius: 6px;
+      padding: 11px 24px; font-size: 14px; font-weight: 500;
+      cursor: pointer; width: 100%; transition: background 0.2s;
+    }
+    #copilot-signin-btn:hover { background: #106ebe; }
+
+    #copilot-error {
+      display: none; margin-top: 12px; background: #fef2f2;
+      border: 1px solid #fca5a5; border-radius: 6px;
+      padding: 10px 14px; font-size: 12px; color: #dc2626;
+      text-align: left; width: 100%; word-break: break-word;
+    }
+
+    #copilot-loading {
+      display: none; flex: 1; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+      color: #0078d4; font-size: 14px;
+    }
+    .cp-spinner {
+      border: 3px solid #e0e0e0; border-top: 3px solid #0078d4;
+      border-radius: 50%; width: 32px; height: 32px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #copilot-webchat { display: none; flex: 1; overflow: hidden; height: 100%; }
+    #copilot-webchat.active { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- Floating Button -->
+<button id="copilot-btn" onclick="togglePanel()" title="Chat with AI Assistant">
+  <span id="copilot-btn-icon">💬</span>
+</button>
+
+<!-- Chat Panel -->
+<div id="copilot-panel">
+  <div id="copilot-header">
+    <div>
+      <div class="htitle">🤖 AI Sales Assistant</div>
+      <div class="huser" id="copilot-username"></div>
+    </div>
+    <button id="copilot-close" onclick="togglePanel()">✕</button>
+  </div>
+
+  <!-- Login View -->
+  <div id="copilot-login">
+    <div class="icon">🔐</div>
+    <h3>Sign in to chat</h3>
+    <p>Use your Microsoft account to connect to the AI assistant.</p>
+    <button id="copilot-signin-btn" onclick="signIn()">
+      Sign in with Microsoft
+    </button>
+    <div id="copilot-error"></div>
+  </div>
+
+  <!-- Loading View -->
+  <div id="copilot-loading">
+    <div class="cp-spinner"></div>
+    <span id="copilot-loading-text">Connecting...</span>
+  </div>
+
+  <!-- WebChat View -->
+  <div id="copilot-webchat"></div>
+</div>
+
+<!-- MSAL -->
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<!-- WebChat -->
+<script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+
+<script>
+  // ================================================================
+  // CONFIG — Your actual values
+  // ================================================================
+  const CONFIG = {
+    clientId:         '6bc856af-36d8-424d-a089-1860d402627b',
+    tenantId:         '132fee41-6bf5-4f91-be3e-5c3b2a2fb1b8',
+    directConnectUrl: 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_AISalesBot/conversations?api-version=2022-03-01-preview',
+    scopes:           ['https://api.powerplatform.com/CopilotStudio.Copilots.Invoke'],
+  };
+  // ================================================================
+
+  let chatInitialized = false;
+  let panelOpen = false;
+  let msalInstance = null;
+
+  // ── Init MSAL safely ──
+  function initMsal() {
+    try {
+      msalInstance = new msal.PublicClientApplication({
+        auth: {
+          clientId:    CONFIG.clientId,
+          authority:   'https://login.microsoftonline.com/' + CONFIG.tenantId,
+          redirectUri: window.location.origin + window.location.pathname,
+        },
+        cache: {
+          cacheLocation: 'sessionStorage',
+          storeAuthStateInCookie: true,
+        },
+        system: {
+          loggerOptions: {
+            loggerCallback: (level, message) => {
+              if (level === msal.LogLevel.Error) console.error('[MSAL]', message);
+            },
+            logLevel: msal.LogLevel.Error,
+          }
+        }
+      });
+
+      // Handle redirect result
+      msalInstance.handleRedirectPromise()
+        .then(response => {
+          if (response?.accessToken) {
+            openPanel();
+            launchChat(response.accessToken, response.account);
+          } else {
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0 && !chatInitialized) {
+              openPanel();
+              acquireTokenSilently(accounts[0]);
+            }
+          }
+        })
+        .catch(err => {
+          console.error('[MSAL Redirect Error]', err);
+          showLogin();
+          showError('Redirect error: ' + err.message);
+        });
+
+    } catch (err) {
+      console.error('[MSAL Init Error]', err);
+    }
+  }
+
+  // ── Toggle Panel ──
+  function togglePanel() {
+    panelOpen ? closePanel() : openPanel();
+  }
+  function openPanel() {
+    panelOpen = true;
+    document.getElementById('copilot-panel').classList.add('open');
+    document.getElementById('copilot-btn-icon').textContent = '✕';
+  }
+  function closePanel() {
+    panelOpen = false;
+    document.getElementById('copilot-panel').classList.remove('open');
+    document.getElementById('copilot-btn-icon').textContent = '💬';
+  }
+
+  // ── Sign In ──
+  async function signIn() {
+    if (!msalInstance) {
+      showError('MSAL not initialized. Check browser console (F12).');
+      return;
+    }
+    clearError();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      acquireTokenSilently(accounts[0]);
+      return;
+    }
+    showLoading('Redirecting to Microsoft login...');
+    try {
+      await msalInstance.loginRedirect({
+        scopes:  CONFIG.scopes,
+        prompt:  'select_account',
+      });
+    } catch (err) {
+      showLogin();
+      showError('Sign-in failed: ' + err.message);
+      console.error('[Sign-in Error]', err);
+    }
+  }
+
+  // ── Acquire Token Silently ──
+  async function acquireTokenSilently(account) {
+    showLoading('Getting your session...');
+    try {
+      const result = await msalInstance.acquireTokenSilent({
+        scopes: CONFIG.scopes,
+        account,
+      });
+      launchChat(result.accessToken, account);
+    } catch (err) {
+      console.warn('[Silent token failed, retrying interactive]', err);
+      try {
+        await msalInstance.loginRedirect({ scopes: CONFIG.scopes });
+      } catch (err2) {
+        showLogin();
+        showError('Could not get token: ' + err2.message);
+      }
+    }
+  }
+
+  // ── Launch Chat ──
+  async function launchChat(accessToken, account) {
+    if (chatInitialized) return;
+    showLoading('Connecting to agent...');
+
+    try {
+      const tokenRes = await fetch(CONFIG.directConnectUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        throw new Error('Agent returned ' + tokenRes.status + ': ' + errText);
+      }
+
+      const data = await tokenRes.json();
+      const directLineToken = data.token || data.Token;
+      const conversationId  = data.conversationId || data.ConversationId;
+
+      if (!directLineToken) {
+        throw new Error('No DirectLine token in response. Check agent permissions.');
+      }
+
+      if (account?.name) {
+        document.getElementById('copilot-username').textContent = '👤 ' + account.name;
+      }
+
+      showWebchat();
+
+      window.WebChat.renderWebChat({
+        directLine: window.WebChat.createDirectLine({
+          token: directLineToken,
+          conversationId,
+        }),
+        userID:   account?.localAccountId || 'user',
+        username: account?.name || 'User',
+        locale:   'en-US',
+        styleOptions: {
+          accent:                     '#0078d4',
+          backgroundColor:            '#f8fafc',
+          bubbleBackground:           '#ffffff',
+          bubbleBorderColor:          '#e2e8f0',
+          bubbleBorderRadius:         10,
+          bubbleFromUserBackground:   '#0078d4',
+          bubbleFromUserTextColor:    '#ffffff',
+          bubbleFromUserBorderRadius: 10,
+          sendBoxBackground:          '#ffffff',
+          sendBoxBorderTop:           '1px solid #e2e8f0',
+          botAvatarInitials:          'AI',
+          userAvatarInitials:         'ME',
+        }
+      }, document.getElementById('copilot-webchat'));
+
+      chatInitialized = true;
+
+    } catch (err) {
+      showLogin();
+      showError(err.message);
+      console.error('[Chat Launch Error]', err);
+    }
+  }
+
+  // ── View Helpers ──
+  function showLogin() {
+    document.getElementById('copilot-login').style.display   = 'flex';
+    document.getElementById('copilot-loading').style.display = 'none';
+    document.getElementById('copilot-webchat').classList.remove('active');
+  }
+  function showLoading(msg) {
+    document.getElementById('copilot-loading-text').textContent = msg;
+    document.getElementById('copilot-login').style.display   = 'none';
+    document.getElementById('copilot-loading').style.display = 'flex';
+    document.getElementById('copilot-webchat').classList.remove('active');
+  }
+  function showWebchat() {
+    document.getElementById('copilot-login').style.display   = 'none';
+    document.getElementById('copilot-loading').style.display = 'none';
+    document.getElementById('copilot-webchat').classList.add('active');
+  }
+  function showError(msg) {
+    const el = document.getElementById('copilot-error');
+    el.innerHTML = '⚠️ ' + msg;
+    el.style.display = 'block';
+  }
+  function clearError() {
+    const el = document.getElementById('copilot-error');
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+
+  // ── Start ──
+  window.addEventListener('load', initMsal);
+</script>
+</body>
+</html>
