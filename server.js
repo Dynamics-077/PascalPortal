@@ -347,7 +347,8 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 // ============================================================
 const BOT_BASE   = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
 const BOT_API    = '2022-03-01-preview';
-const BOT_PP_SCOPE = 'https://api.powerplatform.com/CopilotStudio.Copilots.Invoke';
+// Use the resource App ID form — works for both commercial and gov tenants
+const BOT_PP_SCOPE = '8578e004-a5c6-46e7-913e-12f58912df43/CopilotStudio.Copilots.Invoke';
 
 // Exchange the user's portal JWT (pp_token) for a Power Platform token via OBO.
 // Requires CopilotStudio.Copilots.Invoke delegated permission on the Entra app.
