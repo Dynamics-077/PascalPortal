@@ -727,7 +727,7 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
         const lineNumber  = parseInt(req.body.lineNumber) || 1;
         const userEmail   = req.user?.preferred_username || req.user?.email || '';
         // Whitelist: only columns that exist in SalesOrderLines SharePoint list
-        const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','OrderLineStatus','ItemID'];
+        const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','OrderLineStatus','ItemCode'];
         const fields = {};
         LINE_COLS.forEach(k => { if (req.body[k] !== undefined && req.body[k] !== '') fields[k] = req.body[k]; });
         fields.SalesId = salesId;

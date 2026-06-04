@@ -1183,7 +1183,7 @@ async function finalSubmit() {
         SalesPrice:      line.price || 0,
         SalesQty:        line.qty   || 1,
         OrderLineStatus: 'Submitted',
-        ...(line.itemNo ? { ItemID: line.itemNo } : {}),
+        ...(line.itemNo ? { ItemCode: line.itemNo } : {}),
       };
 
       const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {

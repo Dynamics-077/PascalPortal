@@ -465,7 +465,7 @@ function openOrderDetail(idx) {
   } else {
     var lineRows = orderLines.map(function (l) {
       var ln  = l.lineNumber != null ? l.lineNumber : '—';
-      var ic  = l.ItemID || l.ItemId || '—';
+      var ic  = l.ItemCode || '—';
       var inm = l.Title || l.ItemName || l.SearchName || '—';
       var qty = l.SalesQty != null ? l.SalesQty : '—';
       var up  = l.SalesPrice != null ? fmt(Number(l.SalesPrice)) : '—';
