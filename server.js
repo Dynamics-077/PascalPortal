@@ -433,40 +433,72 @@ wss.on('connection', async (clientWs, req) => {
     // userToken is a real Power Platform JWT acquired by the browser via MSAL
     console.log('[BotWS] Browser connected — starting Copilot conversation...');
 
+    let pollTimer = null;
+
     try {
-        // 1. Start a Copilot Studio conversation using the user's PP token
+        // 1. Copilot Studio /conversations → returns DL token + conversationId
         const convResp = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
             { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
         );
-        const { conversationId } = convResp.data;
-        console.log('[BotWS] Conversation started:', conversationId);
+        const conversationId = convResp.data.conversationId || convResp.data.ConversationId;
+        const dlToken        = convResp.data.token          || convResp.data.Token;
+        console.log('[BotWS] Conversation started:', conversationId, '| DL token:', dlToken ? 'OK' : 'MISSING');
 
-        // 2. Send any greeting activities then signal ready
+        if (!dlToken) {
+            clientWs.send(JSON.stringify({ type: 'error', message: 'No DirectLine token returned by Copilot Studio.' }));
+            clientWs.close();
+            return;
+        }
+
+        // DirectLine REST base — send & poll via this, NOT Copilot Studio URL
+        const DL  = 'https://directline.botframework.com/v3/directline';
+        const dlH = { Authorization: `Bearer ${dlToken}`, 'Content-Type': 'application/json' };
+        let   watermark = null;
+
+        // 2. Forward any greeting activities, signal ready
         if (convResp.data.activities && convResp.data.activities.length) {
             clientWs.send(JSON.stringify({ type: 'activities', activities: convResp.data.activities }));
         }
         clientWs.send(JSON.stringify({ type: 'ready', conversationId }));
 
-        // 3. Handle messages FROM browser → forward to Copilot Studio via REST
+        // 3. Browser → DirectLine: send activity then poll for bot reply
         clientWs.on('message', async (raw) => {
             try {
                 const msg = JSON.parse(raw);
-                if (msg.type === 'message' && msg.text) {
-                    const actResp = await axios.post(
-                        `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`,
-                        { type: 'message', text: msg.text },
-                        { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
-                    );
-                    const acts = (actResp.data && actResp.data.activities)
-                        || (actResp.data && actResp.data.type === 'message' ? [actResp.data] : []);
-                    if (acts.length) {
-                        clientWs.send(JSON.stringify({ type: 'activities', activities: acts }));
+                if (msg.type !== 'message' || !msg.text) return;
+
+                // POST user message via DirectLine
+                await axios.post(
+                    `${DL}/conversations/${conversationId}/activities`,
+                    { type: 'message', text: msg.text, from: { id: 'user', role: 'user' } },
+                    { headers: dlH }
+                );
+
+                // Poll for bot response (max ~15 s, every 800 ms)
+                let attempts = 0;
+                pollTimer = setInterval(async () => {
+                    try {
+                        const wm  = watermark ? `?watermark=${watermark}` : '';
+                        const r   = await axios.get(`${DL}/conversations/${conversationId}/activities${wm}`, { headers: dlH });
+                        if (r.data.watermark) watermark = r.data.watermark;
+
+                        const botActs = (r.data.activities || []).filter(a => a.from && a.from.role !== 'user');
+                        if (botActs.length || ++attempts > 18) {
+                            clearInterval(pollTimer); pollTimer = null;
+                            if (botActs.length && clientWs.readyState === WebSocket.OPEN) {
+                                clientWs.send(JSON.stringify({ type: 'activities', activities: botActs }));
+                            }
+                        }
+                    } catch (pe) {
+                        clearInterval(pollTimer); pollTimer = null;
+                        console.error('[BotWS] Poll error:', pe.message);
                     }
-                }
+                }, 800);
+
             } catch (e) {
-                console.error('[BotWS] Activity error:', e.response?.status, e.message);
+                console.error('[BotWS] Send error:', e.response?.status, e.message);
                 if (clientWs.readyState === WebSocket.OPEN) {
                     clientWs.send(JSON.stringify({ type: 'error', message: e.message }));
                 }
@@ -481,6 +513,7 @@ wss.on('connection', async (clientWs, req) => {
 
     clientWs.on('close', () => {
         console.log('[BotWS] Browser disconnected');
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     });
 });
 
