@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Copilot Chat Widget</title>
+
+  <!-- ✅ MSAL loaded in HEAD so it's ready before any script runs -->
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+  <!-- ✅ WebChat also loaded in HEAD -->
+  <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
@@ -14,8 +20,8 @@
       background: #0078d4; color: white; border: none;
       cursor: pointer; font-size: 26px;
       box-shadow: 0 4px 16px rgba(0,120,212,0.45);
-      z-index: 9999; transition: transform 0.2s, background 0.2s;
-      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s, background 0.2s;
     }
     #copilot-btn:hover { background: #106ebe; transform: scale(1.08); }
 
@@ -23,12 +29,7 @@
       position: fixed; bottom: 100px; right: 28px;
       width: 380px; height: 580px; background: white;
       border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-      display: none; flex-direction: column; overflow: hidden;
-      z-index: 9998; animation: slideUp 0.25s ease;
-    }
-    @keyframes slideUp {
-      from { opacity:0; transform:translateY(20px); }
-      to   { opacity:1; transform:translateY(0); }
+      display: none; flex-direction: column; overflow: hidden; z-index: 9998;
     }
     #copilot-panel.open { display: flex; }
 
@@ -42,19 +43,19 @@
       background: none; border: none; color: white;
       font-size: 20px; cursor: pointer; opacity: 0.85; padding: 4px;
     }
-    #copilot-close:hover { opacity: 1; }
 
     #copilot-login {
       flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; padding: 32px 24px; text-align: center;
+      align-items: center; justify-content: center;
+      padding: 32px 24px; text-align: center;
     }
     #copilot-login .icon { font-size: 44px; margin-bottom: 14px; }
-    #copilot-login h3 { font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
+    #copilot-login h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
     #copilot-login p  { font-size: 13px; color: #666; margin-bottom: 24px; line-height: 1.5; }
     #copilot-signin-btn {
       background: #0078d4; color: white; border: none; border-radius: 6px;
       padding: 11px 24px; font-size: 14px; font-weight: 500;
-      cursor: pointer; width: 100%; transition: background 0.2s;
+      cursor: pointer; width: 100%;
     }
     #copilot-signin-btn:hover { background: #106ebe; }
 
@@ -77,18 +78,16 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    #copilot-webchat { display: none; flex: 1; overflow: hidden; height: 100%; }
-    #copilot-webchat.active { display: block; }
+    #copilot-webchat { display: none; flex: 1; overflow: hidden; }
+    #copilot-webchat.active { display: block; height: 100%; }
   </style>
 </head>
 <body>
 
-<!-- Floating Button -->
 <button id="copilot-btn" onclick="togglePanel()" title="Chat with AI Assistant">
   <span id="copilot-btn-icon">💬</span>
 </button>
 
-<!-- Chat Panel -->
 <div id="copilot-panel">
   <div id="copilot-header">
     <div>
@@ -98,35 +97,25 @@
     <button id="copilot-close" onclick="togglePanel()">✕</button>
   </div>
 
-  <!-- Login View -->
   <div id="copilot-login">
     <div class="icon">🔐</div>
     <h3>Sign in to chat</h3>
     <p>Use your Microsoft account to connect to the AI assistant.</p>
-    <button id="copilot-signin-btn" onclick="signIn()">
-      Sign in with Microsoft
-    </button>
+    <button id="copilot-signin-btn" onclick="signIn()">Sign in with Microsoft</button>
     <div id="copilot-error"></div>
   </div>
 
-  <!-- Loading View -->
   <div id="copilot-loading">
     <div class="cp-spinner"></div>
     <span id="copilot-loading-text">Connecting...</span>
   </div>
 
-  <!-- WebChat View -->
   <div id="copilot-webchat"></div>
 </div>
 
-<!-- MSAL -->
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
-<!-- WebChat -->
-<script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
-
 <script>
   // ================================================================
-  // CONFIG — Your actual values
+  // CONFIG
   // ================================================================
   const CONFIG = {
     clientId:         '6bc856af-36d8-424d-a089-1860d402627b',
@@ -140,7 +129,18 @@
   let panelOpen = false;
   let msalInstance = null;
 
-  // ── Init MSAL safely ──
+  // ── Wait for MSAL to be ready, then init ──
+  function waitForMsal(callback, tries) {
+    tries = tries || 0;
+    if (typeof msal !== 'undefined') {
+      callback();
+    } else if (tries < 20) {
+      setTimeout(function() { waitForMsal(callback, tries + 1); }, 200);
+    } else {
+      showError('MSAL library failed to load. Check your internet connection or try a different browser.');
+    }
+  }
+
   function initMsal() {
     try {
       msalInstance = new msal.PublicClientApplication({
@@ -150,45 +150,36 @@
           redirectUri: window.location.origin + window.location.pathname,
         },
         cache: {
-          cacheLocation: 'sessionStorage',
+          cacheLocation:       'sessionStorage',
           storeAuthStateInCookie: true,
-        },
-        system: {
-          loggerOptions: {
-            loggerCallback: (level, message) => {
-              if (level === msal.LogLevel.Error) console.error('[MSAL]', message);
-            },
-            logLevel: msal.LogLevel.Error,
-          }
         }
       });
 
-      // Handle redirect result
       msalInstance.handleRedirectPromise()
-        .then(response => {
-          if (response?.accessToken) {
+        .then(function(response) {
+          if (response && response.accessToken) {
             openPanel();
             launchChat(response.accessToken, response.account);
           } else {
-            const accounts = msalInstance.getAllAccounts();
+            var accounts = msalInstance.getAllAccounts();
             if (accounts.length > 0 && !chatInitialized) {
               openPanel();
               acquireTokenSilently(accounts[0]);
             }
           }
         })
-        .catch(err => {
+        .catch(function(err) {
           console.error('[MSAL Redirect Error]', err);
-          showLogin();
           showError('Redirect error: ' + err.message);
         });
 
     } catch (err) {
       console.error('[MSAL Init Error]', err);
+      showError('Init error: ' + err.message);
     }
   }
 
-  // ── Toggle Panel ──
+  // ── Panel toggle ──
   function togglePanel() {
     panelOpen ? closePanel() : openPanel();
   }
@@ -204,79 +195,71 @@
   }
 
   // ── Sign In ──
-  async function signIn() {
+  function signIn() {
     if (!msalInstance) {
-      showError('MSAL not initialized. Check browser console (F12).');
+      showError('Still loading... please wait 2 seconds and try again.');
       return;
     }
     clearError();
-    const accounts = msalInstance.getAllAccounts();
+    var accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
       acquireTokenSilently(accounts[0]);
       return;
     }
     showLoading('Redirecting to Microsoft login...');
-    try {
-      await msalInstance.loginRedirect({
-        scopes:  CONFIG.scopes,
-        prompt:  'select_account',
-      });
-    } catch (err) {
+    msalInstance.loginRedirect({
+      scopes: CONFIG.scopes,
+      prompt: 'select_account',
+    }).catch(function(err) {
       showLogin();
       showError('Sign-in failed: ' + err.message);
       console.error('[Sign-in Error]', err);
-    }
+    });
   }
 
-  // ── Acquire Token Silently ──
-  async function acquireTokenSilently(account) {
+  // ── Silent token ──
+  function acquireTokenSilently(account) {
     showLoading('Getting your session...');
-    try {
-      const result = await msalInstance.acquireTokenSilent({
-        scopes: CONFIG.scopes,
-        account,
+    msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account: account })
+      .then(function(result) {
+        launchChat(result.accessToken, account);
+      })
+      .catch(function(err) {
+        console.warn('[Silent failed]', err);
+        msalInstance.loginRedirect({ scopes: CONFIG.scopes })
+          .catch(function(e) {
+            showLogin();
+            showError('Could not get token: ' + e.message);
+          });
       });
-      launchChat(result.accessToken, account);
-    } catch (err) {
-      console.warn('[Silent token failed, retrying interactive]', err);
-      try {
-        await msalInstance.loginRedirect({ scopes: CONFIG.scopes });
-      } catch (err2) {
-        showLogin();
-        showError('Could not get token: ' + err2.message);
-      }
-    }
   }
 
   // ── Launch Chat ──
-  async function launchChat(accessToken, account) {
+  function launchChat(accessToken, account) {
     if (chatInitialized) return;
     showLoading('Connecting to agent...');
 
-    try {
-      const tokenRes = await fetch(CONFIG.directConnectUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + accessToken,
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify({})
-      });
-
-      if (!tokenRes.ok) {
-        const errText = await tokenRes.text();
-        throw new Error('Agent returned ' + tokenRes.status + ': ' + errText);
+    fetch(CONFIG.directConnectUrl, {
+      method:  'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({})
+    })
+    .then(function(res) {
+      if (!res.ok) {
+        return res.text().then(function(t) {
+          throw new Error('Agent error ' + res.status + ': ' + t);
+        });
       }
+      return res.json();
+    })
+    .then(function(data) {
+      var token = data.token || data.Token;
+      if (!token) throw new Error('No token returned. Check agent permissions in Power Platform.');
 
-      const data = await tokenRes.json();
-      const directLineToken = data.token || data.Token;
-      const conversationId  = data.conversationId || data.ConversationId;
-
-      if (!directLineToken) {
-        throw new Error('No DirectLine token in response. Check agent permissions.');
-      }
-
-      if (account?.name) {
+      if (account && account.name) {
         document.getElementById('copilot-username').textContent = '👤 ' + account.name;
       }
 
@@ -284,11 +267,11 @@
 
       window.WebChat.renderWebChat({
         directLine: window.WebChat.createDirectLine({
-          token: directLineToken,
-          conversationId,
+          token:          token,
+          conversationId: data.conversationId || data.ConversationId,
         }),
-        userID:   account?.localAccountId || 'user',
-        username: account?.name || 'User',
+        userID:   (account && account.localAccountId) || 'user',
+        username: (account && account.name) || 'User',
         locale:   'en-US',
         styleOptions: {
           accent:                     '#0078d4',
@@ -307,15 +290,15 @@
       }, document.getElementById('copilot-webchat'));
 
       chatInitialized = true;
-
-    } catch (err) {
+    })
+    .catch(function(err) {
       showLogin();
       showError(err.message);
-      console.error('[Chat Launch Error]', err);
-    }
+      console.error('[Chat Error]', err);
+    });
   }
 
-  // ── View Helpers ──
+  // ── View helpers ──
   function showLogin() {
     document.getElementById('copilot-login').style.display   = 'flex';
     document.getElementById('copilot-loading').style.display = 'none';
@@ -333,18 +316,18 @@
     document.getElementById('copilot-webchat').classList.add('active');
   }
   function showError(msg) {
-    const el = document.getElementById('copilot-error');
+    var el = document.getElementById('copilot-error');
     el.innerHTML = '⚠️ ' + msg;
     el.style.display = 'block';
   }
   function clearError() {
-    const el = document.getElementById('copilot-error');
+    var el = document.getElementById('copilot-error');
     el.style.display = 'none';
     el.innerHTML = '';
   }
 
-  // ── Start ──
-  window.addEventListener('load', initMsal);
+  // ✅ Wait for MSAL to load, then initialize
+  waitForMsal(initMsal);
 </script>
 </body>
 </html>
