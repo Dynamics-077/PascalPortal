@@ -177,7 +177,7 @@
   function loadMsal(cb) {
     if (typeof msal !== 'undefined') { cb(); return; }
     var s = document.createElement('script');
-    s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
+    s.src = '/vendor/msal/msal-browser.min.js';
     s.onload  = cb;
     s.onerror = function() { showOverlay('Auth library failed to load. Check your connection.', true); };
     document.head.appendChild(s);
