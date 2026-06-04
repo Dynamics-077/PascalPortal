@@ -108,13 +108,18 @@ app.use('/api', validateToken);
 // Usage: router.get('/admin-route', requireRole('admin'), handler)
 const ROLE_LEVELS = { salesrep: 1, manager: 2, admin: 3 };
 
-// Promote user to admin if their email is in ADMIN_EMAILS env var
+// ADMIN_EMAILS acts as a strict allowlist:
+// - if the email IS in the list → promote to admin
+// - if the email is NOT in the list → demote any admin claim to salesrep
 function applyAdminWhitelist(user) {
     const list = (process.env.ADMIN_EMAILS || '')
         .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (!list.length) return user; // no whitelist configured — leave role unchanged
     const email = (user.preferred_username || user.email || '').toLowerCase();
-    if (list.length && list.includes(email)) {
+    if (list.includes(email)) {
         user.role = 'admin';
+    } else if (user.role === 'admin') {
+        user.role = 'salesrep'; // strip admin from anyone not in the whitelist
     }
     return user;
 }
