@@ -433,74 +433,72 @@ wss.on('connection', async (clientWs, req) => {
     // userToken is a real Power Platform JWT acquired by the browser via MSAL
     console.log('[BotWS] Browser connected — starting Copilot conversation...');
 
-    let pollTimer = null;
-
     try {
-        // 1. Copilot Studio /conversations → returns DL token + conversationId
+        // 1. Start conversation — this bot returns {conversationId, activities, action}
+        //    (Copilot Studio polling REST API, no DirectLine token)
+        const ppH = { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' };
         const convResp = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
-            { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
+            { headers: ppH }
         );
         const conversationId = convResp.data.conversationId || convResp.data.ConversationId;
-        const dlToken        = convResp.data.token          || convResp.data.Token;
-        console.log('[BotWS] /conversations response keys:', Object.keys(convResp.data));
-        console.log('[BotWS] /conversations response:', JSON.stringify(convResp.data).slice(0, 400));
-        console.log('[BotWS] Conversation started:', conversationId, '| DL token:', dlToken ? 'OK' : 'MISSING');
+        console.log('[BotWS] Conversation started:', conversationId, '| action:', convResp.data.action);
 
-        if (!dlToken) {
-            clientWs.send(JSON.stringify({ type: 'error', message: 'No DirectLine token returned by Copilot Studio.' }));
-            clientWs.close();
-            return;
-        }
-
-        // DirectLine REST base — send & poll via this, NOT Copilot Studio URL
-        const DL  = 'https://directline.botframework.com/v3/directline';
-        const dlH = { Authorization: `Bearer ${dlToken}`, 'Content-Type': 'application/json' };
-        let   watermark = null;
+        // Build the activities URL — try without api-version as fallback
+        const ACT_URL  = `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`;
+        const ACT_URL2 = `${BOT_BASE}/conversations/${conversationId}/activities`;
 
         // 2. Forward any greeting activities, signal ready
-        if (convResp.data.activities && convResp.data.activities.length) {
-            clientWs.send(JSON.stringify({ type: 'activities', activities: convResp.data.activities }));
-        }
+        const greetings = (convResp.data.activities || []).filter(a => a.from && a.from.role !== 'user');
+        if (greetings.length) clientWs.send(JSON.stringify({ type: 'activities', activities: greetings }));
         clientWs.send(JSON.stringify({ type: 'ready', conversationId }));
 
-        // 3. Browser → DirectLine: send activity then poll for bot reply
+        // 3. Forward browser messages → Copilot Studio REST polling API
         clientWs.on('message', async (raw) => {
             try {
                 const msg = JSON.parse(raw);
                 if (msg.type !== 'message' || !msg.text) return;
 
-                // POST user message via DirectLine
-                await axios.post(
-                    `${DL}/conversations/${conversationId}/activities`,
-                    { type: 'message', text: msg.text, from: { id: 'user', role: 'user' } },
-                    { headers: dlH }
-                );
+                const body = { type: 'message', text: msg.text, from: { id: 'user', name: 'User', role: 'user' } };
 
-                // Poll for bot response (max ~15 s, every 800 ms)
-                let attempts = 0;
-                pollTimer = setInterval(async () => {
+                // Try with api-version first, fall back without it
+                let actResp;
+                try {
+                    actResp = await axios.post(ACT_URL, body, { headers: ppH });
+                    console.log('[BotWS] POST /activities OK (with api-version)');
+                } catch (e1) {
+                    console.warn('[BotWS] POST /activities with api-version failed:', e1.response?.status, e1.response?.data);
                     try {
-                        const wm  = watermark ? `?watermark=${watermark}` : '';
-                        const r   = await axios.get(`${DL}/conversations/${conversationId}/activities${wm}`, { headers: dlH });
-                        if (r.data.watermark) watermark = r.data.watermark;
-
-                        const botActs = (r.data.activities || []).filter(a => a.from && a.from.role !== 'user');
-                        if (botActs.length || ++attempts > 18) {
-                            clearInterval(pollTimer); pollTimer = null;
-                            if (botActs.length && clientWs.readyState === WebSocket.OPEN) {
-                                clientWs.send(JSON.stringify({ type: 'activities', activities: botActs }));
-                            }
-                        }
-                    } catch (pe) {
-                        clearInterval(pollTimer); pollTimer = null;
-                        console.error('[BotWS] Poll error:', pe.message);
+                        actResp = await axios.post(ACT_URL2, body, { headers: ppH });
+                        console.log('[BotWS] POST /activities OK (without api-version)');
+                    } catch (e2) {
+                        console.error('[BotWS] POST /activities both URLs failed:', e2.response?.status, JSON.stringify(e2.response?.data));
+                        throw e2;
                     }
-                }, 800);
+                }
+
+                // Collect bot replies — may need to poll if action='continue'
+                let botActs = (actResp.data.activities || []).filter(a => a.from && a.from.role !== 'user');
+                let action  = actResp.data.action;
+                let attempts = 0;
+
+                while (action === 'continue' && attempts++ < 15) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    const poll = await axios.get(ACT_URL, { headers: ppH });
+                    action = poll.data.action;
+                    const newActs = (poll.data.activities || []).filter(a => a.from && a.from.role !== 'user');
+                    // Only add activities we haven't seen (by id)
+                    const seen = new Set(botActs.map(a => a.id));
+                    newActs.forEach(a => { if (!seen.has(a.id)) botActs.push(a); });
+                }
+
+                if (botActs.length && clientWs.readyState === WebSocket.OPEN) {
+                    clientWs.send(JSON.stringify({ type: 'activities', activities: botActs }));
+                }
 
             } catch (e) {
-                console.error('[BotWS] Send error:', e.response?.status, e.message);
+                console.error('[BotWS] Activity error:', e.response?.status, e.message);
                 if (clientWs.readyState === WebSocket.OPEN) {
                     clientWs.send(JSON.stringify({ type: 'error', message: e.message }));
                 }
