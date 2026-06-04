@@ -154,79 +154,136 @@
   const input   = document.getElementById('pp-bot-input');
   const sendBtn = document.getElementById('pp-bot-send');
 
-  let isOpen = false, ws = null, ready = false;
+  let isOpen = false, ws = null, ready = false, _msalInst = null;
+
+  // ── MSAL config — same app registration as the portal ──────
+  var BOT_MSAL = {
+    clientId: '6bc856af-36d8-424d-a089-1860d402627b',
+    tenantId: '132fee41-6bf5-4f91-be3e-5c3b2a2fb1b8',
+    scopes:   ['https://api.powerplatform.com/CopilotStudio.Copilots.Invoke'],
+  };
 
   // ── Toggle ─────────────────────────────────────────────────
-  toggle.addEventListener('click', () => {
+  toggle.addEventListener('click', function() {
     isOpen = !isOpen;
     panel.classList.toggle('open', isOpen);
     toggle.querySelector('.bot-notif').style.display = isOpen ? 'none' : '';
     if (isOpen && !ready) connect();
-    if (isOpen) setTimeout(() => input.focus(), 300);
+    if (isOpen) setTimeout(function() { input.focus(); }, 300);
   });
-  closeB.addEventListener('click', () => { isOpen = false; panel.classList.remove('open'); });
+  closeB.addEventListener('click', function() { isOpen = false; panel.classList.remove('open'); });
+
+  // ── Load MSAL dynamically if not already on the page ───────
+  function loadMsal(cb) {
+    if (typeof msal !== 'undefined') { cb(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
+    s.onload  = cb;
+    s.onerror = function() { showOverlay('Auth library failed to load. Check your connection.', true); };
+    document.head.appendChild(s);
+  }
+
+  // ── Acquire a real Power Platform token via MSAL ────────────
+  function acquirePPToken(onSuccess) {
+    showOverlay('Authenticating...');
+    loadMsal(function() {
+      try {
+        if (!_msalInst) {
+          _msalInst = new msal.PublicClientApplication({
+            auth: {
+              clientId:    BOT_MSAL.clientId,
+              authority:   'https://login.microsoftonline.com/' + BOT_MSAL.tenantId,
+              redirectUri: window.location.origin + window.location.pathname,
+            },
+            cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: true },
+          });
+        }
+
+        _msalInst.handleRedirectPromise().then(function(resp) {
+          // If redirect brought back a PP token, use it immediately
+          if (resp && resp.accessToken) { onSuccess(resp.accessToken); return; }
+
+          var accounts = _msalInst.getAllAccounts();
+          if (accounts.length === 0) {
+            // No cached session — trigger interactive login then return to this page
+            _msalInst.loginRedirect({ scopes: BOT_MSAL.scopes, prompt: 'select_account' });
+            return;
+          }
+
+          _msalInst.acquireTokenSilent({ scopes: BOT_MSAL.scopes, account: accounts[0] })
+            .then(function(result) { onSuccess(result.accessToken); })
+            .catch(function(err) {
+              console.warn('[Bot] Silent token failed, trying redirect:', err.message);
+              _msalInst.loginRedirect({ scopes: BOT_MSAL.scopes });
+            });
+
+        }).catch(function(err) {
+          console.error('[Bot] Redirect promise error:', err);
+          showOverlay('Auth error: ' + err.message, true);
+        });
+
+      } catch (err) {
+        console.error('[Bot] MSAL init error:', err);
+        showOverlay('Auth init error: ' + err.message, true);
+      }
+    });
+  }
 
   // ── Connect via WebSocket proxy ────────────────────────────
   function connect() {
-    const token = getValidToken();
-    if (!token) {
-      showOverlay('Session expired. Please <a href="index.html" style="color:#00a4a6">sign in again</a>.', true);
-      return;
-    }
+    acquirePPToken(function(ppToken) {
+      showOverlay('Connecting to assistant...');
+      var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      var wsUrl = proto + '://' + location.host + '/api/bot/stream?token=' + encodeURIComponent(ppToken);
+      console.log('[Bot] Connecting WebSocket proxy...');
 
-    showOverlay('Connecting to assistant...');
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${proto}://${location.host}/api/bot/stream?token=${encodeURIComponent(token)}`;
-    console.log('[Bot] Connecting WebSocket proxy...');
+      ws = new WebSocket(wsUrl);
+      ws.onopen = function() { console.log('[Bot] WS proxy connected'); };
 
-    ws = new WebSocket(wsUrl);
+      ws.onmessage = function(e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.type === 'ready') {
+            hideOverlay();
+            ready = true;
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+          } else if (msg.type === 'activities') {
+            (msg.activities || []).forEach(renderAct);
+          } else if (msg.type === 'error') {
+            addMsg('⚠️ ' + msg.message, 'sys');
+          }
+        } catch (_) {}
+      };
 
-    ws.onopen = () => console.log('[Bot] WS proxy connected');
+      ws.onerror = function(e) {
+        console.error('[Bot] WS error', e);
+        msgs.querySelectorAll('.pp-typing').forEach(function(el) { el.remove(); });
+        sendBtn.disabled = false;
+        showOverlay('Could not connect. Please try again.', true);
+      };
 
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'ready') {
-          hideOverlay();
-          ready = true;
-          input.disabled = false;
-          sendBtn.disabled = false;
-          input.focus();
-        } else if (msg.type === 'activities') {
-          (msg.activities || []).forEach(renderAct);
-        } else if (msg.type === 'error') {
-          addMsg('⚠️ ' + msg.message, 'sys');
-        }
-      } catch (_) {}
-    };
-
-    ws.onerror = (e) => {
-      console.error('[Bot] WS error', e);
-      msgs.querySelectorAll('.pp-typing').forEach(el => el.remove());
-      sendBtn.disabled = false;
-      showOverlay('Could not connect. Please try again.', true);
-    };
-
-    ws.onclose = (e) => {
-      console.log('[Bot] WS closed:', e.code, e.reason);
-      msgs.querySelectorAll('.pp-typing').forEach(el => el.remove());
-      sendBtn.disabled = false;
-      if (ready) addMsg('Connection closed.', 'sys');
-    };
+      ws.onclose = function(e) {
+        console.log('[Bot] WS closed:', e.code, e.reason);
+        msgs.querySelectorAll('.pp-typing').forEach(function(el) { el.remove(); });
+        sendBtn.disabled = false;
+        if (ready) addMsg('Connection closed.', 'sys');
+      };
+    });
   }
 
   // ── Send ───────────────────────────────────────────────────
   function send() {
-    const text = input.value.trim();
+    var text = input.value.trim();
     if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
     input.value = ''; input.style.height = 'auto';
     addMsg(text, 'user');
-    const typing = addTyping();
+    var typing = addTyping();
     sendBtn.disabled = true;
-    ws.send(JSON.stringify({ type: 'message', text }));
-    // Remove typing indicator after response arrives (handled in onmessage)
-    const origMsg = ws.onmessage;
-    ws.onmessage = (e) => {
+    ws.send(JSON.stringify({ type: 'message', text: text }));
+    var origMsg = ws.onmessage;
+    ws.onmessage = function(e) {
       typing.remove();
       sendBtn.disabled = false;
       ws.onmessage = origMsg;
@@ -234,21 +291,21 @@
     };
   }
 
-  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
-  input.addEventListener('input',   () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 80) + 'px'; });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+  input.addEventListener('input',   function() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 80) + 'px'; });
   sendBtn.addEventListener('click', send);
 
   // ── Render ─────────────────────────────────────────────────
   function renderAct(act) {
     if (act.type !== 'message') return;
-    if (act.from?.role === 'user') return;
-    const text = act.text || act.speak || '';
+    if (act.from && act.from.role === 'user') return;
+    var text = act.text || act.speak || '';
     if (text) addMsg(text, 'bot');
   }
 
   function addMsg(text, cls) {
-    const d = document.createElement('div');
-    d.className = `pp-msg ${cls}`;
+    var d = document.createElement('div');
+    d.className = 'pp-msg ' + cls;
     d.textContent = text;
     msgs.appendChild(d);
     msgs.scrollTop = msgs.scrollHeight;
@@ -256,7 +313,7 @@
   }
 
   function addTyping() {
-    const d = document.createElement('div');
+    var d = document.createElement('div');
     d.className = 'pp-typing';
     d.innerHTML = '<span></span><span></span><span></span>';
     msgs.appendChild(d);
@@ -267,16 +324,9 @@
   function showOverlay(msg, err) {
     overlay.classList.remove('hidden');
     overlay.innerHTML = err
-      ? `<div class="pp-err">⚠️ ${msg}</div>`
-      : `<div class="pp-spin"></div><span>${msg}</span>`;
+      ? '<div class="pp-err">⚠️ ' + msg + '</div>'
+      : '<div class="pp-spin"></div><span>' + msg + '</span>';
   }
   function hideOverlay() { overlay.classList.add('hidden'); }
-
-  // ── Token ──────────────────────────────────────────────────
-  // Use the portal JWT (pp_token). Server exchanges it for a
-  // Power Platform token via OBO before calling Copilot Studio.
-  function getValidToken() {
-    return localStorage.getItem('pp_token') || null;
-  }
 
 })();

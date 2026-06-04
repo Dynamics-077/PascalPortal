@@ -347,26 +347,8 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 // ============================================================
 const BOT_BASE   = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
 const BOT_API    = '2022-03-01-preview';
-// Use the resource App ID form — works for both commercial and gov tenants
-const BOT_PP_SCOPE = '8578e004-a5c6-46e7-913e-12f58912df43/CopilotStudio.Copilots.Invoke';
-
-// Exchange the user's portal JWT (pp_token) for a Power Platform token via OBO.
-// Requires CopilotStudio.Copilots.Invoke delegated permission on the Entra app.
-async function getPPTokenOBO(userToken) {
-    const resp = await axios.post(
-        `https://login.microsoftonline.com/${process.env.ENTRA_TENANT_ID}/oauth2/v2.0/token`,
-        new URLSearchParams({
-            grant_type:          'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            client_id:           process.env.ENTRA_CLIENT_ID,
-            client_secret:       process.env.ENTRA_CLIENT_SECRET,
-            assertion:           userToken,
-            scope:               BOT_PP_SCOPE,
-            requested_token_use: 'on_behalf_of',
-        }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-    return resp.data.access_token;
-}
+// bot-widget.js acquires a real Power Platform token via MSAL in the browser
+// and sends it here. We pass it straight to Copilot Studio — no OBO needed.
 
 // Exchange user's Power Platform token for a DirectLine conversation token
 app.post('/api/bot/directline-token', async (req, res) => {
@@ -448,27 +430,15 @@ wss.on('connection', async (clientWs, req) => {
     const userToken = url.searchParams.get('token');
     if (!userToken) { clientWs.close(4001, 'Missing token'); return; }
 
-    console.log('[BotWS] Browser connected — exchanging token via OBO...');
-
-    // Exchange the portal JWT for a Power Platform token via OBO
-    let ppToken;
-    try {
-        ppToken = await getPPTokenOBO(userToken);
-        console.log('[BotWS] OBO token acquired OK');
-    } catch (e) {
-        const detail = e.response?.data?.error_description || e.message;
-        console.error('[BotWS] OBO failed:', detail);
-        clientWs.send(JSON.stringify({ type: 'error', message: 'Bot auth failed: ' + detail }));
-        clientWs.close();
-        return;
-    }
+    // userToken is a real Power Platform JWT acquired by the browser via MSAL
+    console.log('[BotWS] Browser connected — starting Copilot conversation...');
 
     try {
-        // 1. Start a Copilot Studio conversation
+        // 1. Start a Copilot Studio conversation using the user's PP token
         const convResp = await axios.post(
             `${BOT_BASE}/conversations?api-version=${BOT_API}`,
             {},
-            { headers: { Authorization: `Bearer ${ppToken}`, 'Content-Type': 'application/json' } }
+            { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
         );
         const { conversationId } = convResp.data;
         console.log('[BotWS] Conversation started:', conversationId);
@@ -487,7 +457,7 @@ wss.on('connection', async (clientWs, req) => {
                     const actResp = await axios.post(
                         `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`,
                         { type: 'message', text: msg.text },
-                        { headers: { Authorization: `Bearer ${ppToken}`, 'Content-Type': 'application/json' } }
+                        { headers: { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' } }
                     );
                     const acts = (actResp.data && actResp.data.activities)
                         || (actResp.data && actResp.data.type === 'message' ? [actResp.data] : []);
