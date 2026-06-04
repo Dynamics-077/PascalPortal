@@ -458,7 +458,7 @@ async function createSalesOrder(orderPayload, user = {}) {
                 SalesPrice:      asNumber(line.unitPrice           || line.price),
                 SalesQty:        asNumber(line.qty),
                 OrderLineStatus: cleanText(line.orderLineStatus    || line.status || 'In Progress'),
-                ItemID:          cleanText(line.itemNo || ''),
+                ...(line.itemNo ? { ItemID: cleanText(line.itemNo) } : {}),
                 Email:           cleanText(user?.preferred_username || user?.email || ''),
             };
 
