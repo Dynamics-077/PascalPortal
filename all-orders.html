@@ -392,7 +392,6 @@ function openOrderDetail(idx) {
   var cust = o.customerName || o.CustomerName || o.customerId || '—';
   var acct = o.customerId || o.CustomerAccount || o.custAccount || '—';
   var stat = o.status || o.Status || 'In Progress';
-  var ref  = o.customerRef || '—';
   var rep  = o.userEmail || '—';
   var dt   = fmtDT(o.dateTime || o.createdDateTime || '');
   var sc   = SC[stat] || 'badge-open';
@@ -432,7 +431,6 @@ function openOrderDetail(idx) {
   b += odRow('Customer',           esc(cust));
   b += odRow('Account #',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(acct) + '</span>');
   b += odRow('Sales Rep',          esc(rep));
-  b += odRow('Customer Ref (PO#)', ref !== '—' ? '<span style="font-family:monospace">' + esc(ref) + '</span>' : '<span style="color:var(--grey-400)">—</span>');
   b += odRow('Date &amp; Time',    dt);
   b += odRow('Line Count',         orderLines.length + ' product' + (orderLines.length !== 1 ? 's' : ''));
   b += '</div></div>';
@@ -467,7 +465,7 @@ function openOrderDetail(idx) {
   } else {
     var lineRows = orderLines.map(function (l) {
       var ln  = l.lineNumber != null ? l.lineNumber : '—';
-      var ic  = l.ItemId || '—';
+      var ic  = l.ItemID || l.ItemId || '—';
       var inm = l.Title || l.ItemName || l.SearchName || '—';
       var qty = l.SalesQty != null ? l.SalesQty : '—';
       var up  = l.SalesPrice != null ? fmt(Number(l.SalesPrice)) : '—';
@@ -485,7 +483,7 @@ function openOrderDetail(idx) {
     }).join('');
     b += '<div style="border:1px solid var(--grey-200);border-radius:var(--radius);overflow:hidden;">'
        + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
-       + '<th style="width:50px">Line</th><th>Item Code</th><th>Description</th>'
+       + '<th style="width:50px">Line</th><th>Item ID</th><th>Description</th>'
        + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Line Total</th>'
        + '</tr></thead><tbody>' + lineRows + '</tbody></table></div></div>';
   }

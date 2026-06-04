@@ -364,21 +364,9 @@
             </div>
           </div>
           <div class="form-row cols-4">
-            <div class="form-group" style="grid-column: span 2;">
-              <label>Customer Reference (PO#)</label>
-              <input type="text" id="customerRef" readonly style="background:var(--grey-50);color:var(--grey-500);cursor:default;" />
-            </div>
             <div class="form-group">
               <label>Requested Ship Date</label>
               <input type="date" id="requestedShipDate" />
-            </div>
-            <div class="form-group">
-              <label>Order Status</label>
-              <input type="hidden" id="orderStatus" value="In Progress" />
-              <div style="margin-top:8px;">
-                <span class="badge badge-open" style="font-size:.82rem; padding:5px 12px;">In Progress</span>
-                <div style="font-size:.72rem; color:var(--grey-400); margin-top:4px;">Set automatically — not editable</div>
-              </div>
             </div>
           </div>
           <div class="form-row cols-4">
@@ -625,17 +613,8 @@ function authHeaders(extra = {}) {
     return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
 }
 
-function generatePORef() {
-  const now  = new Date();
-  const y    = now.getFullYear();
-  const m    = String(now.getMonth() + 1).padStart(2, '0');
-  const d    = String(now.getDate()).padStart(2, '0');
-  const rand = String(Math.floor(1000 + Math.random() * 9000));
-  return 'PO-' + y + m + d + '-' + rand;
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('customerRef').value = generatePORef();
 
   try {
     const token = localStorage.getItem('pp_token');
@@ -1160,7 +1139,6 @@ function submitOrder() {
     <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name} (${salesRep.id})</span></div>
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
     <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
-    <div class="confirm-line"><span class="cl-label">Customer Ref (PO#)</span><span class="cl-val" style="font-family:monospace;">${document.getElementById('customerRef').value}</span></div>
     <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${esc(addrText)}</span></div>
     <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${orderLines.length} product${orderLines.length!==1?'s':''}</span></div>
     <div class="confirm-line"><span class="cl-label">Total books</span><span class="cl-val">${orderLines.reduce((s,l)=>s+l.qty,0)}</span></div>
@@ -1205,6 +1183,7 @@ async function finalSubmit() {
         SalesPrice:      line.price || 0,
         SalesQty:        line.qty   || 1,
         OrderLineStatus: 'Submitted',
+        ItemID:          line.itemNo || '',
       };
 
       const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
