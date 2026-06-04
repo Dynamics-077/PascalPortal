@@ -444,6 +444,8 @@ wss.on('connection', async (clientWs, req) => {
         );
         const conversationId = convResp.data.conversationId || convResp.data.ConversationId;
         const dlToken        = convResp.data.token          || convResp.data.Token;
+        console.log('[BotWS] /conversations response keys:', Object.keys(convResp.data));
+        console.log('[BotWS] /conversations response:', JSON.stringify(convResp.data).slice(0, 400));
         console.log('[BotWS] Conversation started:', conversationId, '| DL token:', dlToken ? 'OK' : 'MISSING');
 
         if (!dlToken) {
