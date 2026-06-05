@@ -236,23 +236,6 @@
   </div>
 </div>
 
-<!-- Edit Order Modal -->
-<div id="editOrderModal" class="modal-overlay" style="display:none;" onclick="closeEditModal(event)">
-  <div class="modal-card" style="max-width:780px;" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <i class="fas fa-pencil-alt" style="color:var(--teal);font-size:1.1rem;"></i>
-      <h2 class="modal-title" id="editModalTitle">Edit Order</h2>
-      <button class="icon-btn" onclick="closeEditModal(null)" title="Close"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body" id="editModalBody"></div>
-    <div class="modal-footer" style="gap:10px;">
-      <button class="btn btn-ghost btn-sm" onclick="closeEditModal(null)">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="editSaveBtn" onclick="saveEditOrder()">
-        <i class="fas fa-save"></i> Save Changes
-      </button>
-    </div>
-  </div>
-</div>
 
 <div id="toast-container"></div>
 <script src="app.js"></script>
@@ -311,12 +294,6 @@ document.addEventListener('DOMContentLoaded', function () {
      replacement. Buttons have data-row-idx="N" (numeric index
      into _renderedOrders) — no string escaping needed at all.    */
   document.getElementById('headersWrap').addEventListener('click', function (e) {
-    var editBtn = e.target.closest('.edit-order-btn[data-edit-idx]');
-    if (editBtn) {
-      var eidx = parseInt(editBtn.getAttribute('data-edit-idx'), 10);
-      if (!isNaN(eidx)) openEditOrder(eidx);
-      return;
-    }
     var btn = e.target.closest('[data-row-idx]');
     if (!btn) return;
     var idx = parseInt(btn.getAttribute('data-row-idx'), 10);
@@ -393,11 +370,9 @@ function renderHeaders() {
       + '<td class="mono" style="font-size:.76rem;white-space:nowrap;color:var(--grey-500)">' + dt + '</td>'
       + '<td class="amount">' + tot + '</td>'
       + '<td style="text-align:center;color:var(--grey-500)">' + esc(String(lc)) + '</td>'
-      + '<td style="display:flex;gap:6px;align-items:center;">'
-      + '<button class="btn btn-primary btn-sm" data-row-idx="' + i + '" style="white-space:nowrap">'
+      + '<td>'
+      + '<button class="btn btn-primary btn-sm" data-row-idx="' + i + '">'
       +   '<i class="fas fa-eye"></i> View Order</button>'
-      + '<button class="btn btn-ghost btn-sm edit-order-btn" data-edit-idx="' + i + '" style="white-space:nowrap">'
-      +   '<i class="fas fa-pencil-alt"></i> Edit</button>'
       + '</td>'
       + '</tr>';
   }).join('');
@@ -548,165 +523,9 @@ function closeOrderModal(e) {
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     document.getElementById('orderModal').style.display = 'none';
-    document.getElementById('editOrderModal').style.display = 'none';
     document.body.style.overflow = '';
   }
 });
-
-// ── Edit Order ──────────────────────────────────────────────────
-var _editState = { salesId: '', lines: [] };
-
-var DT_OPTS = ['', 'EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'DDP', 'DES'];
-var PT_OPTS = ['', 'Cash', 'COD', 'Net1-45', 'Month+15', 'Sch_5M', 'Sch_6M'];
-
-function selOpts(opts, cur) {
-  return opts.map(function(v) {
-    return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + (v || '— Select —') + '</option>';
-  }).join('');
-}
-
-function openEditOrder(idx) {
-  try {
-    var o   = _renderedOrders[idx];
-    if (!o) { showError('Order not found. Please refresh.'); return; }
-    var sid  = o.salesId || o.SalesId || o.id || '';
-    var cust = o.customerName || o.CustomerName || o.customerId || '—';
-    var acct = o.customerId || o.custAccount || '—';
-    var stat = o.status || o.Status || 'In Progress';
-    var sc   = SC[stat] || 'badge-open';
-
-    var orderLines = _lines.filter(function(l) {
-      var raw = l.SalesId || l.Title || '';
-      return raw.replace(/-L\d+$/, '') === sid || raw === sid;
-    }).sort(function(a, b) {
-      return (Number(a.lineNumber) || 0) - (Number(b.lineNumber) || 0);
-    });
-
-    _editState.salesId = sid;
-    _editState.lines   = orderLines.map(function(l) { return { id: l.id, lineNo: l.lineNumber }; });
-
-    document.getElementById('editModalTitle').textContent = 'Edit Order — ' + sid;
-
-    var inp = 'padding:7px 10px;border:1px solid var(--grey-300);border-radius:var(--radius);font-size:.88rem;background:white;width:100%;box-sizing:border-box;';
-
-    var b = '';
-
-    // Info strip
-    b += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">';
-    b += odKpi('<i class="fas fa-hashtag"></i>', 'Order ID',  '<span style="font-family:monospace;font-size:.95rem;color:var(--teal-dark);font-weight:700">' + esc(sid) + '</span>');
-    b += odKpi('<i class="fas fa-building"></i>', 'Customer', esc(cust) + '<br><span style="font-family:monospace;font-size:.78rem;color:var(--grey-500)">' + esc(acct) + '</span>');
-    b += odKpi('<i class="fas fa-tag"></i>', 'Status',        '<span class="badge ' + sc + '">' + esc(stat) + '</span>');
-    b += '</div>';
-
-    // Editable header fields
-    b += '<div style="background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;">';
-    b += '<div style="font-size:.75rem;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">'
-       + '<i class="fas fa-file-invoice" style="color:var(--teal);margin-right:6px;"></i>Order Header</div>';
-    b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">';
-    b += '<div><label style="font-size:.78rem;color:var(--grey-500);display:block;margin-bottom:4px;">Delivery Terms</label>'
-       + '<select id="editDeliveryTerms" style="' + inp + '">' + selOpts(DT_OPTS, o.deliveryTerms || '') + '</select></div>';
-    b += '<div><label style="font-size:.78rem;color:var(--grey-500);display:block;margin-bottom:4px;">Payment Terms</label>'
-       + '<select id="editPaymentTerms" style="' + inp + '">' + selOpts(PT_OPTS, o.paymentTerms || '') + '</select></div>';
-    b += '</div></div>';
-
-    // Editable lines
-    b += '<div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:10px;">'
-       + '<i class="fas fa-list-ul" style="color:var(--orange);margin-right:6px;"></i>Order Lines'
-       + '<span style="background:var(--grey-200);color:var(--grey-600);font-size:.7rem;padding:1px 8px;border-radius:20px;margin-left:8px;">' + orderLines.length + '</span></div>';
-
-    if (orderLines.length === 0) {
-      b += '<div style="text-align:center;padding:24px;color:var(--grey-400);background:var(--grey-50);border:1px dashed var(--grey-300);border-radius:var(--radius);">No lines found for this order.</div>';
-    } else {
-      var numInp = 'padding:5px 8px;border:1px solid var(--grey-300);border-radius:6px;font-size:.84rem;font-family:monospace;text-align:right;';
-      var rows = orderLines.map(function(l) {
-        var ln   = l.lineNumber != null ? l.lineNumber : '—';
-        var name = l.Title || '—';
-        var ic   = l.ItemCode || '—';
-        var unit = l.SalesUnit || 'ea';
-        var qty  = l.SalesQty  != null ? l.SalesQty  : 1;
-        var pr   = l.SalesPrice != null ? l.SalesPrice : 0;
-        return '<tr>'
-          + '<td style="text-align:center;color:var(--grey-400);font-size:.78rem">' + esc(String(ln)) + '</td>'
-          + '<td><div style="font-weight:500;color:var(--navy);font-size:.84rem">' + esc(name) + '</div>'
-          +    '<span style="font-family:monospace;font-size:.74rem;background:var(--teal-light);color:var(--teal-dark);padding:1px 6px;border-radius:4px;">' + esc(ic) + '</span></td>'
-          + '<td style="color:var(--grey-500);font-size:.8rem">' + esc(unit) + '</td>'
-          + '<td style="text-align:right"><input id="editQty_' + esc(l.id) + '" type="number" value="' + qty + '" min="1" style="' + numInp + 'width:68px;"></td>'
-          + '<td style="text-align:right"><input id="editPrice_' + esc(l.id) + '" type="number" value="' + Number(pr).toFixed(2) + '" min="0" step="0.01" style="' + numInp + 'width:88px;"></td>'
-          + '</tr>';
-      }).join('');
-      b += '<div style="border:1px solid var(--grey-200);border-radius:var(--radius);overflow:hidden;">'
-         + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
-         + '<th style="width:44px">Line</th><th>Product</th><th>Unit</th>'
-         + '<th style="text-align:right;width:90px">Qty</th><th style="text-align:right;width:110px">Unit Price</th>'
-         + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
-    }
-
-    document.getElementById('editModalBody').innerHTML  = b;
-    document.getElementById('editOrderModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  } catch (err) {
-    showError('Error opening edit form: ' + err.message);
-    console.error('[EditOrder]', err);
-  }
-}
-
-function closeEditModal(e) {
-  if (e && e.type === 'click' && e.target !== document.getElementById('editOrderModal')) return;
-  document.getElementById('editOrderModal').style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-async function saveEditOrder() {
-  var btn = document.getElementById('editSaveBtn');
-  btn.disabled  = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-  try {
-    var sid = _editState.salesId;
-    var dt  = document.getElementById('editDeliveryTerms').value;
-    var pt  = document.getElementById('editPaymentTerms').value;
-
-    // 1. Update header fields
-    var hRes = await fetch('/api/salesorders/' + encodeURIComponent(sid), {
-      method: 'PUT',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ DeliveryTerms: dt, PaymentTerms: pt })
-    });
-    if (!hRes.ok) {
-      var hErr = await hRes.json();
-      throw new Error(hErr.error || 'Failed to update order header');
-    }
-
-    // 2. Update each line's qty + price
-    for (var i = 0; i < _editState.lines.length; i++) {
-      var line      = _editState.lines[i];
-      var qtyInput  = document.getElementById('editQty_'   + line.id);
-      var priceInput= document.getElementById('editPrice_' + line.id);
-      if (!qtyInput || !priceInput) continue;
-      var lRes = await fetch('/api/salesorders/lines/' + line.id, {
-        method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          SalesQty:   parseFloat(qtyInput.value)   || 1,
-          SalesPrice: parseFloat(priceInput.value) || 0,
-        })
-      });
-      if (!lRes.ok) {
-        var lErr = await lRes.json();
-        throw new Error(lErr.error || ('Line ' + (i + 1) + ' failed to update'));
-      }
-    }
-
-    closeEditModal(null);
-    loadAll();
-    if (window.PP && PP.showToast) PP.showToast('Order updated successfully.', 'success');
-  } catch (err) {
-    console.error('[EditOrder save]', err);
-    showError('Save failed: ' + err.message);
-  } finally {
-    btn.disabled  = false;
-    btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-  }
-}
 
 function updateStats() {
   document.getElementById('statHeaders').textContent = _orders.length;
