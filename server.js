@@ -376,14 +376,21 @@ app.post('/api/bot/conversations', async (req, res) => {
     }
 });
 
-// Send message to bot
+// Send message to bot — try with api-version, fall back without
 app.post('/api/bot/conversations/:id/activities', async (req, res) => {
+    const hdrs = { 'Content-Type': 'application/json', ...getBotAuthHeader(req) };
+    const url1 = `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}`;
+    const url2 = `${BOT_BASE}/conversations/${req.params.id}/activities`;
     try {
-        const r = await axios.post(
-            `${BOT_BASE}/conversations/${req.params.id}/activities?api-version=${BOT_API}`,
-            req.body,
-            { headers: { 'Content-Type': 'application/json', ...getBotAuthHeader(req) } }
-        );
+        let r;
+        try {
+            r = await axios.post(url1, req.body, { headers: hdrs });
+            console.log('[Bot] POST /activities OK (with api-version)');
+        } catch (e1) {
+            console.warn('[Bot] POST /activities 404 with api-version, retrying without:', e1.response?.status);
+            r = await axios.post(url2, req.body, { headers: hdrs });
+            console.log('[Bot] POST /activities OK (without api-version)');
+        }
         res.json(r.data);
     } catch (e) {
         console.error('[Bot] Send error:', e.response?.status, JSON.stringify(e.response?.data) || e.message);
