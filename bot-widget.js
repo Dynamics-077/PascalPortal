@@ -1,6 +1,6 @@
 /* ============================================================
    Pascal Press — Copilot Studio Bot Widget
-   WebSocket proxy through backend server
+   REST polling proxy through backend server (M365 Agents SDK)
    ============================================================ */
 (function () {
 
@@ -126,7 +126,7 @@
           <div class="bot-name">Pascal Assistant</div>
           <div class="bot-status">Online</div>
         </div>
-        <button class="bot-close" id="pp-bot-close">✕</button>
+        <button class="bot-close" id="pp-bot-close">&#x2715;</button>
       </div>
       <div id="pp-bot-messages">
         <div id="pp-bot-overlay">
@@ -150,11 +150,10 @@
   const closeB  = document.getElementById('pp-bot-close');
   const msgs    = document.getElementById('pp-bot-messages');
   const overlay = document.getElementById('pp-bot-overlay');
-  const oTxt    = document.getElementById('pp-bot-overlay-txt');
   const input   = document.getElementById('pp-bot-input');
   const sendBtn = document.getElementById('pp-bot-send');
 
-  let isOpen = false, ws = null, ready = false, _msalInst = null;
+  let isOpen = false, ready = false, _ppToken = null, _convId = null, _msalInst = null;
 
   // ── MSAL config — same app registration as the portal ──────
   var BOT_MSAL = {
@@ -200,12 +199,10 @@
         }
 
         _msalInst.handleRedirectPromise().then(function(resp) {
-          // If redirect brought back a PP token, use it immediately
           if (resp && resp.accessToken) { onSuccess(resp.accessToken); return; }
 
           var accounts = _msalInst.getAllAccounts();
           if (accounts.length === 0) {
-            // No cached session — trigger interactive login then return to this page
             _msalInst.loginRedirect({ scopes: BOT_MSAL.scopes, prompt: 'select_account' });
             return;
           }
@@ -229,66 +226,106 @@
     });
   }
 
-  // ── Connect via WebSocket proxy ────────────────────────────
+  // ── Start conversation via server REST proxy ───────────────
   function connect() {
-    acquirePPToken(function(ppToken) {
-      showOverlay('Connecting to assistant...');
-      var proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      var wsUrl = proto + '://' + location.host + '/api/bot/stream?token=' + encodeURIComponent(ppToken);
-      console.log('[Bot] Connecting WebSocket proxy...');
+    acquirePPToken(function(token) {
+      _ppToken = token;
+      showOverlay('Starting conversation...');
+      console.log('[Bot] Starting Copilot conversation...');
 
-      ws = new WebSocket(wsUrl);
-      ws.onopen = function() { console.log('[Bot] WS proxy connected'); };
+      fetch('/api/bot/conversations', {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+      })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || ('HTTP ' + r.status)); });
+        return r.json();
+      })
+      .then(function(data) {
+        _convId = data.conversationId || data.ConversationId;
+        if (!_convId) throw new Error('No conversationId returned by bot');
+        console.log('[Bot] Conversation started:', _convId, '| action:', data.action);
 
-      ws.onmessage = function(e) {
-        try {
-          var msg = JSON.parse(e.data);
-          if (msg.type === 'ready') {
-            hideOverlay();
-            ready = true;
-            input.disabled = false;
-            sendBtn.disabled = false;
-            input.focus();
-          } else if (msg.type === 'activities') {
-            (msg.activities || []).forEach(renderAct);
-          } else if (msg.type === 'error') {
-            addMsg('⚠️ ' + msg.message, 'sys');
-          }
-        } catch (_) {}
-      };
+        var greetings = (data.activities || []).filter(function(a) {
+          return a.from && a.from.role !== 'user';
+        });
+        greetings.forEach(renderAct);
 
-      ws.onerror = function(e) {
-        console.error('[Bot] WS error', e);
-        msgs.querySelectorAll('.pp-typing').forEach(function(el) { el.remove(); });
+        hideOverlay();
+        ready = true;
+        input.disabled = false;
         sendBtn.disabled = false;
-        showOverlay('Could not connect. Please try again.', true);
-      };
-
-      ws.onclose = function(e) {
-        console.log('[Bot] WS closed:', e.code, e.reason);
-        msgs.querySelectorAll('.pp-typing').forEach(function(el) { el.remove(); });
-        sendBtn.disabled = false;
-        if (ready) addMsg('Connection closed.', 'sys');
-      };
+        input.focus();
+      })
+      .catch(function(err) {
+        console.error('[Bot] Connect error:', err);
+        showOverlay('Could not connect: ' + err.message, true);
+      });
     });
   }
 
-  // ── Send ───────────────────────────────────────────────────
+  // ── Send message ───────────────────────────────────────────
   function send() {
     var text = input.value.trim();
-    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-    input.value = ''; input.style.height = 'auto';
+    if (!text || !ready || !_convId || !_ppToken) return;
+
+    input.value = '';
+    input.style.height = 'auto';
     addMsg(text, 'user');
     var typing = addTyping();
     sendBtn.disabled = true;
-    ws.send(JSON.stringify({ type: 'message', text: text }));
-    var origMsg = ws.onmessage;
-    ws.onmessage = function(e) {
+
+    fetch('/api/bot/conversations/' + _convId + '/activities', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + _ppToken, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ type: 'message', text: text, from: { id: 'user', name: 'User', role: 'user' } })
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || ('HTTP ' + r.status)); });
+      return r.json();
+    })
+    .then(function(data) {
+      var botActs = (data.activities || []).filter(function(a) {
+        return a.from && a.from.role !== 'user';
+      });
+      if (data.action === 'continue') return pollActivities(botActs, 0);
+      return Promise.resolve(botActs);
+    })
+    .then(function(botActs) {
       typing.remove();
       sendBtn.disabled = false;
-      ws.onmessage = origMsg;
-      origMsg(e);
-    };
+      botActs.forEach(renderAct);
+      if (!botActs.length) addMsg('(No response received)', 'sys');
+    })
+    .catch(function(err) {
+      typing.remove();
+      sendBtn.disabled = false;
+      console.error('[Bot] Send error:', err);
+      addMsg('⚠️ ' + err.message, 'sys');
+    });
+  }
+
+  // ── Poll for bot reply when action=continue ────────────────
+  function pollActivities(seen, attempts) {
+    if (attempts >= 15) return Promise.resolve(seen);
+    return new Promise(function(resolve) { setTimeout(resolve, 1200); })
+    .then(function() {
+      return fetch('/api/bot/conversations/' + _convId + '/activities', {
+        headers: { 'Authorization': 'Bearer ' + _ppToken }
+      });
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var newActs = (data.activities || []).filter(function(a) {
+        return a.from && a.from.role !== 'user';
+      });
+      var seenIds = {};
+      seen.forEach(function(a) { seenIds[a.id] = true; });
+      newActs.forEach(function(a) { if (!seenIds[a.id]) seen.push(a); });
+      if (data.action === 'continue') return pollActivities(seen, attempts + 1);
+      return seen;
+    })
+    .catch(function() { return seen; });
   }
 
   input.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });

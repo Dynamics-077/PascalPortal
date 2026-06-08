@@ -4,8 +4,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
-const http = require('http');
-const WebSocket = require('ws');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
 
@@ -347,28 +345,21 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 
 
 // ============================================================
+// Copilot Studio Bot — REST proxy (M365 Agents SDK / authenticated)
+// BOT_CS_URL is the full conversations endpoint from the portal's
+// "Embed code / Connection string" screen in Copilot Studio.
+// bot-widget.js acquires a real Power Platform token via MSAL and
+// passes it in Authorization: Bearer — no OBO needed.
 // ============================================================
-// Copilot Studio Bot — DirectLine Proxy (authenticated mode)
-// ============================================================
-const BOT_BASE   = 'https://1db737e7f1f2e6ee8744c917393a84.c5.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr2d9_PascalPortal';
-const BOT_API    = '2022-03-01-preview';
-// bot-widget.js acquires a real Power Platform token via MSAL in the browser
-// and sends it here. We pass it straight to Copilot Studio — no OBO needed.
+const _botCsUrl = process.env.BOT_CS_URL || '';
+const BOT_BASE  = _botCsUrl ? _botCsUrl.replace(/\/conversations(\?.*)?$/, '') : '';
+const BOT_API   = (() => { try { return new URL(_botCsUrl).searchParams.get('api-version') || '2022-03-01-preview'; } catch(_) { return '2022-03-01-preview'; } })();
 
-// Exchange user's Power Platform token for a DirectLine conversation token
-app.post('/api/bot/directline-token', async (req, res) => {
-    try {
-        const r = await axios.post(
-            `${BOT_BASE}/conversations?api-version=${BOT_API}`,
-            {},
-            { headers: { 'Content-Type': 'application/json', ...getBotAuthHeader(req) } }
-        );
-        res.json(r.data);
-    } catch (e) {
-        console.error('[Bot] Token exchange error:', e.response?.status, JSON.stringify(e.response?.data) || e.message);
-        res.status(e.response?.status || 500).json({ error: e.message, detail: e.response?.data });
-    }
-});
+// Forward the browser's PP token straight to Copilot Studio
+function getBotAuthHeader(req) {
+    const auth = req.headers['authorization'];
+    return auth ? { Authorization: auth } : {};
+}
 
 // Start a new bot conversation
 app.post('/api/bot/conversations', async (req, res) => {
@@ -416,114 +407,8 @@ app.get('/api/bot/conversations/:id/activities', async (req, res) => {
 });
 
 // ============================================================
-// WebSocket Proxy — Copilot Studio streaming via server
-// Browser connects → server proxies to Copilot Studio WS
-// ============================================================
-const server = http.createServer(app);
-const wss    = new WebSocket.Server({ noServer: true });
-
-server.on('upgrade', (req, socket, head) => {
-    if (req.url && req.url.startsWith('/api/bot/stream')) {
-        wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
-    } else {
-        socket.destroy();
-    }
-});
-
-wss.on('connection', async (clientWs, req) => {
-    const url       = new URL(req.url, `http://localhost`);
-    const userToken = url.searchParams.get('token');
-    if (!userToken) { clientWs.close(4001, 'Missing token'); return; }
-
-    // userToken is a real Power Platform JWT acquired by the browser via MSAL
-    console.log('[BotWS] Browser connected — starting Copilot conversation...');
-
-    try {
-        // 1. Start conversation — this bot returns {conversationId, activities, action}
-        //    (Copilot Studio polling REST API, no DirectLine token)
-        const ppH = { Authorization: `Bearer ${userToken}`, 'Content-Type': 'application/json' };
-        const convResp = await axios.post(
-            `${BOT_BASE}/conversations?api-version=${BOT_API}`,
-            {},
-            { headers: ppH }
-        );
-        const conversationId = convResp.data.conversationId || convResp.data.ConversationId;
-        console.log('[BotWS] Conversation started:', conversationId, '| action:', convResp.data.action);
-
-        // Build the activities URL — try without api-version as fallback
-        const ACT_URL  = `${BOT_BASE}/conversations/${conversationId}/activities?api-version=${BOT_API}`;
-        const ACT_URL2 = `${BOT_BASE}/conversations/${conversationId}/activities`;
-
-        // 2. Forward any greeting activities, signal ready
-        const greetings = (convResp.data.activities || []).filter(a => a.from && a.from.role !== 'user');
-        if (greetings.length) clientWs.send(JSON.stringify({ type: 'activities', activities: greetings }));
-        clientWs.send(JSON.stringify({ type: 'ready', conversationId }));
-
-        // 3. Forward browser messages → Copilot Studio REST polling API
-        clientWs.on('message', async (raw) => {
-            try {
-                const msg = JSON.parse(raw);
-                if (msg.type !== 'message' || !msg.text) return;
-
-                const body = { type: 'message', text: msg.text, from: { id: 'user', name: 'User', role: 'user' } };
-
-                // Try with api-version first, fall back without it
-                let actResp;
-                try {
-                    actResp = await axios.post(ACT_URL, body, { headers: ppH });
-                    console.log('[BotWS] POST /activities OK (with api-version)');
-                } catch (e1) {
-                    console.warn('[BotWS] POST /activities with api-version failed:', e1.response?.status, e1.response?.data);
-                    try {
-                        actResp = await axios.post(ACT_URL2, body, { headers: ppH });
-                        console.log('[BotWS] POST /activities OK (without api-version)');
-                    } catch (e2) {
-                        console.error('[BotWS] POST /activities both URLs failed:', e2.response?.status, JSON.stringify(e2.response?.data));
-                        throw e2;
-                    }
-                }
-
-                // Collect bot replies — may need to poll if action='continue'
-                let botActs = (actResp.data.activities || []).filter(a => a.from && a.from.role !== 'user');
-                let action  = actResp.data.action;
-                let attempts = 0;
-
-                while (action === 'continue' && attempts++ < 15) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    const poll = await axios.get(ACT_URL, { headers: ppH });
-                    action = poll.data.action;
-                    const newActs = (poll.data.activities || []).filter(a => a.from && a.from.role !== 'user');
-                    // Only add activities we haven't seen (by id)
-                    const seen = new Set(botActs.map(a => a.id));
-                    newActs.forEach(a => { if (!seen.has(a.id)) botActs.push(a); });
-                }
-
-                if (botActs.length && clientWs.readyState === WebSocket.OPEN) {
-                    clientWs.send(JSON.stringify({ type: 'activities', activities: botActs }));
-                }
-
-            } catch (e) {
-                console.error('[BotWS] Activity error:', e.response?.status, e.message);
-                if (clientWs.readyState === WebSocket.OPEN) {
-                    clientWs.send(JSON.stringify({ type: 'error', message: e.message }));
-                }
-            }
-        });
-
-    } catch (e) {
-        console.error('[BotWS] Init error:', e.response?.status, e.message);
-        clientWs.send(JSON.stringify({ type: 'error', message: e.response?.data?.message || e.message }));
-        clientWs.close();
-    }
-
-    clientWs.on('close', () => {
-        console.log('[BotWS] Browser disconnected');
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    });
-});
-
 // Start Server
-server.listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`\n🚀 Backend API Middleware started!`);
     console.log(`   Listening directly on http://localhost:${PORT}`);
     console.log(`   Ready to route requests towards Dynamics 365.\n`);
