@@ -1,114 +1,57 @@
 /* ============================================================
-   Pascal Press — Copilot Studio Bot Widget
-   REST polling proxy through backend server (M365 Agents SDK)
+   Pascal Press — Copilot Studio Bot Widget (iframe embed)
    ============================================================ */
 (function () {
+
+  const WEBCHAT_URL = 'https://copilotstudio.microsoft.com/environments/1db737e7-f1f2-e6ee-8744-c917393a84c5/bots/cr2d9_PascalPortal/webchat?__version__=2';
 
   // ── CSS ────────────────────────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `
-    #toast-container { bottom: 100px !important; }
-
     #pp-bot-toggle {
-      position: fixed; bottom: 28px; right: 28px; z-index: 9990;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, #00a4a6, #008385);
+      position: fixed; bottom: 24px; right: 24px; z-index: 9990;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #00a4a6 0%, #007b7d 100%);
       border: none; cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0,164,166,.45);
+      box-shadow: 0 4px 18px rgba(0,164,166,.5);
       display: flex; align-items: center; justify-content: center;
-      transition: transform .2s, box-shadow .2s; color: white; font-size: 1.4rem;
+      color: white; font-size: 1.35rem;
+      transition: transform .2s, box-shadow .2s;
     }
-    #pp-bot-toggle:hover { transform: scale(1.08); }
-    #pp-bot-toggle .bot-notif {
-      position: absolute; top: 2px; right: 2px; width: 14px; height: 14px;
-      border-radius: 50%; background: #f4851f; border: 2px solid white;
+    #pp-bot-toggle:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 22px rgba(0,164,166,.6);
+    }
+    #pp-bot-toggle .pp-notif {
+      position: absolute; top: 3px; right: 3px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #f4851f; border: 2px solid white;
     }
 
     #pp-bot-panel {
-      position: fixed; bottom: 96px; right: 28px; z-index: 9989;
-      width: 340px; height: 480px; background: white; border-radius: 14px;
-      box-shadow: 0 12px 40px rgba(30,58,95,.22);
-      display: flex; flex-direction: column; overflow: hidden;
-      transform: scale(.92) translateY(16px); opacity: 0; pointer-events: none;
-      transition: transform .22s ease, opacity .22s ease; border: 1px solid #d8dde6;
+      position: fixed; bottom: 88px; right: 24px; z-index: 9989;
+      width: 360px; height: 520px;
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 16px 48px rgba(20,40,70,.22), 0 2px 8px rgba(0,0,0,.08);
+      border: 1px solid rgba(0,164,166,.18);
+      transform: scale(.93) translateY(14px); opacity: 0; pointer-events: none;
+      transition: transform .22s cubic-bezier(.4,0,.2,1), opacity .22s ease;
     }
-    #pp-bot-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+    #pp-bot-panel.open {
+      transform: scale(1) translateY(0); opacity: 1; pointer-events: all;
+    }
 
-    .bot-header {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2a4d7a 100%);
-      padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    #pp-bot-iframe {
+      width: 100%; height: 100%; border: none; display: block;
     }
-    .bot-header .bot-avatar {
-      width: 36px; height: 36px; border-radius: 50%; background: #00a4a6;
-      display: flex; align-items: center; justify-content: center;
-      font-size: .95rem; color: white; flex-shrink: 0;
-    }
-    .bot-header .bot-info { flex: 1; }
-    .bot-header .bot-name  { font-size: .88rem; font-weight: 700; color: white; }
-    .bot-header .bot-status {
-      font-size: .72rem; color: rgba(255,255,255,.7);
-      display: flex; align-items: center; gap: 4px;
-    }
-    .bot-header .bot-status::before {
-      content: ''; width: 6px; height: 6px; border-radius: 50%;
-      background: #27ae60; display: inline-block;
-    }
-    .bot-header .bot-close {
-      background: none; border: none; color: rgba(255,255,255,.6);
-      cursor: pointer; font-size: 1rem; padding: 4px; border-radius: 6px; line-height: 1;
-    }
-    .bot-header .bot-close:hover { color: white; background: rgba(255,255,255,.1); }
 
-    #pp-bot-messages {
-      flex: 1; overflow-y: auto; padding: 12px;
-      display: flex; flex-direction: column; gap: 8px; background: #f9fafb;
+    @media (max-width: 480px) {
+      #pp-bot-panel {
+        width: calc(100vw - 16px);
+        right: 8px; bottom: 80px;
+        height: min(520px, calc(100vh - 100px));
+      }
     }
-    #pp-bot-messages::-webkit-scrollbar { width: 4px; }
-    #pp-bot-messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-
-    .pp-msg { max-width: 82%; padding: 9px 13px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
-    .pp-msg.bot  { background: white; border: 1px solid #e5e7eb; color: #1f2937; align-self: flex-start; border-bottom-left-radius: 4px; }
-    .pp-msg.user { background: #00a4a6; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
-    .pp-msg.sys  { background: none; color: #9ca3af; font-size: 11px; align-self: center; border: none; padding: 2px 0; }
-
-    .pp-typing { align-self: flex-start; padding: 10px 14px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; border-bottom-left-radius: 4px; display: flex; gap: 4px; align-items: center; }
-    .pp-typing span { width: 6px; height: 6px; background: #9ca3af; border-radius: 50%; animation: pp-b 1.2s infinite; }
-    .pp-typing span:nth-child(2) { animation-delay: .2s; }
-    .pp-typing span:nth-child(3) { animation-delay: .4s; }
-    @keyframes pp-b { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1.1);opacity:1} }
-
-    #pp-bot-input-row {
-      padding: 10px 12px; border-top: 1px solid #e5e7eb;
-      display: flex; gap: 8px; align-items: flex-end;
-      background: white; flex-shrink: 0;
-    }
-    #pp-bot-input {
-      flex: 1; border: 1px solid #d1d5db; border-radius: 8px;
-      padding: 8px 11px; font-size: 13px; resize: none; outline: none;
-      line-height: 1.4; max-height: 80px; font-family: inherit; background: #f9fafb;
-    }
-    #pp-bot-input:focus { border-color: #00a4a6; background: white; }
-    #pp-bot-send {
-      width: 34px; height: 34px; border-radius: 8px; background: #00a4a6;
-      border: none; color: white; cursor: pointer; display: flex;
-      align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s;
-    }
-    #pp-bot-send:hover { background: #008385; }
-    #pp-bot-send:disabled { background: #d1d5db; cursor: default; }
-
-    #pp-bot-overlay {
-      position: absolute; inset: 52px 0 0 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; padding: 24px; text-align: center;
-      background: #f9fafb; z-index: 5; font-size: 13px; color: #6b7280;
-    }
-    #pp-bot-overlay.hidden { display: none; }
-    #pp-bot-overlay .pp-spin {
-      border: 3px solid #e5e7eb; border-top: 3px solid #00a4a6;
-      border-radius: 50%; width: 28px; height: 28px; animation: pp-s .8s linear infinite;
-    }
-    #pp-bot-overlay .pp-err { color: #dc2626; font-size: 12px; line-height: 1.6; }
-    @keyframes pp-s { to { transform: rotate(360deg); } }
   `;
   document.head.appendChild(style);
 
@@ -117,253 +60,27 @@
   wrap.innerHTML = `
     <button id="pp-bot-toggle" title="Chat with Pascal Assistant">
       <i class="fa-solid fa-robot"></i>
-      <span class="bot-notif"></span>
+      <span class="pp-notif"></span>
     </button>
     <div id="pp-bot-panel">
-      <div class="bot-header">
-        <div class="bot-avatar"><i class="fa-solid fa-robot"></i></div>
-        <div class="bot-info">
-          <div class="bot-name">Pascal Assistant</div>
-          <div class="bot-status">Online</div>
-        </div>
-        <button class="bot-close" id="pp-bot-close">&#x2715;</button>
-      </div>
-      <div id="pp-bot-messages">
-        <div id="pp-bot-overlay">
-          <div class="pp-spin"></div>
-          <span id="pp-bot-overlay-txt">Connecting...</span>
-        </div>
-      </div>
-      <div id="pp-bot-input-row">
-        <textarea id="pp-bot-input" rows="1" placeholder="Type a message..." disabled></textarea>
-        <button id="pp-bot-send" disabled title="Send">
-          <i class="fa-solid fa-paper-plane" style="font-size:.75rem"></i>
-        </button>
-      </div>
+      <iframe
+        id="pp-bot-iframe"
+        src="${WEBCHAT_URL}"
+        allow="microphone"
+        title="Pascal Assistant">
+      </iframe>
     </div>
   `;
   document.body.appendChild(wrap);
 
-  // ── Refs ───────────────────────────────────────────────────
-  const panel   = document.getElementById('pp-bot-panel');
-  const toggle  = document.getElementById('pp-bot-toggle');
-  const closeB  = document.getElementById('pp-bot-close');
-  const msgs    = document.getElementById('pp-bot-messages');
-  const overlay = document.getElementById('pp-bot-overlay');
-  const input   = document.getElementById('pp-bot-input');
-  const sendBtn = document.getElementById('pp-bot-send');
-
-  let isOpen = false, ready = false, _ppToken = null, _convId = null, _msalInst = null;
-
-  // ── MSAL config — same app registration as the portal ──────
-  var BOT_MSAL = {
-    clientId: '6bc856af-36d8-424d-a089-1860d402627b',
-    tenantId: '132fee41-6bf5-4f91-be3e-5c3b2a2fb1b8',
-    scopes:   ['https://api.powerplatform.com/CopilotStudio.Copilots.Invoke'],
-  };
-
   // ── Toggle ─────────────────────────────────────────────────
-  toggle.addEventListener('click', function() {
-    isOpen = !isOpen;
-    panel.classList.toggle('open', isOpen);
-    toggle.querySelector('.bot-notif').style.display = isOpen ? 'none' : '';
-    if (isOpen && !ready) connect();
-    if (isOpen) setTimeout(function() { input.focus(); }, 300);
+  const panel  = document.getElementById('pp-bot-panel');
+  const toggle = document.getElementById('pp-bot-toggle');
+  const notif  = toggle.querySelector('.pp-notif');
+
+  toggle.addEventListener('click', function () {
+    var open = panel.classList.toggle('open');
+    notif.style.display = open ? 'none' : '';
   });
-  closeB.addEventListener('click', function() { isOpen = false; panel.classList.remove('open'); });
-
-  // ── Load MSAL dynamically if not already on the page ───────
-  function loadMsal(cb) {
-    if (typeof msal !== 'undefined') { cb(); return; }
-    var s = document.createElement('script');
-    s.src = '/vendor/msal/msal-browser.min.js';
-    s.onload  = cb;
-    s.onerror = function() { showOverlay('Auth library failed to load. Check your connection.', true); };
-    document.head.appendChild(s);
-  }
-
-  // ── Acquire a real Power Platform token via MSAL ────────────
-  function acquirePPToken(onSuccess) {
-    showOverlay('Authenticating...');
-    loadMsal(function() {
-      try {
-        if (!_msalInst) {
-          _msalInst = new msal.PublicClientApplication({
-            auth: {
-              clientId:    BOT_MSAL.clientId,
-              authority:   'https://login.microsoftonline.com/' + BOT_MSAL.tenantId,
-              redirectUri: window.location.origin + window.location.pathname,
-            },
-            cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: true },
-          });
-        }
-
-        _msalInst.handleRedirectPromise().then(function(resp) {
-          if (resp && resp.accessToken) { onSuccess(resp.accessToken); return; }
-
-          var accounts = _msalInst.getAllAccounts();
-          if (accounts.length === 0) {
-            _msalInst.loginRedirect({ scopes: BOT_MSAL.scopes, prompt: 'select_account' });
-            return;
-          }
-
-          _msalInst.acquireTokenSilent({ scopes: BOT_MSAL.scopes, account: accounts[0] })
-            .then(function(result) { onSuccess(result.accessToken); })
-            .catch(function(err) {
-              console.warn('[Bot] Silent token failed, trying redirect:', err.message);
-              _msalInst.loginRedirect({ scopes: BOT_MSAL.scopes });
-            });
-
-        }).catch(function(err) {
-          console.error('[Bot] Redirect promise error:', err);
-          showOverlay('Auth error: ' + err.message, true);
-        });
-
-      } catch (err) {
-        console.error('[Bot] MSAL init error:', err);
-        showOverlay('Auth init error: ' + err.message, true);
-      }
-    });
-  }
-
-  // ── Start conversation via server REST proxy ───────────────
-  function connect() {
-    acquirePPToken(function(token) {
-      _ppToken = token;
-      showOverlay('Starting conversation...');
-      console.log('[Bot] Starting Copilot conversation...');
-
-      fetch('/api/bot/conversations', {
-        method:  'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
-      })
-      .then(function(r) {
-        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || ('HTTP ' + r.status)); });
-        return r.json();
-      })
-      .then(function(data) {
-        _convId = data.conversationId || data.ConversationId;
-        if (!_convId) throw new Error('No conversationId returned by bot');
-        console.log('[Bot] Conversation started:', _convId, '| action:', data.action);
-
-        var greetings = (data.activities || []).filter(function(a) {
-          return a.from && a.from.role !== 'user';
-        });
-        greetings.forEach(renderAct);
-
-        hideOverlay();
-        ready = true;
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
-      })
-      .catch(function(err) {
-        console.error('[Bot] Connect error:', err);
-        showOverlay('Could not connect: ' + err.message, true);
-      });
-    });
-  }
-
-  // ── Send message ───────────────────────────────────────────
-  function send() {
-    var text = input.value.trim();
-    if (!text || !ready || !_convId || !_ppToken) return;
-
-    input.value = '';
-    input.style.height = 'auto';
-    addMsg(text, 'user');
-    var typing = addTyping();
-    sendBtn.disabled = true;
-
-    fetch('/api/bot/conversations/' + _convId + '/activities', {
-      method:  'POST',
-      headers: { 'Authorization': 'Bearer ' + _ppToken, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ type: 'message', text: text, from: { id: 'user', name: 'User', role: 'user' } })
-    })
-    .then(function(r) {
-      if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || ('HTTP ' + r.status)); });
-      return r.json();
-    })
-    .then(function(data) {
-      var botActs = (data.activities || []).filter(function(a) {
-        return a.from && a.from.role !== 'user';
-      });
-      if (data.action === 'continue') return pollActivities(botActs, 0);
-      return Promise.resolve(botActs);
-    })
-    .then(function(botActs) {
-      typing.remove();
-      sendBtn.disabled = false;
-      botActs.forEach(renderAct);
-      if (!botActs.length) addMsg('(No response received)', 'sys');
-    })
-    .catch(function(err) {
-      typing.remove();
-      sendBtn.disabled = false;
-      console.error('[Bot] Send error:', err);
-      addMsg('⚠️ ' + err.message, 'sys');
-    });
-  }
-
-  // ── Poll for bot reply when action=continue ────────────────
-  function pollActivities(seen, attempts) {
-    if (attempts >= 15) return Promise.resolve(seen);
-    return new Promise(function(resolve) { setTimeout(resolve, 1200); })
-    .then(function() {
-      return fetch('/api/bot/conversations/' + _convId + '/activities', {
-        headers: { 'Authorization': 'Bearer ' + _ppToken }
-      });
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var newActs = (data.activities || []).filter(function(a) {
-        return a.from && a.from.role !== 'user';
-      });
-      var seenIds = {};
-      seen.forEach(function(a) { seenIds[a.id] = true; });
-      newActs.forEach(function(a) { if (!seenIds[a.id]) seen.push(a); });
-      if (data.action === 'continue') return pollActivities(seen, attempts + 1);
-      return seen;
-    })
-    .catch(function() { return seen; });
-  }
-
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
-  input.addEventListener('input',   function() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 80) + 'px'; });
-  sendBtn.addEventListener('click', send);
-
-  // ── Render ─────────────────────────────────────────────────
-  function renderAct(act) {
-    if (act.type !== 'message') return;
-    if (act.from && act.from.role === 'user') return;
-    var text = act.text || act.speak || '';
-    if (text) addMsg(text, 'bot');
-  }
-
-  function addMsg(text, cls) {
-    var d = document.createElement('div');
-    d.className = 'pp-msg ' + cls;
-    d.textContent = text;
-    msgs.appendChild(d);
-    msgs.scrollTop = msgs.scrollHeight;
-    return d;
-  }
-
-  function addTyping() {
-    var d = document.createElement('div');
-    d.className = 'pp-typing';
-    d.innerHTML = '<span></span><span></span><span></span>';
-    msgs.appendChild(d);
-    msgs.scrollTop = msgs.scrollHeight;
-    return d;
-  }
-
-  function showOverlay(msg, err) {
-    overlay.classList.remove('hidden');
-    overlay.innerHTML = err
-      ? '<div class="pp-err">⚠️ ' + msg + '</div>'
-      : '<div class="pp-spin"></div><span>' + msg + '</span>';
-  }
-  function hideOverlay() { overlay.classList.add('hidden'); }
 
 })();
