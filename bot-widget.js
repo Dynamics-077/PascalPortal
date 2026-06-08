@@ -30,7 +30,7 @@
 
     #pp-bot-panel {
       position: fixed; bottom: 88px; right: 24px; z-index: 9989;
-      width: 360px; height: 520px;
+      width: min(360px, calc(100vw - 32px)); height: 520px;
       border-radius: 16px; overflow: hidden;
       box-shadow: 0 16px 48px rgba(20,40,70,.22), 0 2px 8px rgba(0,0,0,.08);
       border: 1px solid rgba(0,164,166,.18);
