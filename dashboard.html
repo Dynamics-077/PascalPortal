@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('statWeek').textContent    = s.ordersThisWeek || 0;
     document.getElementById('statRevenue').textContent = PP.fmtCurrency(s.revenueThisMonth || 0);
     document.getElementById('statPending').textContent = _pendingCount;
-    document.getElementById('notifBadge').textContent  = _pendingCount;
+    const _nb = document.getElementById('notifBadge'); if (_nb) _nb.textContent = _pendingCount;
     const _pb = document.getElementById('pendingBadge');
     if (_pb) _pb.textContent = _pendingCount || '';
 
