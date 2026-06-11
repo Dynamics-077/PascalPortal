@@ -79,6 +79,14 @@
 
     @media (max-width: 900px) {
       .two-col, .three-col { grid-template-columns: 1fr; }
+      .welcome-banner { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+      .welcome-action { width: 100%; }
+      .welcome-action .btn { flex: 1; justify-content: center; }
+    }
+    @media (max-width: 600px) {
+      .welcome-banner { padding: 16px; }
+      .welcome-action { flex-direction: column; gap: 8px; }
+      .welcome-action .btn { width: 100%; justify-content: center; }
     }
   </style>
 </head>

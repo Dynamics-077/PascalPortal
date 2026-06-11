@@ -83,4 +83,21 @@
     notif.style.display = open ? 'none' : '';
   });
 
+  // ── Lift above sticky footer ────────────────────────────────
+  function liftAboveFooter() {
+    var footer = document.querySelector('.order-footer');
+    if (!footer) return;
+    var h = footer.offsetHeight;
+    if (h > 0) {
+      toggle.style.bottom = (h + 12) + 'px';
+      panel.style.bottom  = (h + 12 + 64) + 'px';
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', liftAboveFooter);
+  } else {
+    liftAboveFooter();
+  }
+  window.addEventListener('resize', liftAboveFooter);
+
 })();

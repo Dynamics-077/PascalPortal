@@ -85,6 +85,14 @@
           </div>
         </div>
 
+        <div class="sidebar-user">
+          <div class="avatar" id="sidebarAvatar">${userInit}</div>
+          <div class="user-info">
+            <div class="name" id="sidebarUserName">${user.name || 'Loading…'}</div>
+            <div class="role" style="color:${rc.color}">${rc.label}</div>
+          </div>
+        </div>
+
         <nav class="sidebar-nav">${navHtml}</nav>
 
         <div class="sidebar-footer">
@@ -94,6 +102,52 @@
         </div>
       </aside>`;
   }
+
+  // ── Mobile hamburger + backdrop ─────────────────────────────
+  function setupMobileNav() {
+    if (document.querySelector('.sidebar-backdrop')) return;
+
+    const bd = document.createElement('div');
+    bd.className = 'sidebar-backdrop';
+    bd.addEventListener('click', closeSidebar);
+    document.body.appendChild(bd);
+
+    const topbar = document.querySelector('.topbar');
+    if (topbar && !topbar.querySelector('.hamburger-btn')) {
+      const btn = document.createElement('button');
+      btn.className = 'hamburger-btn';
+      btn.setAttribute('aria-label', 'Open menu');
+      btn.innerHTML = '<i class="fas fa-bars"></i>';
+      btn.addEventListener('click', toggleSidebar);
+      topbar.insertBefore(btn, topbar.firstChild);
+    }
+  }
+
+  function toggleSidebar() {
+    const sb     = document.querySelector('.sidebar');
+    const bd     = document.querySelector('.sidebar-backdrop');
+    const isOpen = sb && sb.classList.toggle('open');
+    if (bd) bd.classList.toggle('open', !!isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    const icon = document.querySelector('.hamburger-btn i');
+    if (icon) icon.className = isOpen ? 'fas fa-times' : 'fas fa-bars';
+  }
+
+  function closeSidebar() {
+    const sb = document.querySelector('.sidebar');
+    const bd = document.querySelector('.sidebar-backdrop');
+    if (sb) sb.classList.remove('open');
+    if (bd) bd.classList.remove('open');
+    document.body.style.overflow = '';
+    const icon = document.querySelector('.hamburger-btn i');
+    if (icon) icon.className = 'fas fa-bars';
+  }
+
+  // Close sidebar when a nav item is tapped on mobile
+  document.addEventListener('click', function (e) {
+    const item = e.target.closest('.nav-item');
+    if (item && window.innerWidth <= 900) closeSidebar();
+  });
 
   // ── Inject sidebar into placeholder ────────────────────────
   function inject(user, role) {
@@ -135,6 +189,7 @@
     } catch (_) {}
 
     inject({ name: cachedName }, 'salesrep');
+    setupMobileNav();
 
     // 2. Fetch authoritative role + user from server
     try {

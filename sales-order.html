@@ -154,7 +154,54 @@
 
     @media (max-width: 900px) {
       .totals-grid  { grid-template-columns: 1fr; }
-      .order-footer { padding: 12px 14px; flex-wrap: wrap; }
+
+      /* Pipeline: hide subtitle, shrink circles */
+      .pip-sub { display: none; }
+      .pip-circle { width: 30px; height: 30px; font-size: .78rem; }
+      .pip-label { font-size: .82rem; }
+      .order-pipeline { padding: 10px 16px; margin-bottom: 12px; }
+      .pip-connector { max-width: 50px; margin: 0 10px; }
+
+      /* Topbar: hide duplicate buttons (also in sticky footer) */
+      .topbar-actions .btn-ghost { display: none; }
+
+      /* Step 1 locked card: stack fields vertically */
+      .step1-locked {
+        flex-direction: column; align-items: flex-start;
+        gap: 10px; padding: 12px 14px;
+      }
+      .s1l-field { flex: unset !important; min-width: unset !important; width: 100%; }
+      .step1-locked > .btn { margin-left: 0; align-self: flex-end; }
+
+      /* Order lines toolbar: title on its own row, controls below */
+      .lines-toolbar { flex-wrap: wrap; row-gap: 6px; }
+      .lines-toolbar h3 { width: 100%; }
+
+      /* Footer: wrap and remove icons to save space */
+      .order-footer { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
+      .footer-btn-group { flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
+      /* Secondary buttons share one row; primary action gets its own full row */
+      .footer-btn-group .btn { flex: 1; justify-content: center; }
+      .footer-btn-group .btn-primary { flex-basis: 100%; }
+      .order-footer .btn i { display: none; }
+
+      /* Panels: tighter padding */
+      .order-panel-body { padding: 14px; }
+      .order-totals { padding: 14px 16px; }
+    }
+
+    @media (max-width: 600px) {
+      /* Order lines table: hide Category (col 3) and Unit (col 5) */
+      .order-lines-table th:nth-child(3),
+      .order-lines-table td:nth-child(3),
+      .order-lines-table th:nth-child(5),
+      .order-lines-table td:nth-child(5) { display: none; }
+
+      /* Item column: shrink min-width */
+      .order-lines-table .col-item { min-width: 150px; }
+
+      /* Lines toolbar: tighter */
+      .lines-toolbar { padding: 10px 12px; }
     }
 
     /* ---- Pipeline step indicator ---- */
@@ -282,16 +329,11 @@
         <div class="order-panel-body">
           <!-- Rep fields (auto-populated from Entra ID token)
                TODO: Values come from GET /api/salesrep/profile after Entra SSO -->
-          <div class="form-row cols-4">
+          <div class="form-row cols-3">
             <div class="form-group">
               <label>Sales Rep Name</label>
               <input type="text" id="repName" readonly
                 style="background:var(--grey-50); font-weight:600; color:var(--navy);" />
-            </div>
-            <div class="form-group">
-              <label>Rep ID (D365 Worker)</label>
-              <input type="text" id="repId" readonly
-                style="background:var(--grey-50); font-family:monospace;" />
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label>Select Customer <span class="required">*</span></label>
@@ -625,7 +667,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     salesRep = bootstrap.salesRep || PP.getSalesRep();
 
     document.getElementById('repName').value = salesRep.name;
-    document.getElementById('repId').value   = salesRep.id + ' (' + salesRep.d365WorkerId + ')';
 
     const initials = salesRep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
     const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
@@ -1136,7 +1177,7 @@ function submitOrder() {
 
   document.getElementById('confirmSummary').innerHTML = `
     <div class="confirm-line"><span class="cl-label">Order ID</span><span class="cl-val" style="font-family:monospace;">${savedSalesId}</span></div>
-    <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name} (${salesRep.id})</span></div>
+    <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name}</span></div>
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
     <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
     <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${esc(addrText)}</span></div>
