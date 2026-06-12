@@ -175,7 +175,7 @@
 
       /* Order lines toolbar: title on its own row, controls below */
       .lines-toolbar { flex-wrap: wrap; row-gap: 6px; }
-      .lines-toolbar h3 { width: 100%; }
+      .lines-toolbar h3 { width: 100%; white-space: nowrap; flex-shrink: 0; }
 
       /* Footer: wrap and remove icons to save space */
       .order-footer { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
@@ -191,17 +191,61 @@
     }
 
     @media (max-width: 600px) {
-      /* Order lines table: hide Category (col 3) and Unit (col 5) */
-      .order-lines-table th:nth-child(3),
-      .order-lines-table td:nth-child(3),
-      .order-lines-table th:nth-child(5),
-      .order-lines-table td:nth-child(5) { display: none; }
-
-      /* Item column: shrink min-width */
-      .order-lines-table .col-item { min-width: 150px; }
-
       /* Lines toolbar: tighter */
       .lines-toolbar { padding: 10px 12px; }
+
+      /* Order lines table → vertical card layout */
+      .order-lines-table thead { display: none; }
+      .order-lines-table,
+      .order-lines-table tbody { display: block; width: 100%; }
+      .order-lines-table tfoot { display: block; }
+      .order-lines-table tfoot tr,
+      .order-lines-table tfoot td { display: block; width: 100%; box-sizing: border-box; }
+
+      .order-lines-table tbody tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+        padding: 12px;
+        border-bottom: 1px solid var(--grey-200);
+      }
+      .order-lines-table tbody tr:last-child { border-bottom: none; }
+
+      .order-lines-table td {
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        border: none;
+        vertical-align: unset;
+      }
+      .order-lines-table td::before {
+        font-size: .67rem;
+        color: var(--grey-500);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: .3px;
+        margin-bottom: 3px;
+      }
+
+      /* Per-cell labels */
+      .order-lines-table .col-item::before  { content: "Product"; }
+      .order-lines-table .col-cat::before   { content: "Category"; }
+      .order-lines-table .col-qty::before   { content: "Qty"; }
+      .order-lines-table .col-price::before { content: "Unit Price"; }
+      .order-lines-table .col-disc::before  { content: "Disc %"; }
+      .order-lines-table .col-net::before   { content: "Net Amount"; }
+      .order-lines-table .col-del::before   { content: "Delivery"; }
+
+      /* Grid placement */
+      .order-lines-table .line-no  { display: none; }
+      .order-lines-table .col-unit { display: none; }
+      .order-lines-table .col-item { grid-column: 1 / -1; min-width: unset; }
+      .order-lines-table .col-act  { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+      .order-lines-table .col-net  { align-items: flex-end; font-weight: 700; }
+
+      /* Inputs / selects fill the card cell */
+      .order-lines-table tbody td input,
+      .order-lines-table tbody td select { width: 100% !important; }
     }
 
     /* ---- Pipeline step indicator ---- */
@@ -833,7 +877,7 @@ function renderLines() {
           <div class="prod-dropdown" id="prodDrop${idx}"></div>
         </div>
       </td>
-      <td>
+      <td class="col-cat">
         <input type="text" value="${(line.category || '').replace(/"/g,'&quot;')}" placeholder="Category"
           style="width:90px; font-size:.78rem;"
           onchange="updateLine(${idx}, 'category', this.value)" />
@@ -842,7 +886,7 @@ function renderLines() {
         <input type="number" min="1" max="9999" value="${line.qty}" style="width:70px;"
           onchange="updateLine(${idx}, 'qty', +this.value)" />
       </td>
-      <td style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
+      <td class="col-unit" style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
       <td class="col-price">
         <input type="number" min="0" step="0.01" value="${line.price.toFixed(2)}" style="width:80px;"
           onchange="updateLine(${idx}, 'price', +this.value)" />
