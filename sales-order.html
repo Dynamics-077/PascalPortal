@@ -139,7 +139,8 @@
       position: fixed; min-width: 320px;
       background: white; border: 1.5px solid var(--grey-200);
       border-radius: var(--radius); box-shadow: var(--shadow);
-      z-index: 9999; max-height: 220px; overflow-y: auto; display: none;
+      z-index: 9999; max-height: 320px; overflow-y: auto; display: none;
+      overscroll-behavior: contain;
     }
     .prod-dropdown.open { display: block; }
     .prod-option {
@@ -924,6 +925,22 @@ document.addEventListener('click', function(e) {
   }
 });
 
+/* ---- Reposition open dropdown on page scroll (prevents layout shift) -- */
+function _repositionOpenDropdown() {
+  var openDrop = document.querySelector('.prod-dropdown.open');
+  if (!openDrop) return;
+  var idx = openDrop.id.replace('prodDrop', '');
+  var inputEl = document.querySelector('.prod-name-input[data-idx="' + idx + '"]');
+  if (inputEl) {
+    var r = inputEl.getBoundingClientRect();
+    openDrop.style.top  = (r.bottom + 2) + 'px';
+    openDrop.style.left = r.left + 'px';
+  }
+}
+window.addEventListener('scroll', _repositionOpenDropdown, { passive: true });
+document.querySelector('.order-panel-body') &&
+  document.querySelector('.order-panel-body').addEventListener('scroll', _repositionOpenDropdown, { passive: true });
+
 /* ---- Wire product search inputs after each render -------- */
 function wireProductSearch() {
   document.querySelectorAll('.prod-name-input').forEach(function(input) {
@@ -961,8 +978,8 @@ async function doProductSearch(idx, q) {
   if (!drop) return;
   try {
     const url = q
-      ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=15'
-      : '/api/d365/products?top=15';
+      ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=50'
+      : '/api/d365/products?top=300';
     const data = await fetch(url).then(function(r) { return r.json(); });
     const results = data.value || [];
     if (results.length === 0) { drop.classList.remove('open'); return; }
