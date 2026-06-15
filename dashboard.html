@@ -69,6 +69,22 @@
     .tl-content .tl-title { font-size: .85rem; font-weight: 600; color: var(--navy); }
     .tl-content .tl-desc  { font-size: .78rem; color: var(--grey-400); }
 
+    /* Continue (draft) orders section */
+    .draft-order-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 0; border-bottom: 1px solid var(--grey-100); font-size: .84rem;
+    }
+    .draft-order-row:last-child { border-bottom: none; }
+    .draft-order-row .order-id { font-family: monospace; font-weight: 700; color: var(--teal-dark); font-size: .82rem; }
+    .draft-order-row .cust-name { flex: 1; color: var(--grey-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .draft-order-row .draft-date { font-size: .77rem; color: var(--grey-400); white-space: nowrap; }
+    .draft-order-row .draft-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    @media (max-width: 600px) {
+      .draft-order-row { flex-wrap: wrap; gap: 8px; }
+      .draft-order-row .draft-actions { width: 100%; }
+      .draft-order-row .draft-actions .btn { flex: 1; justify-content: center; }
+    }
+
     /* Pending approval row */
     .approval-item {
       display: flex; align-items: center; gap: 12px;
@@ -122,6 +138,19 @@
         <div class="welcome-action">
           <a href="sales-order.html" class="btn btn-primary"><i class="fas fa-plus"></i> New Order</a>
           <a href="customers.html"     class="btn btn-secondary"><i class="fas fa-users"></i> Customers</a>
+        </div>
+      </div>
+
+      <!-- ── Continue Orders (shown only when In-Progress orders exist) ── -->
+      <div id="continueOrdersCard" class="card" style="display:none; margin-bottom:20px; border-left: 3px solid var(--orange);">
+        <div class="card-header">
+          <h3 style="display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-clock" style="color:var(--orange);"></i> Continue Orders
+          </h3>
+          <span class="badge" style="background:var(--orange-light);color:var(--orange);font-weight:700;" id="continueOrdersBadge">0</span>
+        </div>
+        <div class="card-body" style="padding:4px 16px 8px;">
+          <div id="continueOrdersList"></div>
         </div>
       </div>
 
@@ -324,6 +353,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       deltaEl.textContent = `${s.ordersThisMonth || 0} orders this month`;
       deltaEl.className   = 'delta';
+    }
+
+    /* Continue Orders — In-Progress headers with no submitted lines */
+    const draftOrders = orders.filter(o => o.status === 'In Progress');
+    if (draftOrders.length > 0) {
+      document.getElementById('continueOrdersCard').style.display = '';
+      document.getElementById('continueOrdersBadge').textContent  = draftOrders.length;
+      const list = document.getElementById('continueOrdersList');
+      draftOrders.forEach(o => {
+        const row = document.createElement('div');
+        row.className = 'draft-order-row';
+        row.innerHTML = `
+          <span class="order-id">${esc(o.id)}</span>
+          <span class="cust-name">${esc(o.customerName || o.custAccount || '—')}</span>
+          <span class="draft-date">${PP.fmtDate(o.date || '')}</span>
+          <div class="draft-actions">
+            <a href="sales-order.html?resume=${encodeURIComponent(o.id)}" class="btn btn-primary btn-sm">
+              <i class="fas fa-list-ul"></i> Add Lines
+            </a>
+            <a href="sales-order.html?resume=${encodeURIComponent(o.id)}&step=1" class="btn btn-ghost btn-sm">
+              <i class="fas fa-pencil-alt"></i> Edit Header
+            </a>
+          </div>`;
+        list.appendChild(row);
+      });
     }
 
     /* Recent orders — most recent first */

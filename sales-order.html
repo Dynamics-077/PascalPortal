@@ -741,11 +741,113 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (c && c.CustomerAccount) selectCustomer(c);
       } catch (e) { /* ignore malformed */ }
     }
+
+    // Resume an existing In-Progress order via ?resume=salesId URL param
+    const _urlP     = new URLSearchParams(window.location.search);
+    const _resumeId = _urlP.get('resume');
+    if (_resumeId) {
+      await resumeDraftOrder(_resumeId, _urlP.get('step') === '1');
+    }
+
   } catch (error) {
     console.error('Error loading sales order form:', error);
     PP.showToast('Failed to load form data', 'error');
   }
 });
+
+/* ---- Resume an existing In-Progress order ------------------
+   Called when page loads with ?resume=PAS-xxx in URL.
+   Fetches the saved header, restores all fields, then jumps
+   to Step 2 (or stays at Step 1 if &step=1 is also present).
+   ---------------------------------------------------------- */
+async function resumeDraftOrder(salesId, editHeader) {
+  try {
+    const token = localStorage.getItem('pp_token');
+    const order = await fetch(`/api/salesorders/${encodeURIComponent(salesId)}`, {
+      headers: authHeaders()
+    }).then(r => r.json());
+
+    if (!order || order.error) {
+      PP.showToast('Order not found: ' + salesId, 'error');
+      return;
+    }
+
+    // Restore key state variables
+    savedSalesId   = order.salesId || order.id || salesId;
+    savedSpItemId  = order.spItemId || null;
+    currentOrderId = savedSalesId;
+
+    // Update all order-ID display elements
+    ['orderId','orderIdDisplay','orderIdBadge','footerOrderId'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) (el.tagName === 'INPUT' ? el : el).textContent !== undefined
+        ? el.textContent = currentOrderId
+        : el.value       = currentOrderId;
+    });
+    const _oid = document.getElementById('orderId');
+    if (_oid) _oid.value = currentOrderId;
+    const _oidD = document.getElementById('orderIdDisplay');
+    if (_oidD) _oidD.textContent = currentOrderId;
+    const _oidB = document.getElementById('orderIdBadge');
+    if (_oidB) _oidB.textContent = currentOrderId;
+    const _foid = document.getElementById('footerOrderId');
+    if (_foid) _foid.textContent = currentOrderId;
+    const _s1id = document.getElementById('s1lOrderId');
+    if (_s1id) _s1id.textContent = currentOrderId;
+
+    // Restore delivery / payment terms
+    if (order.deliveryTerms) {
+      const dt = document.getElementById('deliveryTerms');
+      if (dt) dt.value = order.deliveryTerms;
+    }
+    if (order.paymentTerms) {
+      const pt = document.getElementById('paymentTerms');
+      if (pt) pt.value = order.paymentTerms;
+    }
+
+    // Load customer from D365 and call selectCustomer() to populate all fields
+    const custAcct = order.custAccount || order.customerId || '';
+    if (custAcct) {
+      try {
+        const cData = await fetch(`/api/d365/customers/${encodeURIComponent(custAcct)}`, {
+          headers: authHeaders()
+        }).then(r => r.json());
+        const cust = (cData.value || [cData])[0] || cData;
+        if (cust && (cust.CustomerAccount || cust.OrganizationName)) {
+          selectCustomer(cust);
+        } else {
+          // Fallback: manually populate display fields
+          document.getElementById('customerSearch').value      = order.customerName || custAcct;
+          document.getElementById('customerAccNo').value       = custAcct;
+          document.getElementById('customerNameDisplay').value = order.customerName || custAcct;
+          document.getElementById('customerDetailsRow').classList.add('visible');
+        }
+      } catch (e) {
+        console.warn('[Resume] Could not load customer from D365:', e);
+        document.getElementById('customerSearch').value = order.customerName || custAcct;
+      }
+      const _s1c = document.getElementById('s1lCustomer');
+      if (_s1c) _s1c.textContent = order.customerName || custAcct;
+      const _fp = document.getElementById('footerCustomer');
+      if (_fp) _fp.textContent = order.customerName || custAcct;
+    }
+
+    if (editHeader) {
+      // Stay on Step 1 for header editing
+      goToStep(1);
+      PP.showToast(`Editing header — ${currentOrderId}`, 'info');
+    } else {
+      // Advance to Step 2 — add order lines
+      document.getElementById('s1lPayTerms').textContent = order.paymentTerms || '—';
+      goToStep(2);
+      PP.showToast(`Resuming ${currentOrderId} — add your order lines`, 'success');
+    }
+
+  } catch (err) {
+    console.error('[Resume] Failed to load draft order:', err);
+    PP.showToast('Could not load order — ' + (err.message || 'please try again'), 'error');
+  }
+}
 
 /* ---- Customer search — live D365 API -------------------- */
 function initCustomerSearch() {
