@@ -1161,9 +1161,9 @@ function updateTotals() {
 }
 
 
-/* ---- Cancel order (Step 2) — delete header from SP ------- */
+/* ---- Cancel order (Step 2) — set status to Cancel in SP -- */
 async function cancelOrder() {
-  if (!confirm(`Cancel order ${savedSalesId}?\n\nThis will delete the saved order header from SharePoint. This cannot be undone.`)) return;
+  if (!confirm(`Cancel order ${savedSalesId || 'this order'}?\n\nThe order will be marked as Cancelled. This cannot be undone.`)) return;
 
   const btn = document.getElementById('cancelOrderBtn');
   btn.disabled = true;
@@ -1171,10 +1171,15 @@ async function cancelOrder() {
 
   try {
     if (savedSpItemId) {
-      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, { method: 'DELETE', headers: authHeaders() });
+      // Use PUT (no role restriction) to mark as Cancelled — avoids manager-only DELETE
+      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ Status: 'Cancel' })
+      });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to delete order');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to cancel order');
       }
     }
     window.location.href = 'dashboard.html';

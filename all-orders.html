@@ -142,6 +142,33 @@
     @media (max-width: 900px) {
       .stat-strip { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* Continue Orders section */
+    .continue-card {
+      background: white; border: 1px solid var(--grey-200);
+      border-left: 3px solid var(--orange);
+      border-radius: var(--radius-lg); margin-bottom: 20px; overflow: hidden;
+    }
+    .continue-card-header {
+      padding: 12px 18px; background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .continue-card-header h3 { flex: 1; font-size: .9rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .draft-order-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 18px; border-bottom: 1px solid var(--grey-100); font-size: .84rem;
+    }
+    .draft-order-row:last-child { border-bottom: none; }
+    .draft-order-row .do-id   { font-family: monospace; font-weight: 700; color: var(--teal-dark); font-size: .82rem; white-space: nowrap; }
+    .draft-order-row .do-cust { flex: 1; color: var(--grey-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .draft-order-row .do-date { font-size: .77rem; color: var(--grey-400); white-space: nowrap; }
+    .draft-order-row .do-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    @media (max-width: 600px) {
+      .draft-order-row { flex-wrap: wrap; }
+      .draft-order-row .do-actions { width: 100%; }
+      .draft-order-row .do-actions .btn { flex: 1; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -191,6 +218,15 @@
           <div class="stat-icon navy"><i class="fas fa-clock" style="color:var(--navy);"></i></div>
           <div><div class="stat-val" id="statPending">&mdash;</div><div class="stat-lbl">In Progress</div></div>
         </div>
+      </div>
+
+      <!-- Continue Orders — shown only when In-Progress orders exist -->
+      <div id="continueOrdersCard" class="continue-card" style="display:none;">
+        <div class="continue-card-header">
+          <h3><i class="fas fa-clock" style="color:var(--orange);"></i> Continue Orders</h3>
+          <span class="badge" style="background:var(--orange-light);color:var(--orange);font-weight:700;" id="continueOrdersBadge">0</span>
+        </div>
+        <div id="continueOrdersList"></div>
       </div>
 
       <div class="orders-section">
@@ -317,6 +353,7 @@ function loadHeaders() {
         });
       }
       renderHeaders();
+      renderContinueOrders();
       updateStats();
     })
     .catch(function (err) {
@@ -332,6 +369,34 @@ function loadLines() {
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (d) { _lines = d; updateStats(); })
     .catch(function (err) { _lines = []; showError('Failed to load order lines — View Order totals may be incomplete. ' + (err.message || '')); });
+}
+
+function renderContinueOrders() {
+  var drafts = _orders.filter(function (o) { return (o.status || o.Status) === 'In Progress'; });
+  var card   = document.getElementById('continueOrdersCard');
+  if (!drafts.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('continueOrdersBadge').textContent = drafts.length;
+  var list = document.getElementById('continueOrdersList');
+  list.innerHTML = '';
+  drafts.forEach(function (o) {
+    var sid  = esc(o.salesId || o.id || '—');
+    var cust = esc(o.customerName || o.custAccount || '—');
+    var dt   = o.date ? new Date(o.date).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' }) : '—';
+    var row  = document.createElement('div');
+    row.className = 'draft-order-row';
+    row.innerHTML =
+      '<span class="do-id">' + sid + '</span>' +
+      '<span class="do-cust">' + cust + '</span>' +
+      '<span class="do-date">' + dt + '</span>' +
+      '<div class="do-actions">' +
+        '<a href="sales-order.html?resume=' + encodeURIComponent(o.salesId || o.id) + '" class="btn btn-primary btn-sm">' +
+          '<i class="fas fa-list-ul"></i> Add Lines</a>' +
+        '<a href="sales-order.html?resume=' + encodeURIComponent(o.salesId || o.id) + '&step=1" class="btn btn-ghost btn-sm">' +
+          '<i class="fas fa-pencil-alt"></i> Edit Header</a>' +
+      '</div>';
+    list.appendChild(row);
+  });
 }
 
 function renderHeaders() {
