@@ -743,7 +743,8 @@ async function resumeDraftQuote(quoteId, editHeader) {
         price:        l.price || 0,
         discount:     l.discount || 0,
         deliveryType: l.deliveryType || 'Stock',
-        _fromSP:      true,  // flag: line already exists in SP, don't re-save
+        _fromSP:      true,   // flag: line already exists in SP, don't re-save unless modified
+        _spId:        l.id || null, // SP item ID — used to UPDATE instead of CREATE on modify
       }));
     }
 
@@ -1182,10 +1183,14 @@ async function finalActivate() {
   const custGroup = selectedCustomer.CustomerGroupId  || selectedCustomer.customerGroup || '';
 
   try {
-    // 1. Save each quote line (skip lines already in SP that haven't been modified)
+    // 1. Save each quote line:
+    //    - _fromSP && no change → skip (already correct in SP)
+    //    - modified existing (_spId set, _fromSP removed) → PUT (update in place, no duplicate)
+    //    - new line (no _spId) → POST (create fresh)
     for (let i = 0; i < quoteLines.length; i++) {
       const line = quoteLines[i];
-      if (line._fromSP) continue; // already exists in SharePoint unchanged
+      if (line._fromSP) continue; // unchanged — already in SP, skip
+
       const linePayload = {
         Title:        line.name || `${savedQuoteId}-L${i + 1}`,
         lineNumber:   i + 1,
@@ -1200,11 +1205,24 @@ async function finalActivate() {
         ItemCategory: line.category || '',
         ...(line.itemNo ? { ItemCode: line.itemNo, ItemName: line.name } : {}),
       };
-      const lineRes = await fetch(`/api/quotes/${savedQuoteId}/lines`, {
-        method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(linePayload)
-      });
+
+      let lineRes;
+      if (line._spId) {
+        // Modified existing SP line → UPDATE (prevents duplicate row)
+        lineRes = await fetch(`/api/quotes/lines/item/${line._spId}`, {
+          method: 'PUT',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(linePayload)
+        });
+      } else {
+        // Brand-new line added by rep → CREATE
+        lineRes = await fetch(`/api/quotes/${savedQuoteId}/lines`, {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(linePayload)
+        });
+      }
+
       if (!lineRes.ok) {
         const err = await lineRes.json();
         throw new Error(`Line ${i + 1} failed: ${err.error || 'unknown error'}`);

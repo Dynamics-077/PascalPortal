@@ -689,6 +689,29 @@ app.put('/api/quotes/item/:itemId', async (req, res) => {
     }
 });
 
+// PUT /api/quotes/lines/item/:lineSpItemId — update an existing SalesQuoteLines SP item
+app.put('/api/quotes/lines/item/:lineSpItemId', async (req, res) => {
+    try {
+        const b       = req.body;
+        const lineIdx = parseInt(b.lineNumber || b.linenumber) || 1;
+        const fields  = {};
+        if (b.Title        !== undefined) fields.Title        = b.Title;
+        if (b.ItemCode     !== undefined) fields.Itemnumber   = b.ItemCode;
+        if (b.ItemName     !== undefined) fields.productname  = b.ItemName;
+        if (b.ItemCategory !== undefined) fields.ItemCategory = b.ItemCategory;
+        if (b.SalesQty     !== undefined) fields.SalesQuantity = String(parseFloat(b.SalesQty) || 0);
+        if (b.SalesUnit    !== undefined) fields.SalesPrice   = b.SalesUnit;  // SP internal: SalesUnit col = SalesPrice field
+        if (b.SalesPrice   !== undefined) fields.SalesPrice0  = parseFloat(b.SalesPrice) || 0; // SP internal: SalesPrice col = SalesPrice0 field
+        if (b.Discount     !== undefined) fields.Discount     = parseFloat(b.Discount) || 0;
+        if (b.DeliveryType !== undefined) fields.DeliveryType = b.DeliveryType;
+        const updated = await sharepoint.updateListItem('SalesQuoteLines', req.params.lineSpItemId, fields);
+        res.json(updated);
+    } catch (error) {
+        console.error('[SP] Update quote line error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/quotes/:quoteId/lines', async (req, res) => {
     try {
         const quoteId   = req.params.quoteId;
