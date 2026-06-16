@@ -832,15 +832,36 @@ async function resumeDraftOrder(salesId, editHeader) {
       if (_fp) _fp.textContent = order.customerName || custAcct;
     }
 
+    // Load existing lines from SP into frontend array (prevents duplicates on submit)
+    if ((order.lines || []).length > 0) {
+      orderLines = order.lines.map((l, i) => ({
+        lineNo:          l.lineNo || (i + 1),
+        itemNo:          l.itemNo || '',
+        name:            l.name  || '',
+        category:        l.category || '',
+        qty:             l.qty   || 1,
+        unit:            l.unit  || 'ea',
+        price:           l.price || 0,
+        discount:        l.discount || 0,
+        deliveryType:    l.deliveryType || 'Stock',
+        status:          l.status || 'In Progress',
+        orderLineStatus: l.orderLineStatus || 'In Progress',
+        _fromSP:         true,     // unchanged — skip on submit
+        _spId:           l.id || null, // SP item ID — use PUT if modified
+      }));
+    }
+
     if (editHeader) {
       // Stay on Step 1 for header editing
       goToStep(1);
       PP.showToast(`Editing header — ${currentOrderId}`, 'info');
     } else {
-      // Advance to Step 2 — add order lines
+      // Advance to Step 2 — show existing lines
       document.getElementById('s1lPayTerms').textContent = order.paymentTerms || '—';
       goToStep(2);
-      PP.showToast(`Resuming ${currentOrderId} — add your order lines`, 'success');
+      renderLines();
+      const lineCount = orderLines.length;
+      PP.showToast(`Resuming ${currentOrderId} — ${lineCount} line${lineCount !== 1 ? 's' : ''} loaded`, 'success');
     }
 
   } catch (err) {
@@ -1016,6 +1037,7 @@ function renderLines() {
 
 function updateLine(idx, field, value) {
   orderLines[idx][field] = value;
+  delete orderLines[idx]._fromSP; // modified — must update SP on submit
   renderLines();
 }
 
@@ -1117,8 +1139,9 @@ function selectProduct(idx, p) {
   orderLines[idx].itemNo   = p.ItemNumber      || '';
   orderLines[idx].name     = p.SearchName      || p.ItemNumber || '';
   orderLines[idx].category = p.ProductGroupId  || '';
-  orderLines[idx].price    = p.UnitCost || p.SalesPrice || 0;
+  orderLines[idx].price    = p.SalesPrice || p.UnitCost || 0;
   orderLines[idx].unit     = p.SalesUnitSymbol || 'ea';
+  delete orderLines[idx]._fromSP; // product changed — must update SP
   renderLines();
 }
 
@@ -1374,16 +1397,17 @@ async function finalSubmit() {
   const custGroup = selectedCustomer.CustomerGroupId  || selectedCustomer.customerGroup || '';
 
   try {
-    // 1. Save each order line individually
+    // 1. Save each order line:
+    //    - _fromSP && no change → skip (already correct in SP)
+    //    - modified existing (_spId set, _fromSP removed) → PUT (no duplicate)
+    //    - new line added by rep (no _spId) → POST (create)
     for (let i = 0; i < orderLines.length; i++) {
       const line = orderLines[i];
-      const lineTitle = (line.name || line.itemNo || `${savedSalesId}-L${i + 1}`);
+      if (line._fromSP) continue; // unchanged — skip
 
-      // Only send columns that exist in SalesOrderLines SharePoint list.
-      // Unknown columns cause Graph API 400 Bad Request.
-      // SalesId and Email are added server-side from the URL param and JWT.
+      const lineTitle = line.name || line.itemNo || `${savedSalesId}-L${i + 1}`;
       const linePayload = {
-        Title:           lineTitle,   // default SP column — stores item name / order-line ref
+        Title:           lineTitle,
         lineNumber:      i + 1,
         CustAccount:     custAcct,
         Currency:        currency,
@@ -1395,11 +1419,23 @@ async function finalSubmit() {
         ...(line.itemNo ? { ItemCode: line.itemNo } : {}),
       };
 
-      const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
-        method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(linePayload)
-      });
+      let lineRes;
+      if (line._spId) {
+        // Modified existing SP line → UPDATE in place (no duplicate)
+        lineRes = await fetch(`/api/salesorders/lines/${line._spId}`, {
+          method: 'PUT',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(linePayload)
+        });
+      } else {
+        // Brand-new line → CREATE
+        lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(linePayload)
+        });
+      }
+
       if (!lineRes.ok) {
         const err = await lineRes.json();
         console.error('[Line 400] SharePoint error detail:', JSON.stringify(err.detail));

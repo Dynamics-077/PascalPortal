@@ -251,8 +251,8 @@ function mapOrderLine(item) {
         id: cleanText(item.id || ''),
         orderId,
         lineNo: asNumber(fields.lineNumber || fields.LineNumber),
-        itemNo: cleanText(fields.ItemId || fields.ItemNo || fields.Title),
-        name: cleanText(fields.Name || fields.ItemName || fields.Title),
+        itemNo: cleanText(fields.ItemCode || fields.ItemId || fields.ItemNo || ''),
+        name:   cleanText(fields.Name || fields.ItemName || fields.Title || ''),
         category: cleanText(fields.Category || ''),
         qty: asNumber(fields.SalesQty || fields.Qty),
         unit: cleanText(fields.SalesUnit || fields.Unit || 'ea'),
@@ -420,15 +420,18 @@ async function getBootstrapData(user = {}) {
         const order = orderMap.get(line.orderId);
         if (order) {
             order.lines.push({
-                lineNo: line.lineNo,
-                itemNo: line.itemNo,
-                name: line.name,
-                category: line.category,
-                qty: line.qty,
-                unit: line.unit,
-                price: line.price,
-                discount: line.discount,
-                deliveryType: line.deliveryType
+                id:           line.id,           // SP item ID — needed for PUT on resume
+                lineNo:       line.lineNo,
+                itemNo:       line.itemNo,
+                name:         line.name,
+                category:     line.category,
+                qty:          line.qty,
+                unit:         line.unit,
+                price:        line.price,
+                discount:     line.discount,
+                deliveryType: line.deliveryType,
+                status:       line.status,
+                orderLineStatus: line.orderLineStatus,
             });
         }
     });
