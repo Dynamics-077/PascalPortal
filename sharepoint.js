@@ -267,6 +267,55 @@ function mapOrderLine(item) {
     };
 }
 
+function mapQuote(item) {
+    const fields = item.fields || {};
+    const titleParts  = cleanText(fields.Title || '').split(' | ');
+    const custInTitle = titleParts.length >= 2 ? titleParts[1].trim() : '';
+    return {
+        id:               cleanText(fields.QuoteId || fields.Title || item.id),
+        spItemId:         item.id,
+        quoteId:          cleanText(fields.QuoteId || fields.Title || item.id),
+        custAccount:      cleanText(fields.CustomerAccount || fields.CustAccount || ''),
+        customerName:     cleanText(fields.CustomerName || custInTitle || fields.CustomerAccount || ''),
+        status:           cleanText(fields.Status || 'Draft'),
+        validUntil:       getDateKey(fields.ValidUntil || ''),
+        quoteRevision:    asNumber(fields.QuoteRevision || 1),
+        parentQuoteId:    cleanText(fields.ParentQuoteId || ''),
+        convertedOrderId: cleanText(fields.ConvertedOrderId || ''),
+        deliveryTerms:    cleanText(fields.DeliveryTerms || ''),
+        paymentTerms:     cleanText(fields.PaymentTerms  || ''),
+        currency:         cleanText(fields.Currency      || 'AUD'),
+        customerGroup:    cleanText(fields.CustomerGroup || fields.CustGroup || ''),
+        notes:            cleanText(fields.Note || fields.Notes || ''),
+        userEmail:        cleanText(fields.Email           || ''),
+        warehouse:        cleanText(fields.Warehouse       || ''),
+        deliveryAddress:  cleanText(fields.DeliveryAddress || ''),
+        date:             getDateKey(item.createdDateTime),
+        createdDateTime:  cleanText(item.createdDateTime   || ''),
+        lines:            []
+    };
+}
+
+function mapQuoteLine(item) {
+    const fields  = item.fields || {};
+    // QuotationId stores values like "QUO-xxx-L1" — strip suffix to get parent quote ID
+    const rawId   = cleanText(fields.QuotationId || fields.QuoteId || fields.Title || '');
+    const quoteId = rawId.replace(/-L\d+$/, '');
+    return {
+        id:           cleanText(item.id || ''),
+        quoteId,
+        lineNo:       asNumber(fields.linenumber   || fields.lineNumber || 1),
+        itemNo:       cleanText(fields.Itemnumber  || fields.ItemCode   || ''),
+        name:         cleanText(fields.productname || fields.ItemName   || fields.Title || ''),
+        category:     cleanText(fields.ItemCategory || ''),
+        qty:          asNumber(fields.SalesQuantity || fields.SalesQty  || 0),
+        unit:         cleanText(fields.SalesPrice   || 'ea'),    // SP internal "SalesPrice" = display "SalesUnit"
+        price:        asNumber(fields.SalesPrice0   || fields.SalesPrice1 || 0), // SP internal "SalesPrice0" = display "SalesPrice"
+        discount:     asNumber(fields.Discount      || 0),
+        deliveryType: cleanText(fields.DeliveryType || 'Stock'),
+    };
+}
+
 
 function computeDashboardSummary(orders) {
     const now = new Date();
@@ -301,21 +350,27 @@ async function getBootstrapData(user = {}) {
         throw new Error('SharePoint is not configured');
     }
 
-    const companyListName = cleanText(process.env.SHAREPOINT_COMPANY_LIST_NAME || 'Company') || 'Company';
-    const customersListName = cleanText(process.env.SHAREPOINT_ALL_CUSTOMERS_LIST_NAME || 'AllCustomers') || 'AllCustomers';
-    const ordersListName = cleanText(process.env.SHAREPOINT_SALES_ORDER_HEADER_LIST_NAME || 'SalesOrderHeader') || 'SalesOrderHeader';
-    const orderLinesListName = cleanText(process.env.SHAREPOINT_SALES_ORDER_LINES_LIST_NAME || 'SalesOrderLines') || 'SalesOrderLines';
+    const companyListName      = cleanText(process.env.SHAREPOINT_COMPANY_LIST_NAME              || 'Company')          || 'Company';
+    const customersListName    = cleanText(process.env.SHAREPOINT_ALL_CUSTOMERS_LIST_NAME         || 'AllCustomers')     || 'AllCustomers';
+    const ordersListName       = cleanText(process.env.SHAREPOINT_SALES_ORDER_HEADER_LIST_NAME    || 'SalesOrderHeader') || 'SalesOrderHeader';
+    const orderLinesListName   = cleanText(process.env.SHAREPOINT_SALES_ORDER_LINES_LIST_NAME     || 'SalesOrderLines')  || 'SalesOrderLines';
+    const quoteHeaderListName  = cleanText(process.env.SHAREPOINT_QUOTE_HEADER_LIST_NAME          || 'SalesQuoteHeader') || 'SalesQuoteHeader';
+    const quoteLinesListName   = cleanText(process.env.SHAREPOINT_QUOTE_LINES_LIST_NAME           || 'SalesQuoteLines')  || 'SalesQuoteLines';
 
-    const companiesListId = await resolveListId(companyListName, ['SHAREPOINT_COMPANY_LIST_ID']);
-    const customersListId = await resolveListId(customersListName, ['SHAREPOINT_ALL_CUSTOMERS_LIST_ID', 'SHAREPOINT_CUSTOMERS_LIST_ID']);
-    const ordersListId = await resolveListId(ordersListName, ['SHAREPOINT_SALES_ORDER_HEADER_LIST_ID', 'SHAREPOINT_ORDERS_LIST_ID']);
-    const orderLinesListId = await resolveListId(orderLinesListName, ['SHAREPOINT_SALES_ORDER_LINES_LIST_ID', 'SHAREPOINT_ORDER_LINES_LIST_ID']);
+    const companiesListId     = await resolveListId(companyListName,     ['SHAREPOINT_COMPANY_LIST_ID']);
+    const customersListId     = await resolveListId(customersListName,   ['SHAREPOINT_ALL_CUSTOMERS_LIST_ID', 'SHAREPOINT_CUSTOMERS_LIST_ID']);
+    const ordersListId        = await resolveListId(ordersListName,      ['SHAREPOINT_SALES_ORDER_HEADER_LIST_ID', 'SHAREPOINT_ORDERS_LIST_ID']);
+    const orderLinesListId    = await resolveListId(orderLinesListName,  ['SHAREPOINT_SALES_ORDER_LINES_LIST_ID', 'SHAREPOINT_ORDER_LINES_LIST_ID']);
+    const quoteHeaderListId   = await resolveListId(quoteHeaderListName, ['SHAREPOINT_QUOTE_HEADER_LIST_ID']);
+    const quoteLinesListId    = await resolveListId(quoteLinesListName,  ['SHAREPOINT_QUOTE_LINES_LIST_ID']);
 
-    const [companyRows, customerRows, orderRows, orderLineRows] = await Promise.all([
+    const [companyRows, customerRows, orderRows, orderLineRows, quoteRows, quoteLineRows] = await Promise.all([
         readListItems(companiesListId),
         readListItems(customersListId),
         readListItems(ordersListId),
-        readListItems(orderLinesListId)
+        readListItems(orderLinesListId),
+        readListItems(quoteHeaderListId),
+        readListItems(quoteLinesListId),
     ]);
 
     const companies = companyRows.map(mapCompany);
@@ -387,6 +442,18 @@ async function getBootstrapData(user = {}) {
         }
     });
 
+    // Map and filter quotes
+    let quotes = quoteRows.map(mapQuote);
+    if (user?.role !== 'admin' && currentUserEmail) {
+        quotes = quotes.filter(q => (q.userEmail || '').toLowerCase() === currentUserEmail);
+    }
+    const quoteLinesMapped = quoteLineRows.map(mapQuoteLine);
+    const quoteMap = new Map(quotes.map(q => [q.id, q]));
+    quoteLinesMapped.forEach(line => {
+        const quote = quoteMap.get(line.quoteId);
+        if (quote) quote.lines.push(line);
+    });
+
     return {
         sharepointConfigured: true,
         salesRep: buildSalesRep(user),
@@ -395,6 +462,7 @@ async function getBootstrapData(user = {}) {
         customer: customers[0] || null,
         customers,
         salesOrders,
+        quotes,
         dashboardSummary: computeDashboardSummary(salesOrders)
     };
 }

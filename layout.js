@@ -17,6 +17,8 @@
     { id: 'dashboard',  href: 'dashboard.html',                icon: 'fa-chart-bar',      label: 'Dashboard' },
     { id: 'sales-order',href: 'sales-order.html',              icon: 'fa-plus-circle',    label: 'New Order' },
     { id: 'all-orders', href: 'all-orders.html',               icon: 'fa-clipboard-list', label: 'All Orders' },
+    { id: 'all-quotes', href: 'all-quotes.html',               icon: 'fa-file-invoice-dollar', label: 'Quotes' },
+    { id: 'quote',      href: 'quote.html',                    icon: 'fa-plus-square',    label: 'New Quote' },
     { id: 'data-admin', href: 'data-admin.html',               icon: 'fa-database',       label: 'Data Admin', minRole: 'admin' },
 
     { section: 'Dynamics 365' },

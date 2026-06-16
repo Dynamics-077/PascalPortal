@@ -592,6 +592,273 @@ app.delete('/api/salesorders/lines/:itemId', requireRole('manager'), async (req,
     }
 });
 
+// ============================================================
+// Quotes (SalesQuoteHeader + SalesQuoteLines)
+// ============================================================
+
+app.get('/api/quotes', async (req, res) => {
+    try {
+        const bootstrap = await sharepoint.getBootstrapData(req.user);
+        res.json(bootstrap.quotes || []);
+    } catch (error) {
+        console.error('Error fetching quotes:', error.message);
+        res.status(500).json({ error: 'Failed to fetch quotes' });
+    }
+});
+
+app.get('/api/quotes/:quoteId', async (req, res) => {
+    try {
+        const bootstrap = await sharepoint.getBootstrapData(req.user);
+        const quote = (bootstrap.quotes || []).find(
+            q => q.id === req.params.quoteId || q.quoteId === req.params.quoteId
+        );
+        if (!quote) return res.status(404).json({ error: 'Quote not found' });
+        res.json(quote);
+    } catch (error) {
+        console.error('Error fetching quote:', error.message);
+        res.status(500).json({ error: 'Failed to fetch quote' });
+    }
+});
+
+app.post('/api/quotes/header', async (req, res) => {
+    try {
+        const quoteId   = generateId('QUO');
+        const userEmail = req.user?.preferred_username || req.user?.email || '';
+        const b = req.body;
+        // Map frontend/code field names → actual SharePoint column names
+        const fields = {
+            Title:           b.Title         || b.CustomerName || quoteId,
+            QuoteId:         quoteId,
+            CustomerAccount: b.CustAccount   || b.CustomerAccount || '',
+            CustomerName:    b.CustomerName  || '',
+            Currency:        b.Currency      || 'AUD',
+            CustomerGroup:   b.CustGroup     || b.CustomerGroup  || '',
+            Status:          b.Status        || 'Draft',
+            DeliveryTerms:   b.DeliveryTerms || '',
+            PaymentTerms:    b.PaymentTerms  || '',
+            ValidUntil:      b.ValidUntil    || '',
+            Note:            b.Notes         || b.Note || '',
+            QuoteRevision:   b.QuoteRevision || 1,
+            ParentQuoteId:   b.ParentQuoteId || '',
+            ConvertedOrderId:b.ConvertedOrderId || '',
+            Warehouse:       b.Warehouse        || '',
+            DeliveryAddress: b.DeliveryAddress  || '',
+            Email:           userEmail,
+        };
+        // Remove empty strings to avoid SP validation issues
+        Object.keys(fields).forEach(k => { if (fields[k] === '') delete fields[k]; });
+        console.log('[SP] Creating SalesQuoteHeader:', JSON.stringify(fields));
+        const created  = await sharepoint.createListItem('SalesQuoteHeader', fields);
+        const spItemId = created?.id || null;
+        res.status(201).json({ ...created, quoteId, spItemId });
+    } catch (error) {
+        console.error('[SP] Create quote header error:', error.message);
+        if (error.response) console.error('[SP] Graph body:', JSON.stringify(error.response.data));
+        res.status(error.response?.status === 400 ? 400 : 500).json({ error: error.message, detail: error.response?.data });
+    }
+});
+
+app.put('/api/quotes/item/:itemId', async (req, res) => {
+    try {
+        const b = req.body;
+        // Map frontend field names → actual SharePoint column names
+        const fields = {};
+        if (b.Title         !== undefined) fields.Title           = b.Title;
+        if (b.Status        !== undefined) fields.Status          = b.Status;
+        if (b.CustAccount   !== undefined) fields.CustomerAccount = b.CustAccount;
+        if (b.CustomerAccount !== undefined) fields.CustomerAccount = b.CustomerAccount;
+        if (b.CustomerName  !== undefined) fields.CustomerName    = b.CustomerName;
+        if (b.CustGroup     !== undefined) fields.CustomerGroup   = b.CustGroup;
+        if (b.CustomerGroup !== undefined) fields.CustomerGroup   = b.CustomerGroup;
+        if (b.Currency      !== undefined) fields.Currency        = b.Currency;
+        if (b.DeliveryTerms !== undefined) fields.DeliveryTerms   = b.DeliveryTerms;
+        if (b.PaymentTerms  !== undefined) fields.PaymentTerms    = b.PaymentTerms;
+        if (b.ValidUntil    !== undefined) fields.ValidUntil      = b.ValidUntil;
+        if (b.Notes         !== undefined) fields.Note            = b.Notes;
+        if (b.Note          !== undefined) fields.Note            = b.Note;
+        if (b.QuoteRevision !== undefined) fields.QuoteRevision   = b.QuoteRevision;
+        if (b.ParentQuoteId    !== undefined) fields.ParentQuoteId    = b.ParentQuoteId;
+        if (b.ConvertedOrderId !== undefined) fields.ConvertedOrderId = b.ConvertedOrderId;
+        if (b.Warehouse        !== undefined) fields.Warehouse        = b.Warehouse;
+        if (b.DeliveryAddress  !== undefined) fields.DeliveryAddress  = b.DeliveryAddress;
+        const updated = await sharepoint.updateListItem('SalesQuoteHeader', req.params.itemId, fields);
+        res.json(updated);
+    } catch (error) {
+        console.error('[SP] Update quote error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/quotes/:quoteId/lines', async (req, res) => {
+    try {
+        const quoteId   = req.params.quoteId;
+        const userEmail = req.user?.preferred_username || req.user?.email || '';
+        const lineIdx = parseInt(req.body.lineNumber || req.body.linenumber) || 1;
+        const b = req.body;
+        // Map frontend/code field names → actual SharePoint column names
+        const fields = {
+            Title:           b.Title        || `${quoteId}-L${lineIdx}`,
+            QuotationId:     `${quoteId}-L${lineIdx}`,
+            CustomerAccount: b.CustAccount  || b.CustomerAccount || '',
+            CustomerGroup:   b.CustGroup    || b.CustomerGroup   || '',
+            Currency:        b.Currency     || 'AUD',
+            linenumber:      String(lineIdx),
+            Itemnumber:      b.ItemCode     || b.Itemnumber      || '',
+            productname:     b.ItemName     || b.productname     || '',
+            ItemCategory:    b.ItemCategory || '',
+            SalesQuantity:   String(parseFloat(b.SalesQty || b.SalesQuantity || 0) || 0),
+            // SP internal name confusion: "SalesUnit" column has internal name "SalesPrice"
+            //                            "SalesPrice" column has internal name "SalesPrice0"
+            SalesPrice:      b.SalesUnit || 'ea',
+            SalesPrice0:     parseFloat(b.SalesPrice  || b.SalesPrice0 || 0) || 0,
+            Discount:        parseFloat(b.Discount    || 0) || 0,
+            DeliveryType:    b.DeliveryType || 'Stock',
+            Email:           userEmail,
+        };
+        // Remove empty strings to avoid SP validation issues
+        Object.keys(fields).forEach(k => { if (fields[k] === '') delete fields[k]; });
+        console.log('[SP] Creating SalesQuoteLine', quoteId, 'fields:', JSON.stringify(fields));
+        const created = await sharepoint.createListItem('SalesQuoteLines', fields);
+        res.status(201).json(created);
+    } catch (error) {
+        console.error('[SP] Create quote line error:', error.message);
+        if (error.response) console.error('[SP] Graph body:', JSON.stringify(error.response.data));
+        res.status(error.response?.status === 400 ? 400 : 500).json({ error: error.message, detail: error.response?.data });
+    }
+});
+
+// POST /api/quotes/:quoteId/revise — lock old Active quote as Revised, create new Draft
+app.post('/api/quotes/:quoteId/revise', async (req, res) => {
+    try {
+        const quoteId   = req.params.quoteId;
+        const userEmail = req.user?.preferred_username || req.user?.email || '';
+        const bootstrap = await sharepoint.getBootstrapData(req.user);
+        const original  = (bootstrap.quotes || []).find(q => q.quoteId === quoteId || q.id === quoteId);
+        if (!original)                    return res.status(404).json({ error: 'Quote not found' });
+        if (original.status !== 'Active') return res.status(400).json({ error: 'Only Active quotes can be revised' });
+
+        // 1. Lock old quote as Revised (immutable audit record)
+        await sharepoint.updateListItem('SalesQuoteHeader', original.spItemId, { Status: 'Revised' });
+
+        // 2. Create new header (incremented revision)
+        const newQuoteId  = generateId('QUO');
+        const newRevision = (original.quoteRevision || 1) + 1;
+        const parentId    = original.parentQuoteId || quoteId;
+        const newHeader   = {
+            Title:           original.customerName  || original.custAccount || newQuoteId,
+            QuoteId:         newQuoteId,
+            CustomerAccount: original.custAccount   || '',
+            CustomerName:    original.customerName  || '',
+            Currency:        original.currency      || 'AUD',
+            CustomerGroup:   original.customerGroup || '',
+            Status:          'Draft',
+            DeliveryTerms:   original.deliveryTerms || '',
+            PaymentTerms:    original.paymentTerms  || '',
+            ValidUntil:      original.validUntil    || '',
+            Note:            original.notes         || '',
+            QuoteRevision:   newRevision,
+            ParentQuoteId:   parentId,
+            Email:           userEmail,
+        };
+        Object.keys(newHeader).forEach(k => { if (newHeader[k] === '') delete newHeader[k]; });
+        const created = await sharepoint.createListItem('SalesQuoteHeader', newHeader);
+        console.log(`[SP] Revision ${newRevision} created: ${newQuoteId} (parent: ${parentId})`);
+
+        // 3. Copy all lines to the new revision
+        for (let i = 0; i < (original.lines || []).length; i++) {
+            const l  = original.lines[i];
+            const lf = {
+                Title:           l.name         || `${newQuoteId}-L${i + 1}`,
+                QuotationId:     `${newQuoteId}-L${i + 1}`,
+                CustomerAccount: original.custAccount   || '',
+                CustomerGroup:   original.customerGroup || '',
+                Currency:        original.currency      || 'AUD',
+                linenumber:      String(i + 1),
+                Itemnumber:      l.itemNo                || '',
+                productname:     l.name                  || '',
+                ItemCategory:    l.category              || '',
+                SalesQuantity:   String(parseFloat(l.qty)    || 0),
+                SalesPrice:      l.unit                  || 'ea',
+                SalesPrice0:     parseFloat(l.price)     || 0,
+                Discount:        parseFloat(l.discount)  || 0,
+                DeliveryType:    l.deliveryType          || 'Stock',
+                Email:           userEmail,
+            };
+            Object.keys(lf).forEach(k => { if (lf[k] === '') delete lf[k]; });
+            await sharepoint.createListItem('SalesQuoteLines', lf);
+        }
+
+        res.status(201).json({
+            quoteId:       newQuoteId,
+            spItemId:      created?.id,
+            revision:      newRevision,
+            parentQuoteId: parentId,
+            linesCopied:   (original.lines || []).length,
+        });
+    } catch (error) {
+        console.error('[SP] Revise quote error:', error.message);
+        if (error.response) console.error('[SP] Graph body:', JSON.stringify(error.response.data));
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/quotes/:quoteId/convert — convert Accepted quote into a new Sales Order
+app.post('/api/quotes/:quoteId/convert', async (req, res) => {
+    try {
+        const quoteId   = req.params.quoteId;
+        const bootstrap = await sharepoint.getBootstrapData(req.user);
+        const quote     = (bootstrap.quotes || []).find(q => q.quoteId === quoteId || q.id === quoteId);
+        if (!quote)                      return res.status(404).json({ error: 'Quote not found' });
+        if (quote.status !== 'Accepted') return res.status(400).json({ error: 'Only Accepted quotes can be converted to orders' });
+
+        const salesId = generateId('PAS');
+        console.log(`[SP] Converting quote ${quoteId} → order ${salesId}`);
+
+        // Build payload using same structure as createSalesOrder
+        const orderPayload = {
+            salesId,
+            customerName:  quote.customerName  || quote.custAccount,
+            customerId:    quote.custAccount,
+            custAccount:   quote.custAccount,
+            currency:      quote.currency      || 'AUD',
+            customerGroup: quote.customerGroup || '',
+            custGroup:     quote.customerGroup || '',
+            invoiceAccount:quote.custAccount,
+            status:        'In Progress',
+            deliveryTerms: quote.deliveryTerms || '',
+            paymentTerms:  quote.paymentTerms  || '',
+            lines: (quote.lines || []).map((l, i) => ({
+                lineNo:          i + 1,
+                itemNo:          l.itemNo       || '',
+                name:            l.name         || '',
+                category:        l.category     || '',
+                qty:             l.qty          || 1,
+                unit:            l.unit         || 'ea',
+                unitPrice:       l.price        || 0,
+                price:           l.price        || 0,
+                discount:        l.discount     || 0,
+                deliveryType:    l.deliveryType || 'Stock',
+                orderLineStatus: 'In Progress',
+            })),
+        };
+
+        const result = await sharepoint.createSalesOrder(orderPayload, req.user);
+        if (!result.success) throw new Error(result.message || 'Order creation failed');
+
+        // Update quote: Converted + store back-reference
+        await sharepoint.updateListItem('SalesQuoteHeader', quote.spItemId, {
+            Status:          'Converted',
+            ConvertedOrderId: salesId,
+        });
+
+        res.json({ salesId, quoteId, linesCreated: (quote.lines || []).length });
+    } catch (error) {
+        console.error('[SP] Convert quote error:', error.message);
+        if (error.response) console.error('[SP] Graph body:', JSON.stringify(error.response.data));
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Debug: show SharePoint list column names (internal vs display)
 app.get('/api/debug/list-schema/:listName', async (req, res) => {
     try {

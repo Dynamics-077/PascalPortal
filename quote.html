@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>New Sales Order — Pascal Press Sales Portal</title>
+  <title>New Quote — Pascal Press Sales Portal</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
   <style>
@@ -22,12 +22,12 @@
     .order-panel-header h3 { flex: 1; font-size: .95rem; }
     .order-panel-body { padding: 18px 20px; }
 
-    /* Customer selector panel highlight */
-    .order-panel.rep-panel { border-color: var(--teal); }
+    /* Quote accent — orange instead of teal */
+    .order-panel.rep-panel { border-color: var(--orange); }
     .order-panel.rep-panel .order-panel-header {
-      background: var(--teal-light); border-bottom-color: var(--teal);
+      background: var(--orange-light); border-bottom-color: var(--orange);
     }
-    .order-panel.rep-panel .order-panel-header h3 { color: var(--teal-dark); }
+    .order-panel.rep-panel .order-panel-header h3 { color: var(--orange); }
 
     /* Customer search dropdown */
     .customer-search-wrap { position: relative; }
@@ -45,23 +45,21 @@
       transition: background var(--transition);
     }
     .customer-option:last-child { border-bottom: none; }
-    .customer-option:hover { background: var(--teal-light); }
+    .customer-option:hover { background: var(--orange-light); }
     .customer-option .co-id    { font-size: .72rem; color: var(--grey-400); font-family: monospace; }
     .customer-option .co-badge { margin-left: auto; flex-shrink: 0; }
 
-    /* Customer details reveal */
     #customerDetailsRow { display: none; }
     #customerDetailsRow.visible { display: grid; }
 
-    /* Credit status indicator */
     .credit-indicator {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: .78rem; font-weight: 600; padding: 3px 10px;
       border-radius: 12px;
     }
-    .credit-good     { background: var(--teal-light);   color: var(--teal-dark);    border: 1px solid var(--teal); }
-    .credit-hold     { background: var(--danger-bg);     color: var(--danger);       border: 1px solid var(--danger); }
-    .credit-warning  { background: var(--orange-light);  color: var(--orange);       border: 1px solid var(--orange); }
+    .credit-good    { background: var(--teal-light);  color: var(--teal-dark); border: 1px solid var(--teal); }
+    .credit-hold    { background: var(--danger-bg);   color: var(--danger);    border: 1px solid var(--danger); }
+    .credit-warning { background: var(--orange-light);color: var(--orange);    border: 1px solid var(--orange); }
 
     /* Lines table */
     .lines-wrap {
@@ -114,7 +112,7 @@
     .total-row .val { font-weight: 600; color: var(--grey-800); }
     .total-row.grand { border-top: 1.5px solid var(--grey-200); padding-top: 10px; margin-top: 4px; }
     .total-row.grand .lbl { font-size: .95rem; font-weight: 700; color: var(--navy); }
-    .total-row.grand .val { font-size: 1.15rem; color: var(--teal); }
+    .total-row.grand .val { font-size: 1.15rem; color: var(--orange); }
 
     /* Sticky footer */
     .order-footer {
@@ -133,7 +131,7 @@
     .confirm-line .cl-label { color: var(--grey-600); }
     .confirm-line .cl-val   { font-weight: 600; color: var(--navy); }
 
-    /* Product search dropdown (per order line) */
+    /* Product search dropdown */
     .prod-search-wrap { position: relative; }
     .prod-dropdown {
       position: fixed; min-width: 320px;
@@ -149,86 +147,55 @@
       transition: background var(--transition);
     }
     .prod-option:last-child { border-bottom: none; }
-    .prod-option:hover { background: var(--teal-light); }
+    .prod-option:hover { background: var(--orange-light); }
     .prod-option .po-name { font-weight: 600; color: var(--navy); }
     .prod-option .po-meta { font-size: .72rem; color: var(--grey-400); font-family: monospace; }
 
+    /* Quote status badge colours */
+    .badge-quote-draft     { background:#f0f4ff; color:#3b5bdb; border:1px solid #bac8ff; }
+    .badge-quote-active    { background:#fff3bf; color:#e67700; border:1px solid #ffd43b; }
+    .badge-quote-accepted  { background:#d3f9d8; color:#2f9e44; border:1px solid #8ce99a; }
+    .badge-quote-rejected  { background:#ffe0e0; color:#c92a2a; border:1px solid #ffa8a8; }
+    .badge-quote-converted { background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; }
+
     @media (max-width: 900px) {
       .totals-grid  { grid-template-columns: 1fr; }
-
-      /* Pipeline: hide subtitle, shrink circles */
       .pip-sub { display: none; }
       .pip-circle { width: 30px; height: 30px; font-size: .78rem; }
       .pip-label { font-size: .82rem; }
       .order-pipeline { padding: 10px 16px; margin-bottom: 12px; }
       .pip-connector { max-width: 50px; margin: 0 10px; }
-
-      /* Topbar: hide duplicate buttons (also in sticky footer) */
       .topbar-actions .btn-ghost { display: none; }
-
-      /* Step 1 locked card: stack fields vertically */
-      .step1-locked {
-        flex-direction: column; align-items: flex-start;
-        gap: 10px; padding: 12px 14px;
-      }
+      .step1-locked { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 14px; }
       .s1l-field { flex: unset !important; min-width: unset !important; width: 100%; }
       .step1-locked > .btn { margin-left: 0; align-self: flex-end; }
-
-      /* Order lines toolbar: title on its own row, controls below */
       .lines-toolbar { flex-wrap: wrap; row-gap: 6px; }
       .lines-toolbar h3 { width: 100%; white-space: nowrap; flex-shrink: 0; }
-
-      /* Footer: wrap and remove icons to save space */
       .order-footer { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
       .footer-btn-group { flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
-      /* Secondary buttons share one row; primary action gets its own full row */
       .footer-btn-group .btn { flex: 1; justify-content: center; }
       .footer-btn-group .btn-primary { flex-basis: 100%; }
       .order-footer .btn i { display: none; }
-
-      /* Panels: tighter padding */
       .order-panel-body { padding: 14px; }
       .order-totals { padding: 14px 16px; }
     }
 
     @media (max-width: 600px) {
-      /* Lines toolbar: tighter */
       .lines-toolbar { padding: 10px 12px; }
-
-      /* Order lines table → vertical card layout */
       .order-lines-table thead { display: none; }
-      .order-lines-table,
-      .order-lines-table tbody { display: block; width: 100%; }
+      .order-lines-table, .order-lines-table tbody { display: block; width: 100%; }
       .order-lines-table tfoot { display: block; }
-      .order-lines-table tfoot tr,
-      .order-lines-table tfoot td { display: block; width: 100%; box-sizing: border-box; }
-
+      .order-lines-table tfoot tr, .order-lines-table tfoot td { display: block; width: 100%; box-sizing: border-box; }
       .order-lines-table tbody tr {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 12px;
-        padding: 12px;
-        border-bottom: 1px solid var(--grey-200);
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 8px 12px; padding: 12px; border-bottom: 1px solid var(--grey-200);
       }
       .order-lines-table tbody tr:last-child { border-bottom: none; }
-
-      .order-lines-table td {
-        display: flex;
-        flex-direction: column;
-        padding: 0;
-        border: none;
-        vertical-align: unset;
-      }
+      .order-lines-table td { display: flex; flex-direction: column; padding: 0; border: none; vertical-align: unset; }
       .order-lines-table td::before {
-        font-size: .67rem;
-        color: var(--grey-500);
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: .3px;
-        margin-bottom: 3px;
+        font-size: .67rem; color: var(--grey-500);
+        text-transform: uppercase; font-weight: 600; letter-spacing: .3px; margin-bottom: 3px;
       }
-
-      /* Per-cell labels */
       .order-lines-table .col-item::before  { content: "Product"; }
       .order-lines-table .col-cat::before   { content: "Category"; }
       .order-lines-table .col-qty::before   { content: "Qty"; }
@@ -236,29 +203,21 @@
       .order-lines-table .col-disc::before  { content: "Disc %"; }
       .order-lines-table .col-net::before   { content: "Net Amount"; }
       .order-lines-table .col-del::before   { content: "Delivery"; }
-
-      /* Grid placement */
       .order-lines-table .line-no  { display: none; }
       .order-lines-table .col-unit { display: none; }
       .order-lines-table .col-item { grid-column: 1 / -1; min-width: unset; }
       .order-lines-table .col-act  { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
       .order-lines-table .col-net  { align-items: flex-end; font-weight: 700; }
-
-      /* Inputs / selects fill the card cell */
-      .order-lines-table tbody td input,
-      .order-lines-table tbody td select { width: 100% !important; }
+      .order-lines-table tbody td input, .order-lines-table tbody td select { width: 100% !important; }
     }
 
-    /* ---- Pipeline step indicator ---- */
+    /* Pipeline */
     .order-pipeline {
       display: flex; align-items: center;
       background: white; border: 1px solid var(--grey-200);
-      border-radius: var(--radius-lg); padding: 16px 24px;
-      margin-bottom: 20px;
+      border-radius: var(--radius-lg); padding: 16px 24px; margin-bottom: 20px;
     }
-    .pip-step {
-      display: flex; align-items: center; gap: 10px; flex: 1;
-    }
+    .pip-step { display: flex; align-items: center; gap: 10px; flex: 1; }
     .pip-circle {
       width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -266,7 +225,7 @@
       border: 2px solid var(--grey-300); background: white; color: var(--grey-400);
       transition: all .3s ease;
     }
-    .pip-step.active .pip-circle  { border-color: var(--teal); background: var(--teal); color: white; }
+    .pip-step.active .pip-circle  { border-color: var(--orange); background: var(--orange); color: white; }
     .pip-step.done   .pip-circle  { border-color: #16a34a; background: #16a34a; color: white; }
     .pip-label  { font-size: .88rem; font-weight: 600; color: var(--grey-400); transition: color .3s; }
     .pip-sub    { font-size: .72rem; color: var(--grey-300); margin-top: 1px; }
@@ -274,38 +233,44 @@
     .pip-step.done   .pip-label { color: var(--grey-600); }
     .pip-connector {
       flex: 1; max-width: 80px; height: 2px;
-      background: var(--grey-200); margin: 0 16px; flex-shrink: 0;
-      transition: background .3s ease;
+      background: var(--grey-200); margin: 0 16px; flex-shrink: 0; transition: background .3s ease;
     }
     .pip-connector.done { background: #16a34a; }
 
-    /* ---- Step 1 locked summary (shown on Step 2) ---- */
+    /* Step 1 locked summary */
     .step1-locked {
-      background: var(--teal-light); border: 1.5px solid var(--teal);
+      background: var(--orange-light); border: 1.5px solid var(--orange);
       border-radius: var(--radius-lg); padding: 14px 20px;
       margin-bottom: 16px; display: none;
       align-items: center; gap: 16px; flex-wrap: wrap;
     }
     .step1-locked.show { display: flex; }
-    .s1l-field .lbl { font-size: .7rem; color: var(--teal-dark); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .s1l-field .lbl { font-size: .7rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .s1l-field .val { font-size: .88rem; font-weight: 600; color: var(--navy); margin-top: 2px; }
 
-    /* ---- Footer button groups ---- */
     .footer-btn-group { display: flex; align-items: center; gap: 8px; }
     .footer-btn-group[hidden] { display: none; }
+
+    /* Activate button — orange primary */
+    .btn-activate {
+      background: var(--orange); color: white; border: 1px solid var(--orange);
+      padding: 8px 18px; border-radius: var(--radius); font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; font-size: .88rem;
+      transition: all var(--transition);
+    }
+    .btn-activate:hover { background: #d97706; border-color: #d97706; }
+    .btn-activate:disabled { opacity: .55; cursor: not-allowed; }
   </style>
 </head>
 <body>
 <div class="layout">
 
-  <!-- ===== SIDEBAR (injected by layout.js) =============== -->
   <div id="pp-sidebar"></div>
 
-  <!-- ===== MAIN =========================================== -->
   <main class="main-content">
     <div class="topbar">
       <div class="page-title">
-        New Sales Order
+        New Quote
         <span class="breadcrumb">/ <span id="orderIdDisplay">Draft</span></span>
       </div>
       <div class="topbar-actions">
@@ -321,28 +286,28 @@
     <!-- Pipeline indicator -->
     <div class="order-pipeline">
       <div class="pip-step active" id="pipStep1">
-        <div class="pip-circle" id="pipCircle1"><i class="fas fa-user"></i></div>
+        <div class="pip-circle" id="pipCircle1"><i class="fas fa-file-alt"></i></div>
         <div>
-          <div class="pip-label">Order Header</div>
-          <div class="pip-sub">Customer &amp; order details</div>
+          <div class="pip-label">Quote Header</div>
+          <div class="pip-sub">Customer &amp; quote details</div>
         </div>
       </div>
       <div class="pip-connector" id="pipConn"></div>
       <div class="pip-step" id="pipStep2">
         <div class="pip-circle" id="pipCircle2"><i class="fas fa-list-ul"></i></div>
         <div>
-          <div class="pip-label">Order Lines</div>
-          <div class="pip-sub">Products &amp; quantities</div>
+          <div class="pip-label">Quote Lines</div>
+          <div class="pip-sub">Products &amp; pricing</div>
         </div>
       </div>
     </div>
 
     <div class="page-body">
 
-      <!-- Step 1 locked summary (shown only on Step 2) -->
+      <!-- Step 1 locked summary -->
       <div class="step1-locked" id="step1LockedCard">
         <div class="s1l-field" style="flex:1; min-width:120px;">
-          <div class="lbl">Order ID</div>
+          <div class="lbl">Quote ID</div>
           <div class="val" id="s1lOrderId" style="font-family:monospace;">—</div>
         </div>
         <div class="s1l-field" style="flex:2; min-width:160px;">
@@ -354,26 +319,23 @@
           <div class="val" id="s1lPayTerms">—</div>
         </div>
         <div class="s1l-field" style="flex:1; min-width:90px;">
-          <div class="lbl">Order Status</div>
-          <div class="val"><span class="badge badge-open">In Progress</span></div>
+          <div class="lbl">Valid Until</div>
+          <div class="val" id="s1lValidUntil">—</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="goBackToStep1()" style="flex-shrink:0; margin-left:auto;">
           <i class="fas fa-pencil-alt"></i> Edit Header
         </button>
       </div>
 
-      <!-- ===== STEP 1 SECTION ================================ -->
+      <!-- ===== STEP 1 ===== -->
       <div id="step1Section">
 
-      <!-- ===== REP & CUSTOMER ================================ -->
       <div class="order-panel rep-panel">
         <div class="order-panel-header">
           <h3>Sales Rep &amp; Customer Selection</h3>
-          <span class="badge badge-open">Step 1 — Required</span>
+          <span class="badge" style="background:var(--orange-light);color:var(--orange);border:1px solid var(--orange);">Step 1 — Required</span>
         </div>
         <div class="order-panel-body">
-          <!-- Rep fields (auto-populated from Entra ID token)
-               TODO: Values come from GET /api/salesrep/profile after Entra SSO -->
           <div class="form-row cols-3">
             <div class="form-group">
               <label>Sales Rep Name</label>
@@ -382,7 +344,6 @@
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label>Select Customer <span class="required">*</span></label>
-              <!-- TODO: GET /api/salesrep/customers — customers in rep's territory -->
               <div class="customer-search-wrap">
                 <div class="search-bar">
                   <span class="search-icon"></span>
@@ -395,65 +356,50 @@
             </div>
           </div>
 
-          <!-- Customer details — revealed after selection -->
           <div class="form-row cols-4" id="customerDetailsRow">
             <div class="form-group">
               <label>Account #</label>
-              <input type="text" id="customerAccNo" readonly
-                style="background:var(--grey-50); font-family:monospace;" />
+              <input type="text" id="customerAccNo" readonly style="background:var(--grey-50); font-family:monospace;" />
             </div>
             <div class="form-group">
               <label>Customer Name</label>
-              <input type="text" id="customerNameDisplay" readonly
-                style="background:var(--grey-50);" />
+              <input type="text" id="customerNameDisplay" readonly style="background:var(--grey-50);" />
             </div>
             <div class="form-group">
               <label>Credit Status</label>
               <div id="creditStatusDisplay" style="margin-top:6px;"></div>
             </div>
             <div class="form-group">
-              <label>Available Credit</label>
-              <div id="availableCreditDisplay" style="margin-top:6px; font-size:.95rem; font-weight:700; color:var(--teal);"></div>
+              <label>Payment Terms</label>
+              <div id="availableCreditDisplay" style="margin-top:6px; font-size:.95rem; font-weight:700; color:var(--orange);"></div>
             </div>
           </div>
-
-          <!-- Customer notes (if any) -->
           <div id="customerNotesAlert" style="display:none; margin-top:8px;"></div>
         </div>
       </div>
 
-      <!-- ===== ORDER HEADER ================================
-           Fields map to SalesOrderHeadersV2 OData entity in D365 -->
       <div class="order-panel">
         <div class="order-panel-header">
-          <h3>Order Header</h3>
-          <span id="orderIdBadge" class="badge badge-open" style="font-family:monospace;">Draft</span>
+          <h3>Quote Header</h3>
+          <span id="orderIdBadge" class="badge" style="font-family:monospace; background:var(--orange-light);color:var(--orange);">Draft</span>
         </div>
         <div class="order-panel-body">
           <div class="form-row cols-4">
             <div class="form-group">
-              <label>Sales Order ID</label>
+              <label>Quote ID</label>
               <input type="text" id="orderId" readonly style="font-family:monospace; font-weight:600;" />
             </div>
             <div class="form-group">
-              <label>Order Date</label>
+              <label>Quote Date</label>
               <input type="date" id="orderDate" readonly />
             </div>
             <div class="form-group">
-              <label>Order Type</label>
-              <input type="text" id="orderType" value="Pascal Sales" readonly
-                style="background:var(--grey-50);" />
+              <label>Valid Until <span class="required">*</span></label>
+              <input type="date" id="validUntil" />
             </div>
             <div class="form-group">
-              <label>Source System</label>
-              <input type="text" id="sourceSystem" value="Pascal Web" readonly
-                style="background:var(--grey-50);" />
-            </div>
-          </div>
-          <div class="form-row cols-4">
-            <div class="form-group">
-              <label>Requested Ship Date</label>
-              <input type="date" id="requestedShipDate" />
+              <label>Source</label>
+              <input type="text" value="Pascal Portal" readonly style="background:var(--grey-50);" />
             </div>
           </div>
           <div class="form-row cols-4">
@@ -468,7 +414,6 @@
                 <option value="CFR">CFR — Cost &amp; Freight</option>
                 <option value="CIF">CIF — Cost, Insurance &amp; Freight</option>
                 <option value="DDP">DDP — Delivered Duty Paid</option>
-                <option value="DES">DES — Delivered Ex Ship</option>
               </select>
             </div>
             <div class="form-group">
@@ -495,19 +440,14 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Delivery Address <span class="required">*</span></label>
-              <input type="text" id="deliveryAddress" placeholder="Select a customer to pre-fill" readonly
-                style="background:var(--grey-50);" />
+              <label>Delivery Address</label>
+              <input type="text" id="deliveryAddress" placeholder="Auto-filled from customer" readonly style="background:var(--grey-50);" />
             </div>
           </div>
-          <div class="form-row cols-2">
+          <div class="form-row cols-1">
             <div class="form-group">
-              <label>Delivery Instructions</label>
-              <input type="text" id="deliveryNotes" placeholder="e.g. Leave at library reception" maxlength="150" />
-            </div>
-            <div class="form-group">
-              <label>Internal Notes (rep only)</label>
-              <input type="text" id="internalNotes" placeholder="Notes for Pascal Press back-office" maxlength="150" />
+              <label>Customer Notes (visible on PDF)</label>
+              <input type="text" id="quoteNotes" placeholder="e.g. Prices valid for 30 days from quote date. Subject to availability." maxlength="250" />
             </div>
           </div>
         </div>
@@ -515,13 +455,12 @@
 
       </div><!-- /step1Section -->
 
-      <!-- ===== STEP 2 SECTION ================================ -->
+      <!-- ===== STEP 2 ===== -->
       <div id="step2Section" style="display:none;">
 
-      <!-- ===== ORDER LINES ================================= -->
       <div class="lines-wrap">
         <div class="lines-toolbar">
-          <h3>Order Lines</h3>
+          <h3>Quote Lines</h3>
           <span id="lineCountBadge" class="badge badge-open">0 items</span>
           <div style="flex:1;"></div>
           <button class="btn btn-outline btn-sm" onclick="addBlankLine()">+ Add Row</button>
@@ -548,8 +487,8 @@
               <tr class="add-line-row" id="addLineRow">
                 <td colspan="11" style="text-align:center;">
                   <button class="btn btn-ghost btn-sm" onclick="addBlankLine()"
-                    style="width:100%; justify-content:center; color:var(--teal);">
-                    + Click here or use "+ Add Row" above to add an order line
+                    style="width:100%; justify-content:center; color:var(--orange);">
+                    + Click here or use "+ Add Row" above to add a quote line
                   </button>
                 </td>
               </tr>
@@ -558,11 +497,10 @@
         </div>
       </div>
 
-      <!-- ===== TOTALS ====================================== -->
       <div class="order-totals">
         <div class="totals-grid">
           <div>
-            <h3 style="margin-bottom:12px;">Order Summary</h3>
+            <h3 style="margin-bottom:12px;">Quote Summary</h3>
             <div id="summaryNotes" style="font-size:.83rem; color:var(--grey-600); line-height:1.8;">
               No items added yet.
             </div>
@@ -580,12 +518,8 @@
               <span class="lbl">GST (10%)</span>
               <span class="val" id="gstAmount">$0.00</span>
             </div>
-            <div class="total-row">
-              <span class="lbl">Freight</span>
-              <span class="val" id="freightAmount">$0.00</span>
-            </div>
             <div class="total-row grand">
-              <span class="lbl">ORDER TOTAL (incl. GST)</span>
+              <span class="lbl">QUOTE TOTAL (incl. GST)</span>
               <span class="val" id="grandTotal">$0.00</span>
             </div>
           </div>
@@ -598,28 +532,28 @@
 
     <!-- Sticky footer -->
     <div class="order-footer">
-      <!-- Hidden state holders — required by JS, not shown -->
       <span id="footerOrderId"   style="display:none;"></span>
       <span id="footerCustomer"  style="display:none;"></span>
       <span id="footerLineCount" style="display:none;"></span>
       <span id="footerTotal"     style="display:none;"></span>
-      <!-- Step 1 buttons -->
+
       <div class="footer-btn-group" id="step1FooterBtns">
         <button class="btn btn-ghost" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</button>
         <a href="dashboard.html" class="btn btn-ghost">Cancel</a>
-        <button class="btn btn-primary" id="step1SubmitBtn" onclick="saveHeaderAndContinue()">
+        <button class="btn btn-primary" id="step1SubmitBtn" onclick="saveHeaderAndContinue()"
+          style="background:var(--orange); border-color:var(--orange);">
           Save Header &amp; Continue <i class="fas fa-arrow-right"></i>
         </button>
       </div>
-      <!-- Step 2 buttons (hidden until step 2) -->
+
       <div class="footer-btn-group" id="step2FooterBtns" hidden>
         <button class="btn btn-ghost" onclick="goBackToStep1()"><i class="fas fa-arrow-left"></i> Edit Header</button>
-        <button class="btn btn-danger" id="cancelOrderBtn" onclick="cancelOrder()"
+        <button class="btn btn-danger" id="cancelOrderBtn" onclick="cancelQuote()"
           style="background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);">
-          <i class="fas fa-times"></i> Cancel Order
+          <i class="fas fa-times"></i> Cancel Quote
         </button>
-        <button class="btn btn-primary" id="submitOrderBtn" onclick="submitOrder()" disabled>
-          <i class="fas fa-check"></i> Submit Order
+        <button class="btn-activate" id="activateQuoteBtn" onclick="previewAndActivate()" disabled>
+          <i class="fas fa-paper-plane"></i> Preview &amp; Activate
         </button>
       </div>
     </div>
@@ -627,85 +561,141 @@
   </main>
 </div>
 
-<!-- ===== CONFIRM MODAL ==================================== -->
+<!-- ===== CONFIRM / ACTIVATE MODAL ===== -->
 <div class="modal-overlay" id="confirmModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Confirm Sales Order</h3>
+      <h3>Preview &amp; Activate Quote</h3>
       <button class="btn btn-ghost btn-icon btn-sm" onclick="PP.closeModal('confirmModal')"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="alert alert-info">
         <i class="fas fa-info-circle"></i>
-        <span>Review your order before submitting. Once confirmed, it will be sent to D365 for processing.</span>
+        <span>Activating sends this quote for customer review. You can still revise it after activation.</span>
       </div>
       <div id="confirmSummary" style="margin: 12px 0;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="PP.closeModal('confirmModal')"><i class="fas fa-arrow-left"></i> Back to Lines</button>
-      <button class="btn btn-primary" id="finalSubmitBtn" onclick="finalSubmit()">
-        Confirm &amp; Submit Order
+      <button class="btn-activate" id="finalActivateBtn" onclick="finalActivate()">
+        <i class="fas fa-paper-plane"></i> Confirm &amp; Activate Quote
       </button>
     </div>
   </div>
 </div>
 
-<!-- ===== SUCCESS MODAL ==================================== -->
+<!-- ===== SUCCESS MODAL ===== -->
 <div class="modal-overlay" id="successModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 style="color:var(--success);">Order Submitted Successfully</h3>
+      <h3 style="color:var(--orange);">Quote Activated Successfully</h3>
     </div>
     <div class="modal-body" style="text-align:center; padding:24px;">
       <div style="font-size:1.1rem; font-weight:700; color:var(--navy); margin-bottom:8px;" id="successOrderId">
-        Order PAS0000000
+        Quote QUO-0000000
       </div>
-      <p style="margin-bottom:16px;">Order placed on behalf of customer and sent to D365 for fulfilment.</p>
+      <p style="margin-bottom:16px;">Quote is now active and ready to share with the customer.</p>
       <div style="background:var(--grey-50); border-radius:var(--radius); padding:14px; margin-bottom:16px; text-align:left; font-size:.85rem;">
         <div id="successDetails" style="line-height:2;"></div>
       </div>
     </div>
-    <div class="modal-footer" style="justify-content:center; gap:12px;">
-      <a href="dashboard.html"      class="btn btn-ghost">← Dashboard</a>
-      <a href="all-orders.html" class="btn btn-primary">View All Orders</a>
+    <div class="modal-footer" style="justify-content:center; gap:12px; flex-wrap:wrap;">
+      <button class="btn btn-primary" style="background:var(--orange);border-color:var(--orange);" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Export PDF</button>
+      <a href="all-quotes.html" class="btn btn-ghost"><i class="fas fa-list"></i> View All Quotes</a>
+      <a href="dashboard.html"  class="btn btn-ghost">← Dashboard</a>
     </div>
   </div>
 </div>
 
+<!-- Hidden print view — populated by exportPDF() -->
+<div id="quotePrintView" style="display:none;font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:740px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316;">
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1e3a5f;margin-bottom:2px;">Pascal Press</div>
+      <div style="font-size:11px;color:#666;">Sales Quotation</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:18px;font-weight:700;color:#f97316;" id="pdfQuoteId">QUO-</div>
+      <div style="font-size:11px;color:#666;" id="pdfQuoteDate"></div>
+      <div style="font-size:11px;color:#666;" id="pdfValidUntil"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999;margin-bottom:6px;">Customer</div>
+      <div style="font-weight:700;color:#1e3a5f;font-size:13px;" id="pdfCustName"></div>
+      <div style="font-size:11px;color:#666;" id="pdfCustAcct"></div>
+      <div style="font-size:11px;color:#666;" id="pdfPayTerms"></div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999;margin-bottom:6px;">Sales Rep</div>
+      <div style="font-weight:600;color:#1e3a5f;font-size:13px;" id="pdfRepName"></div>
+      <div style="font-size:11px;color:#666;" id="pdfRepEmail"></div>
+    </div>
+  </div>
+  <table id="pdfLinesTable" style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+    <thead>
+      <tr style="background:#1e3a5f;color:white;">
+        <th style="padding:8px 10px;text-align:left;">#</th>
+        <th style="padding:8px 10px;text-align:left;">Item Code</th>
+        <th style="padding:8px 10px;text-align:left;">Description</th>
+        <th style="padding:8px 10px;text-align:right;">Qty</th>
+        <th style="padding:8px 10px;text-align:right;">Unit Price</th>
+        <th style="padding:8px 10px;text-align:right;">Disc %</th>
+        <th style="padding:8px 10px;text-align:right;">Net Amount</th>
+      </tr>
+    </thead>
+    <tbody id="pdfLinesBody"></tbody>
+  </table>
+  <div style="margin-left:auto;width:280px;">
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb;font-size:11px;">
+      <span style="color:#666;">Subtotal (excl. GST)</span><span id="pdfSubtotal" style="font-weight:600;"></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb;font-size:11px;">
+      <span style="color:#666;">GST (10%)</span><span id="pdfGst" style="font-weight:600;"></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px;">
+      <span style="color:white;font-weight:700;">TOTAL (incl. GST)</span><span id="pdfTotal" style="color:white;font-weight:800;font-size:14px;"></span>
+    </div>
+  </div>
+  <div id="pdfNotes" style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px;display:none;"></div>
+  <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center;">
+    This quotation is valid until <span id="pdfValidUntilFooter"></span> · Pascal Press Sales Portal · Generated <span id="pdfGeneratedDate"></span>
+  </div>
+</div>
+
 <div id="toast-container"></div>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="app.js"></script>
 <script src="layout.js"></script>
 <script src="db.js"></script>
 <script>
 /* ============================================================
-   Sales Order Page — 2-Step Pipeline
-   Step 1: Customer + Header → save to SP (status = In Progress)
-   Step 2: Order Lines → save lines + update header to Submit
+   Quote Page — 2-Step Pipeline
+   Step 1: Customer + Header → save to SP (Status = Draft)
+   Step 2: Quote Lines → activate (Status = Active)
+   POC: demonstrates full create → save → activate flow
    ============================================================ */
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-let orderLines       = [];
-let currentOrderId   = PP.nextOrderId();
+let quoteLines       = [];
+let currentOrderId   = 'QUO-Draft';
 let salesRep         = null;
 let selectedCustomer = null;
 let currentStep      = 1;
-let savedSalesId     = null;   // set after step 1 SP save
-let savedSpItemId    = null;   // SP item ID for direct PUT/DELETE (no SalesId column lookup)
+let savedQuoteId     = null;
+let savedSpItemId    = null;
 
 function authHeaders(extra = {}) {
-    const token = localStorage.getItem('pp_token');
-    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+  const token = localStorage.getItem('pp_token');
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
 }
 
-
 document.addEventListener('DOMContentLoaded', async () => {
-
   try {
-    const token = localStorage.getItem('pp_token');
+    const token     = localStorage.getItem('pp_token');
     const bootstrap = await fetch('/api/bootstrap', {
       headers: { Authorization: token ? `Bearer ${token}` : '' }
     }).then(r => r.json());
@@ -717,96 +707,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     const initials = salesRep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
     const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
     const _un = document.getElementById('userName');   if (_un) _un.textContent = salesRep.name;
-    const _ur = document.getElementById('userRole');   if (_ur) _ur.textContent = salesRep.territory;
 
     document.getElementById('orderId').value               = currentOrderId;
     document.getElementById('orderIdDisplay').textContent  = currentOrderId;
     document.getElementById('orderIdBadge').textContent    = currentOrderId;
-    document.getElementById('footerOrderId').textContent   = currentOrderId;
 
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('orderDate').value = today;
 
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('requestedShipDate').value = tomorrow.toISOString().slice(0, 10);
-    document.getElementById('requestedShipDate').min   = tomorrow.toISOString().slice(0, 10);
+    // Default valid until = 30 days from today
+    const validUntil = new Date(); validUntil.setDate(validUntil.getDate() + 30);
+    document.getElementById('validUntil').value = validUntil.toISOString().slice(0, 10);
+    document.getElementById('validUntil').min   = today;
 
     initCustomerSearch();
 
-    // Auto-fill customer passed from account.html via sessionStorage
-    const stored = sessionStorage.getItem('d365_selected_customer');
-    if (stored) {
-      try {
-        const c = JSON.parse(stored);
-        if (c && c.CustomerAccount) selectCustomer(c);
-      } catch (e) { /* ignore malformed */ }
-    }
-
-    // Resume an existing In-Progress order via ?resume=salesId URL param
+    // Resume existing draft quote via ?resume=QUO-xxx
     const _urlP     = new URLSearchParams(window.location.search);
     const _resumeId = _urlP.get('resume');
-    if (_resumeId) {
-      await resumeDraftOrder(_resumeId, _urlP.get('step') === '1');
-    }
+    if (_resumeId) await resumeDraftQuote(_resumeId, _urlP.get('step') === '1');
 
   } catch (error) {
-    console.error('Error loading sales order form:', error);
+    console.error('Error loading quote form:', error);
     PP.showToast('Failed to load form data', 'error');
   }
 });
 
-/* ---- Resume an existing In-Progress order ------------------
-   Called when page loads with ?resume=PAS-xxx in URL.
-   Fetches the saved header, restores all fields, then jumps
-   to Step 2 (or stays at Step 1 if &step=1 is also present).
-   ---------------------------------------------------------- */
-async function resumeDraftOrder(salesId, editHeader) {
+/* ---- Resume an existing Draft quote ---------------------- */
+async function resumeDraftQuote(quoteId, editHeader) {
   try {
-    const token = localStorage.getItem('pp_token');
-    const order = await fetch(`/api/salesorders/${encodeURIComponent(salesId)}`, {
+    const quote = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}`, {
       headers: authHeaders()
     }).then(r => r.json());
 
-    if (!order || order.error) {
-      PP.showToast('Order not found: ' + salesId, 'error');
+    if (!quote || quote.error) { PP.showToast('Quote not found: ' + quoteId, 'error'); return; }
+
+    // Only Draft quotes are editable — redirect non-Draft to the list view
+    if (quote.status && quote.status !== 'Draft') {
+      PP.showToast(`Quote ${quoteId} is ${quote.status} — read-only. Opening Quotes list.`, 'info');
+      setTimeout(() => { window.location.href = 'all-quotes.html'; }, 1800);
       return;
     }
 
-    // Restore key state variables
-    savedSalesId   = order.salesId || order.id || salesId;
-    savedSpItemId  = order.spItemId || null;
-    currentOrderId = savedSalesId;
+    savedQuoteId  = quote.quoteId || quote.id || quoteId;
+    savedSpItemId = quote.spItemId || null;
+    currentOrderId = savedQuoteId;
 
-    // Update all order-ID display elements
     ['orderId','orderIdDisplay','orderIdBadge','footerOrderId'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) (el.tagName === 'INPUT' ? el : el).textContent !== undefined
-        ? el.textContent = currentOrderId
-        : el.value       = currentOrderId;
+      if (!el) return;
+      if (el.tagName === 'INPUT') el.value = currentOrderId;
+      else el.textContent = currentOrderId;
     });
-    const _oid = document.getElementById('orderId');
-    if (_oid) _oid.value = currentOrderId;
-    const _oidD = document.getElementById('orderIdDisplay');
-    if (_oidD) _oidD.textContent = currentOrderId;
-    const _oidB = document.getElementById('orderIdBadge');
-    if (_oidB) _oidB.textContent = currentOrderId;
-    const _foid = document.getElementById('footerOrderId');
-    if (_foid) _foid.textContent = currentOrderId;
-    const _s1id = document.getElementById('s1lOrderId');
-    if (_s1id) _s1id.textContent = currentOrderId;
 
-    // Restore delivery / payment terms
-    if (order.deliveryTerms) {
-      const dt = document.getElementById('deliveryTerms');
-      if (dt) dt.value = order.deliveryTerms;
-    }
-    if (order.paymentTerms) {
-      const pt = document.getElementById('paymentTerms');
-      if (pt) pt.value = order.paymentTerms;
-    }
+    if (quote.deliveryTerms)   { const el = document.getElementById('deliveryTerms');   if(el) el.value = quote.deliveryTerms; }
+    if (quote.paymentTerms)    { const el = document.getElementById('paymentTerms');    if(el) el.value = quote.paymentTerms; }
+    if (quote.validUntil)      { const el = document.getElementById('validUntil');      if(el) el.value = quote.validUntil; }
+    if (quote.notes)           { const el = document.getElementById('quoteNotes');      if(el) el.value = quote.notes; }
+    if (quote.warehouse)       { const el = document.getElementById('warehouse');       if(el) el.value = quote.warehouse; }
+    if (quote.deliveryAddress) { const el = document.getElementById('deliveryAddress'); if(el) el.value = quote.deliveryAddress; }
 
-    // Load customer from D365 and call selectCustomer() to populate all fields
-    const custAcct = order.custAccount || order.customerId || '';
+    const custAcct = quote.custAccount || '';
     if (custAcct) {
       try {
         const cData = await fetch(`/api/d365/customers/${encodeURIComponent(custAcct)}`, {
@@ -816,40 +777,50 @@ async function resumeDraftOrder(salesId, editHeader) {
         if (cust && (cust.CustomerAccount || cust.OrganizationName)) {
           selectCustomer(cust);
         } else {
-          // Fallback: manually populate display fields
-          document.getElementById('customerSearch').value      = order.customerName || custAcct;
+          document.getElementById('customerSearch').value      = quote.customerName || custAcct;
           document.getElementById('customerAccNo').value       = custAcct;
-          document.getElementById('customerNameDisplay').value = order.customerName || custAcct;
+          document.getElementById('customerNameDisplay').value = quote.customerName || custAcct;
           document.getElementById('customerDetailsRow').classList.add('visible');
         }
       } catch (e) {
-        console.warn('[Resume] Could not load customer from D365:', e);
-        document.getElementById('customerSearch').value = order.customerName || custAcct;
+        document.getElementById('customerSearch').value = quote.customerName || custAcct;
       }
-      const _s1c = document.getElementById('s1lCustomer');
-      if (_s1c) _s1c.textContent = order.customerName || custAcct;
-      const _fp = document.getElementById('footerCustomer');
-      if (_fp) _fp.textContent = order.customerName || custAcct;
+      const _s1c = document.getElementById('s1lCustomer'); if (_s1c) _s1c.textContent = quote.customerName || custAcct;
+    }
+
+    // Load existing lines from SP so finalActivate doesn't duplicate them
+    if ((quote.lines || []).length > 0) {
+      quoteLines = quote.lines.map((l, i) => ({
+        lineNo:       l.lineNo || (i + 1),
+        itemNo:       l.itemNo || '',
+        name:         l.name  || '',
+        category:     l.category || '',
+        qty:          l.qty   || 1,
+        unit:         l.unit  || 'ea',
+        price:        l.price || 0,
+        discount:     l.discount || 0,
+        deliveryType: l.deliveryType || 'Stock',
+        _fromSP:      true,  // flag: line already exists in SP, don't re-save
+      }));
     }
 
     if (editHeader) {
-      // Stay on Step 1 for header editing
       goToStep(1);
       PP.showToast(`Editing header — ${currentOrderId}`, 'info');
     } else {
-      // Advance to Step 2 — add order lines
-      document.getElementById('s1lPayTerms').textContent = order.paymentTerms || '—';
+      document.getElementById('s1lPayTerms').textContent   = quote.paymentTerms || '—';
+      document.getElementById('s1lValidUntil').textContent = quote.validUntil   || '—';
       goToStep(2);
-      PP.showToast(`Resuming ${currentOrderId} — add your order lines`, 'success');
+      renderLines();
+      PP.showToast(`Resuming ${currentOrderId} — ${quoteLines.length} line(s) loaded`, 'success');
     }
-
   } catch (err) {
-    console.error('[Resume] Failed to load draft order:', err);
-    PP.showToast('Could not load order — ' + (err.message || 'please try again'), 'error');
+    console.error('[Resume] Failed to load draft quote:', err);
+    PP.showToast('Could not load quote — ' + (err.message || 'please try again'), 'error');
   }
 }
 
-/* ---- Customer search — live D365 API -------------------- */
+/* ---- Customer search ------------------------------------- */
 function initCustomerSearch() {
   const input    = document.getElementById('customerSearch');
   const dropdown = document.getElementById('customerDropdown');
@@ -857,13 +828,10 @@ function initCustomerSearch() {
 
   async function doSearch(q) {
     try {
-      const url  = q
-        ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=20`
-        : `/api/d365/customers?top=30`;
+      const url  = q ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=20` : `/api/d365/customers?top=30`;
       const data = await fetch(url).then(r => r.json());
       const results = data.value || [];
       if (results.length === 0) { dropdown.classList.remove('open'); return; }
-
       dropdown.innerHTML = '';
       results.forEach(c => {
         const city = c.AddressCity ? ` · ${c.AddressCity}` : '';
@@ -879,30 +847,21 @@ function initCustomerSearch() {
         dropdown.appendChild(div);
       });
       dropdown.classList.add('open');
-    } catch (e) {
-      console.error('[D365] Customer search failed:', e);
-    }
+    } catch (e) { console.error('[D365] Customer search failed:', e); }
   }
 
   input.addEventListener('input', function () {
-    clearTimeout(_timer);
-    const q = this.value.trim();
+    clearTimeout(_timer); const q = this.value.trim();
     _timer = setTimeout(() => doSearch(q), 300);
   });
-
-  input.addEventListener('focus', function () {
-    if (!this.value.trim()) doSearch('');
-  });
-
+  input.addEventListener('focus', function () { if (!this.value.trim()) doSearch(''); });
   document.addEventListener('click', e => {
     if (!e.target.closest('.customer-search-wrap')) dropdown.classList.remove('open');
   });
 }
 
-/* ---- Select customer ------------------------------------- */
 function selectCustomer(customer) {
   selectedCustomer = customer;
-
   const name = customer.OrganizationName || customer.name || customer.CustomerAccount;
   const acct = customer.CustomerAccount  || customer.accountNum || customer.id;
 
@@ -910,63 +869,46 @@ function selectCustomer(customer) {
   document.getElementById('customerAccNo').value       = acct;
   document.getElementById('customerNameDisplay').value = name;
   document.getElementById('customerDropdown').classList.remove('open');
-
   document.getElementById('customerDetailsRow').classList.add('visible');
 
-  // D365 CustomersV3 doesn't expose credit limit — show as Active
   document.getElementById('creditStatusDisplay').innerHTML =
     `<span class="credit-indicator credit-good"><i class="fas fa-check"></i> Active</span>`;
 
   const payTerms = customer.PaymentTermsName || customer.paymentTerms || '';
   document.getElementById('availableCreditDisplay').textContent = payTerms ? `Terms: ${payTerms}` : 'Terms: —';
 
-  // Auto-fill Payment Terms dropdown from customer record
   if (payTerms) {
     const ptSelect = document.getElementById('paymentTerms');
-    if (ptSelect) {
-      for (const opt of ptSelect.options) {
-        if (opt.value === payTerms) { ptSelect.value = payTerms; break; }
-      }
-    }
+    if (ptSelect) for (const opt of ptSelect.options) { if (opt.value === payTerms) { ptSelect.value = payTerms; break; } }
   }
 
   document.getElementById('customerNotesAlert').style.display = 'none';
 
-  // Build delivery address from D365 address parts
-  const addrParts = [customer.AddressStreet, customer.AddressCity, customer.AddressState, customer.AddressZipCode]
-    .filter(Boolean);
-  document.getElementById('deliveryAddress').value =
-    addrParts.join(', ') || customer.address || customer.deliveryAddress || '';
-
+  const addrParts = [customer.AddressStreet, customer.AddressCity, customer.AddressState, customer.AddressZipCode].filter(Boolean);
+  document.getElementById('deliveryAddress').value = addrParts.join(', ') || '';
   document.getElementById('footerCustomer').textContent = name;
 
   PP.showToast(`Customer selected: ${name}`, 'success');
   updateTotals();
 }
 
-/* ---- Add blank line -------------------------------------- */
+/* ---- Lines ----------------------------------------------- */
 function addBlankLine() {
-  if (!selectedCustomer) {
-    PP.showToast('Please select a customer first', 'warning');
-    return;
-  }
-  orderLines.push({ lineNo: orderLines.length + 1, itemNo: '', name: '', category: '', qty: 1, unit: 'ea', price: 0, discount: 0, deliveryType: 'Stock', status: 'In Progress', orderLineStatus: 'In Progress' });
+  if (!selectedCustomer) { PP.showToast('Please select a customer first', 'warning'); return; }
+  quoteLines.push({ lineNo: quoteLines.length + 1, itemNo: '', name: '', category: '', qty: 1, unit: 'ea', price: 0, discount: 0, deliveryType: 'Stock' });
   renderLines();
 }
 
-/* ---- Remove line ----------------------------------------- */
 function removeLine(idx) {
-  orderLines.splice(idx, 1);
-  orderLines.forEach((l, i) => l.lineNo = i + 1);
+  quoteLines.splice(idx, 1);
+  quoteLines.forEach((l, i) => l.lineNo = i + 1);
   renderLines();
 }
 
-/* ---- Render lines table ---------------------------------- */
 function renderLines() {
   const tbody = document.getElementById('linesBody');
   tbody.innerHTML = '';
-
-  orderLines.forEach((line, idx) => {
+  quoteLines.forEach((line, idx) => {
     const net = PP.calcNet(line.price, line.qty, line.discount);
     const tr  = document.createElement('tr');
     tr.innerHTML = `
@@ -975,23 +917,22 @@ function renderLines() {
         <div class="prod-search-wrap">
           <input type="text" class="prod-name-input" data-idx="${idx}"
             value="${(line.name && line.itemNo ? line.name + ' - ' + line.itemNo : line.name || line.itemNo || '').replace(/"/g,'&quot;')}"
-            placeholder="Search or type product name"
-            style="width:100%; font-weight:600;" />
+            placeholder="Search or type product name" style="width:100%; font-weight:600;" />
           <div class="prod-dropdown" id="prodDrop${idx}"></div>
         </div>
       </td>
       <td class="col-cat">
         <input type="text" value="${(line.category || '').replace(/"/g,'&quot;')}" placeholder="Category"
-          style="width:90px; font-size:.78rem;"
-          onchange="updateLine(${idx}, 'category', this.value)" />
+          style="width:90px; font-size:.78rem;" onchange="updateLine(${idx}, 'category', this.value)" />
       </td>
       <td class="col-qty">
         <input type="number" min="1" max="9999" value="${line.qty}" style="width:70px;"
           onchange="updateLine(${idx}, 'qty', +this.value)" />
       </td>
       <td class="col-unit" style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
-      <td class="col-price" style="color:var(--text-dark); font-size:.9rem;">
-        ${line.price.toFixed(2)}
+      <td class="col-price">
+        <input type="number" min="0" step="0.01" value="${line.price.toFixed(2)}" style="width:90px;"
+          onchange="updateLine(${idx}, 'price', +this.value)" />
       </td>
       <td class="col-disc">
         <input type="number" min="0" max="100" step="0.5" value="${line.discount}" style="width:65px;"
@@ -1005,28 +946,24 @@ function renderLines() {
       </td>
       <td class="col-act">
         <button class="remove-line" onclick="removeLine(${idx})" title="Remove line"><i class="fas fa-times"></i></button>
-      </td>
-    `;
+      </td>`;
     tbody.appendChild(tr);
   });
-
   updateTotals();
   wireProductSearch();
 }
 
 function updateLine(idx, field, value) {
-  orderLines[idx][field] = value;
+  quoteLines[idx][field] = value;
+  delete quoteLines[idx]._fromSP; // mark as modified — will be re-saved on activate
   renderLines();
 }
 
-/* ---- Close product dropdowns on outside click ------------ */
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.prod-search-wrap')) {
-    document.querySelectorAll('.prod-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
-  }
+  if (!e.target.closest('.prod-search-wrap'))
+    document.querySelectorAll('.prod-dropdown.open').forEach(d => d.classList.remove('open'));
 });
 
-/* ---- Reposition open dropdown on page scroll (prevents layout shift) -- */
 function _repositionOpenDropdown() {
   var openDrop = document.querySelector('.prod-dropdown.open');
   if (!openDrop) return;
@@ -1039,57 +976,44 @@ function _repositionOpenDropdown() {
   }
 }
 window.addEventListener('scroll', _repositionOpenDropdown, { passive: true });
-document.querySelector('.order-panel-body') &&
-  document.querySelector('.order-panel-body').addEventListener('scroll', _repositionOpenDropdown, { passive: true });
 
-/* ---- Wire product search inputs after each render -------- */
 function wireProductSearch() {
   document.querySelectorAll('.prod-name-input').forEach(function(input) {
     const idx = +input.dataset.idx;
     let _timer = null;
     input.oninput = function() {
-      // Strip the " - ItemNo" suffix so we store only the name and search cleanly
       const raw  = this.value;
       const dash = raw.lastIndexOf(' - ');
       const name = dash !== -1 ? raw.slice(0, dash) : raw;
-      orderLines[idx].name = name;
+      quoteLines[idx].name = name;
       clearTimeout(_timer);
-      const q = name.trim();
-      _timer = setTimeout(function() { doProductSearch(idx, q); }, 300);
+      _timer = setTimeout(function() { doProductSearch(idx, name.trim()); }, 300);
     };
     input.onfocus = function() {
-      // Show just the name while editing so the user isn't confused by " - D0002" suffix
-      const line = orderLines[idx];
+      const line = quoteLines[idx];
       if (line && line.name) this.value = line.name;
       doProductSearch(idx, line ? line.name.trim() : '');
     };
     input.onblur = function() {
-      // Restore "Name - ItemNo" display on blur
-      const line = orderLines[idx];
-      if (line && line.name && line.itemNo) {
-        this.value = line.name + ' - ' + line.itemNo;
-      }
+      const line = quoteLines[idx];
+      if (line && line.name && line.itemNo) this.value = line.name + ' - ' + line.itemNo;
     };
   });
 }
 
-/* ---- Fetch products from D365 and show dropdown ---------- */
 async function doProductSearch(idx, q) {
   const drop = document.getElementById('prodDrop' + idx);
   if (!drop) return;
   try {
-    const url = q
-      ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=50'
-      : '/api/d365/products?top=300';
-    const data = await fetch(url).then(function(r) { return r.json(); });
+    const url  = q ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=50' : '/api/d365/products?top=300';
+    const data = await fetch(url).then(r => r.json());
     const results = data.value || [];
     if (results.length === 0) { drop.classList.remove('open'); return; }
-
     drop.innerHTML = '';
     results.forEach(function(p) {
       const price = p.SalesPrice > 0 ? ' · $' + p.SalesPrice.toFixed(2) : '';
       const group = p.ProductGroupId ? ' · ' + p.ProductGroupId : '';
-      const div = document.createElement('div');
+      const div   = document.createElement('div');
       div.className = 'prod-option';
       div.innerHTML =
         '<div class="po-name">' + (p.SearchName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
@@ -1097,8 +1021,6 @@ async function doProductSearch(idx, q) {
       div.addEventListener('click', function() { selectProduct(idx, p); });
       drop.appendChild(div);
     });
-
-    // Position fixed relative to the input so it escapes overflow containers
     const inputEl = document.querySelector('.prod-name-input[data-idx="' + idx + '"]');
     if (inputEl) {
       const r = inputEl.getBoundingClientRect();
@@ -1107,132 +1029,95 @@ async function doProductSearch(idx, q) {
       drop.style.width = Math.max(r.width, 320) + 'px';
     }
     drop.classList.add('open');
-  } catch (e) {
-    console.error('[D365] Product search failed:', e);
-  }
+  } catch (e) { console.error('[D365] Product search failed:', e); }
 }
 
-/* ---- Auto-fill line from D365 product selection ---------- */
 function selectProduct(idx, p) {
-  orderLines[idx].itemNo   = p.ItemNumber      || '';
-  orderLines[idx].name     = p.SearchName      || p.ItemNumber || '';
-  orderLines[idx].category = p.ProductGroupId  || '';
-  orderLines[idx].price    = p.UnitCost || p.SalesPrice || 0;
-  orderLines[idx].unit     = p.SalesUnitSymbol || 'ea';
+  quoteLines[idx].itemNo   = p.ItemNumber     || '';
+  quoteLines[idx].name     = p.SearchName     || p.ItemNumber || '';
+  quoteLines[idx].category = p.ProductGroupId || '';
+  quoteLines[idx].price    = p.SalesPrice || p.UnitCost || 0;
+  quoteLines[idx].unit     = p.SalesUnitSymbol || 'ea';
+  delete quoteLines[idx]._fromSP; // product changed — must re-save
   renderLines();
 }
 
-/* ---- Update totals --------------------------------------- */
 function updateTotals() {
-  const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
-  const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
+  const subtotalFull = quoteLines.reduce((s, l) => s + l.price * l.qty, 0);
+  const discountAmt  = quoteLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
   const subtotal     = subtotalFull - discountAmt;
-  const freight      = subtotal > 0 ? (subtotal >= 150 ? 0 : 12.50) : 0;
   const gst          = subtotal * 0.1;
-  const grandTotal   = subtotal + gst + freight;
+  const grandTotal   = subtotal + gst;
 
   document.getElementById('subtotal').textContent      = PP.fmtCurrency(subtotalFull);
   document.getElementById('totalDiscount').textContent = `-${PP.fmtCurrency(discountAmt)}`;
   document.getElementById('gstAmount').textContent     = PP.fmtCurrency(gst);
-  document.getElementById('freightAmount').textContent = freight === 0 && subtotal > 0
-    ? 'FREE (order ≥ $150)' : PP.fmtCurrency(freight);
   document.getElementById('grandTotal').textContent    = PP.fmtCurrency(grandTotal);
 
-  const lineCount = orderLines.length;
+  const lineCount = quoteLines.length;
   document.getElementById('footerLineCount').textContent = `${lineCount} line${lineCount !== 1 ? 's' : ''}`;
   document.getElementById('footerTotal').textContent     = PP.fmtCurrency(grandTotal);
   document.getElementById('lineCountBadge').textContent  = `${lineCount} item${lineCount !== 1 ? 's' : ''}`;
 
-  const categories = [...new Set(orderLines.map(l => l.category).filter(Boolean))];
+  const cats = [...new Set(quoteLines.map(l => l.category).filter(Boolean))];
   document.getElementById('summaryNotes').innerHTML = lineCount === 0
-    ? 'No items added yet. Click "+ Add Row" above to add order lines.'
-    : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} ·
-       <strong>${orderLines.reduce((s,l)=>s+l.qty,0)}</strong> total books<br>
-       Categories: ${categories.join(', ') || '—'}<br>
-       ${subtotal >= 150
-         ? '<i class="fas fa-check" style="color:var(--success)"></i> <span style="color:var(--success)">Free freight applied</span>'
-         : `$${(150 - subtotal).toFixed(2)} more for free freight`}`;
+    ? 'No items added yet. Click "+ Add Row" to add quote lines.'
+    : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} · <strong>${quoteLines.reduce((s,l)=>s+l.qty,0)}</strong> total units<br>
+       Categories: ${cats.join(', ') || '—'}`;
 
-  // Step 2 submit button: enabled when at least one valid line exists
-  const hasValidLine = orderLines.some(l => (l.name || l.itemNo).trim() && l.qty >= 1);
-  const submitBtn = document.getElementById('submitOrderBtn');
-  if (submitBtn) submitBtn.disabled = !hasValidLine;
+  const hasValidLine = quoteLines.some(l => (l.name || l.itemNo).trim() && l.qty >= 1);
+  const btn = document.getElementById('activateQuoteBtn');
+  if (btn) btn.disabled = !hasValidLine;
 }
 
-
-/* ---- Cancel order (Step 2) — set status to Cancel in SP -- */
-async function cancelOrder() {
-  if (!confirm(`Cancel order ${savedSalesId || 'this order'}?\n\nThe order will be marked as Cancelled. This cannot be undone.`)) return;
-
+/* ---- Cancel quote ---------------------------------------- */
+async function cancelQuote() {
+  if (!confirm(`Cancel quote ${savedQuoteId || 'this quote'}?\n\nThe quote will be marked as Cancelled.`)) return;
   const btn = document.getElementById('cancelOrderBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
-
   try {
     if (savedSpItemId) {
-      // Use PUT (no role restriction) to mark as Cancelled — avoids manager-only DELETE
-      const res = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+      const res = await fetch(`/api/quotes/item/${savedSpItemId}`, {
         method: 'PUT',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ Status: 'Cancel' })
+        body: JSON.stringify({ Status: 'Cancelled' })
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to cancel order');
-      }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed to cancel quote'); }
     }
     window.location.href = 'dashboard.html';
   } catch (err) {
-    console.error('[Order] Cancel failed:', err);
-    PP.showToast(err.message || 'Failed to cancel order — please try again', 'error');
+    PP.showToast(err.message || 'Failed to cancel quote', 'error');
     btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-times"></i> Cancel Order';
+    btn.innerHTML = '<i class="fas fa-times"></i> Cancel Quote';
   }
 }
 
-/* ---- Save draft (Step 1 only) ---------------------------- */
-function saveDraft() {
-  PP.showToast('Draft saved locally', 'success');
-}
+function saveDraft() { PP.showToast('Header saved as draft', 'success'); }
 
 /* ---- Pipeline navigation --------------------------------- */
 function goToStep(n) {
   currentStep = n;
-
-  // Update indicator
   const s1 = document.getElementById('pipStep1');
   const s2 = document.getElementById('pipStep2');
   const cn = document.getElementById('pipConn');
   s1.className = 'pip-step ' + (n > 1 ? 'done' : 'active');
   s2.className = 'pip-step ' + (n === 2 ? 'active' : '');
   if (n > 1) cn.classList.add('done'); else cn.classList.remove('done');
-
-  // Show/hide sections
   document.getElementById('step1Section').style.display = (n === 1) ? '' : 'none';
   document.getElementById('step2Section').style.display = (n === 2) ? '' : 'none';
   const locked = document.getElementById('step1LockedCard');
   if (n === 2) locked.classList.add('show'); else locked.classList.remove('show');
-
-  // Footer button groups
   document.getElementById('step1FooterBtns').hidden = (n !== 1);
   document.getElementById('step2FooterBtns').hidden = (n !== 2);
-
-  // Always restore Step 1 submit button when returning to Step 1
   if (n === 1) {
     const s1Btn = document.getElementById('step1SubmitBtn');
-    if (s1Btn) {
-      s1Btn.disabled = false;
-      s1Btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
-    }
+    if (s1Btn) { s1Btn.disabled = false; s1Btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>'; }
   }
-
-  // Scroll to top of content
   document.querySelector('.main-content').scrollTop = 0;
 }
 
-function goBackToStep1() {
-  goToStep(1);
-}
+function goBackToStep1() { goToStep(1); }
 
 /* ---- Step 1: Save header to SharePoint ------------------- */
 async function saveHeaderAndContinue() {
@@ -1245,206 +1130,250 @@ async function saveHeaderAndContinue() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
-  const custName = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
-  const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
-  const currency = 'AUD';
-  const custGroup = selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || selectedCustomer.CustGroup || '';
-  const title = custName;
+  const custName  = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
+  const custAcct  = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
+  const custGroup = selectedCustomer.CustomerGroupId  || selectedCustomer.customerGroup || '';
 
-  // Only include columns that exist in the SalesOrderHeader SharePoint list.
-  // Unknown columns cause Graph API to return 400 Bad Request.
   const headerPayload = {
-    Title:          title,
-    CustAccount:    custAcct,
-    Currency:       currency,
-    CustGroup:      custGroup,
-    InvoiceAccount: selectedCustomer.InvoiceCustomerAccountNumber || custAcct,
-    Status:         'In Progress',
-    DeliveryTerms:  document.getElementById('deliveryTerms').value,
-    PaymentTerms:   document.getElementById('paymentTerms').value,
-    // SalesId is NOT sent — server always generates it and returns it
+    Title:           custName,
+    CustAccount:     custAcct,
+    CustomerName:    custName,
+    Currency:        'AUD',
+    CustGroup:       custGroup,
+    Status:          'Draft',
+    DeliveryTerms:   document.getElementById('deliveryTerms').value,
+    PaymentTerms:    document.getElementById('paymentTerms').value,
+    ValidUntil:      document.getElementById('validUntil').value || '',
+    Notes:           document.getElementById('quoteNotes').value || '',
+    Warehouse:       document.getElementById('warehouse').value || '',
+    DeliveryAddress: document.getElementById('deliveryAddress').value || '',
+    QuoteRevision:   1,
   };
 
   try {
     let res, data;
-
     if (savedSpItemId) {
-      // Re-save: update by SP item ID directly (no SalesId column lookup needed)
-      res = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+      res = await fetch(`/api/quotes/item/${savedSpItemId}`, {
         method: 'PUT',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(headerPayload)
       });
     } else {
-      // First save: create new header record
-      res = await fetch('/api/salesorders/header', {
+      res = await fetch('/api/quotes/header', {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(headerPayload)
       });
     }
     data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save order header');
+    if (!res.ok) throw new Error(data.error || 'Failed to save quote header');
 
-    // Use server-generated SalesId; store SP item ID for subsequent edits/cancel
-    const confirmedId = data.salesId || savedSalesId || currentOrderId;
-    savedSalesId   = confirmedId;
+    const confirmedId = data.quoteId || savedQuoteId || currentOrderId;
+    savedQuoteId   = confirmedId;
     savedSpItemId  = data.spItemId || savedSpItemId;
     currentOrderId = confirmedId;
 
-    // Update locked summary card
-    document.getElementById('s1lOrderId').textContent  = confirmedId;
-    document.getElementById('s1lCustomer').textContent = custName;
-    document.getElementById('s1lPayTerms').textContent = document.getElementById('paymentTerms').value || '—';
+    document.getElementById('s1lOrderId').textContent    = confirmedId;
+    document.getElementById('s1lCustomer').textContent   = custName;
+    document.getElementById('s1lPayTerms').textContent   = headerPayload.PaymentTerms || '—';
+    document.getElementById('s1lValidUntil').textContent = headerPayload.ValidUntil   || '—';
+    document.getElementById('orderId').value             = confirmedId;
+    document.getElementById('orderIdDisplay').textContent = confirmedId;
+    document.getElementById('orderIdBadge').textContent  = confirmedId;
 
-    // Also update order ID displays
-    document.getElementById('orderId').value               = confirmedId;
-    document.getElementById('orderIdDisplay').textContent  = confirmedId;
-    document.getElementById('orderIdBadge').textContent    = confirmedId;
-    document.getElementById('footerOrderId').textContent   = confirmedId;
-
-    // Reset button before navigating so it's ready if user returns to Step 1 to edit
     btn.disabled = false;
     btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
 
-    PP.showToast('Order header saved. Now add order lines.', 'success');
+    PP.showToast('Quote header saved. Now add quote lines.', 'success');
     goToStep(2);
   } catch (err) {
-    console.error('[Order] Header save failed:', err);
-    PP.showToast(err.message || 'Failed to save order header — please try again', 'error');
+    console.error('[Quote] Header save failed:', err);
+    PP.showToast(err.message || 'Failed to save quote header — please try again', 'error');
     btn.disabled = false;
     btn.innerHTML = 'Save Header &amp; Continue <i class="fas fa-arrow-right"></i>';
   }
 }
 
-/* ---- Step 2: Validate lines + open confirm modal --------- */
-function submitOrder() {
-  if (orderLines.length === 0) {
-    PP.showToast('Please add at least one product line', 'warning');
-    return;
-  }
-  const blankLine = orderLines.find(l => !(l.name || '').trim() && !(l.itemNo || '').trim());
-  if (blankLine) {
-    PP.showToast(`Line ${blankLine.lineNo}: enter a product name or item code`, 'warning');
-    return;
-  }
-  const zeroQty = orderLines.find(l => !l.qty || l.qty < 1);
-  if (zeroQty) {
-    PP.showToast(`Line ${zeroQty.lineNo}: quantity must be at least 1`, 'warning');
-    return;
-  }
+/* ---- Step 2: Preview before activating ------------------- */
+function previewAndActivate() {
+  if (quoteLines.length === 0) { PP.showToast('Please add at least one product line', 'warning'); return; }
+  const blank = quoteLines.find(l => !(l.name || '').trim() && !(l.itemNo || '').trim());
+  if (blank) { PP.showToast(`Line ${blank.lineNo}: enter a product name or item code`, 'warning'); return; }
+  const zeroQty = quoteLines.find(l => !l.qty || l.qty < 1);
+  if (zeroQty) { PP.showToast(`Line ${zeroQty.lineNo}: quantity must be at least 1`, 'warning'); return; }
 
-  const custName = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
-  const custAcct = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
-  const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
-  const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
+  const custName     = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
+  const custAcct     = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
+  const subtotalFull = quoteLines.reduce((s, l) => s + l.price * l.qty, 0);
+  const discountAmt  = quoteLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
   const subtotal     = subtotalFull - discountAmt;
-  const freight      = subtotal >= 150 ? 0 : 12.50;
-  const grandTotal   = subtotal * 1.1 + freight;
-  const addrText     = document.getElementById('deliveryAddress').value.trim() || '—';
+  const grandTotal   = subtotal * 1.1;
+  const validUntil   = document.getElementById('validUntil').value || '—';
 
   document.getElementById('confirmSummary').innerHTML = `
-    <div class="confirm-line"><span class="cl-label">Order ID</span><span class="cl-val" style="font-family:monospace;">${savedSalesId}</span></div>
+    <div class="confirm-line"><span class="cl-label">Quote ID</span><span class="cl-val" style="font-family:monospace;">${savedQuoteId}</span></div>
     <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name}</span></div>
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
     <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
-    <div class="confirm-line"><span class="cl-label">Deliver to</span><span class="cl-val" style="max-width:260px;text-align:right;">${esc(addrText)}</span></div>
-    <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${orderLines.length} product${orderLines.length!==1?'s':''}</span></div>
-    <div class="confirm-line"><span class="cl-label">Total books</span><span class="cl-val">${orderLines.reduce((s,l)=>s+l.qty,0)}</span></div>
-    <div class="confirm-line"><span class="cl-label">Subtotal (excl.GST)</span><span class="cl-val">${PP.fmtCurrency(subtotal)}</span></div>
+    <div class="confirm-line"><span class="cl-label">Valid Until</span><span class="cl-val">${validUntil}</span></div>
+    <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${quoteLines.length} product${quoteLines.length!==1?'s':''}</span></div>
+    <div class="confirm-line"><span class="cl-label">Total units</span><span class="cl-val">${quoteLines.reduce((s,l)=>s+l.qty,0)}</span></div>
+    <div class="confirm-line"><span class="cl-label">Subtotal (excl. GST)</span><span class="cl-val">${PP.fmtCurrency(subtotal)}</span></div>
     <div class="confirm-line"><span class="cl-label">GST (10%)</span><span class="cl-val">${PP.fmtCurrency(subtotal * 0.1)}</span></div>
-    <div class="confirm-line"><span class="cl-label">Freight</span><span class="cl-val">${freight === 0 ? 'FREE' : PP.fmtCurrency(freight)}</span></div>
     <div class="confirm-line" style="border-top:2px solid var(--grey-200); margin-top:4px; padding-top:10px;">
-      <span class="cl-label" style="font-weight:700; color:var(--navy); font-size:.95rem;">TOTAL (incl. GST)</span>
-      <span class="cl-val" style="font-size:1.1rem; color:var(--teal);">${PP.fmtCurrency(grandTotal)}</span>
-    </div>
-  `;
+      <span class="cl-label" style="font-weight:700; color:var(--navy); font-size:.95rem;">QUOTE TOTAL (incl. GST)</span>
+      <span class="cl-val" style="font-size:1.1rem; color:var(--orange);">${PP.fmtCurrency(grandTotal)}</span>
+    </div>`;
   PP.openModal('confirmModal');
 }
 
-/* ---- Final submit: save lines + update header status ----- */
-async function finalSubmit() {
-  const btn = document.getElementById('finalSubmitBtn');
-  btn.disabled    = true;
-  btn.innerHTML   = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+/* ---- Final activate: save lines + set status Active ------ */
+async function finalActivate() {
+  const btn = document.getElementById('finalActivateBtn');
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activating...';
 
   const custAcct  = selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || selectedCustomer.id;
   const custName  = selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount;
-  const currency  = selectedCustomer.CurrencyCode     || selectedCustomer.currency  || 'AUD';
+  const currency  = selectedCustomer.CurrencyCode     || 'AUD';
   const custGroup = selectedCustomer.CustomerGroupId  || selectedCustomer.customerGroup || '';
 
   try {
-    // 1. Save each order line individually
-    for (let i = 0; i < orderLines.length; i++) {
-      const line = orderLines[i];
-      const lineTitle = (line.name || line.itemNo || `${savedSalesId}-L${i + 1}`);
-
-      // Only send columns that exist in SalesOrderLines SharePoint list.
-      // Unknown columns cause Graph API 400 Bad Request.
-      // SalesId and Email are added server-side from the URL param and JWT.
+    // 1. Save each quote line (skip lines already in SP that haven't been modified)
+    for (let i = 0; i < quoteLines.length; i++) {
+      const line = quoteLines[i];
+      if (line._fromSP) continue; // already exists in SharePoint unchanged
       const linePayload = {
-        Title:           lineTitle,   // default SP column — stores item name / order-line ref
-        lineNumber:      i + 1,
-        CustAccount:     custAcct,
-        Currency:        currency,
-        CustGroup:       custGroup,
-        SalesUnit:       line.unit  || 'ea',
-        SalesPrice:      line.price || 0,
-        SalesQty:        line.qty   || 1,
-        OrderLineStatus: 'Submitted',
-        ...(line.itemNo ? { ItemCode: line.itemNo } : {}),
+        Title:        line.name || `${savedQuoteId}-L${i + 1}`,
+        lineNumber:   i + 1,
+        CustAccount:  custAcct,
+        Currency:     currency,
+        CustGroup:    custGroup,
+        SalesUnit:    line.unit     || 'ea',
+        SalesPrice:   line.price    || 0,
+        SalesQty:     line.qty      || 1,
+        Discount:     line.discount || 0,
+        DeliveryType: line.deliveryType || 'Stock',
+        ItemCategory: line.category || '',
+        ...(line.itemNo ? { ItemCode: line.itemNo, ItemName: line.name } : {}),
       };
-
-      const lineRes = await fetch(`/api/salesorders/${savedSalesId}/lines`, {
+      const lineRes = await fetch(`/api/quotes/${savedQuoteId}/lines`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(linePayload)
       });
       if (!lineRes.ok) {
         const err = await lineRes.json();
-        console.error('[Line 400] SharePoint error detail:', JSON.stringify(err.detail));
-        const spMsg = err.detail?.error?.message || err.detail?.message || err.error || '';
-        throw new Error(`Line ${i + 1} failed: ${spMsg}`);
+        throw new Error(`Line ${i + 1} failed: ${err.error || 'unknown error'}`);
       }
     }
 
-    // 2. Update header status from "In Progress" → "Submit" (use SP item ID directly)
+    // 2. Update header status to Active
     if (savedSpItemId) {
-      const updateRes = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
+      const updateRes = await fetch(`/api/quotes/item/${savedSpItemId}`, {
         method: 'PUT',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ Status: 'Submit' })
+        body: JSON.stringify({ Status: 'Active' })
       });
-      if (!updateRes.ok) {
-        const err = await updateRes.json();
-        throw new Error(err.error || 'Failed to update order status');
-      }
+      if (!updateRes.ok) { const err = await updateRes.json(); throw new Error(err.error || 'Failed to activate quote'); }
     }
 
     PP.closeModal('confirmModal');
 
-    const subtotal   = orderLines.reduce((s,l) => s + PP.calcNet(l.price, l.qty, l.discount), 0);
-    const grandTotal = subtotal * 1.1 + (subtotal >= 150 ? 0 : 12.50);
+    const subtotal   = quoteLines.reduce((s,l) => s + PP.calcNet(l.price, l.qty, l.discount), 0);
+    const grandTotal = subtotal * 1.1;
+    const validUntil = document.getElementById('validUntil').value || '—';
 
-    document.getElementById('successOrderId').textContent = `Order ${savedSalesId} Submitted`;
+    document.getElementById('successOrderId').textContent = `Quote ${savedQuoteId} Activated`;
     document.getElementById('successDetails').innerHTML = `
-      <div>Order ID: <strong>${savedSalesId}</strong></div>
+      <div>Quote ID: <strong>${savedQuoteId}</strong></div>
       <div>Rep: <strong>${salesRep.name}</strong></div>
       <div>Customer: <strong>${custName}</strong></div>
-      <div>${orderLines.length} line(s) · ${orderLines.reduce((s,l)=>s+l.qty,0)} books</div>
-      <div>Total: <strong>${PP.fmtCurrency(grandTotal)}</strong></div>
-      <div>Submitted: ${PP.fmtDate(new Date().toISOString().slice(0,10))}</div>
-      ${selectedCustomer.PrimaryContactEmail ? `<div>Confirmation to: ${selectedCustomer.PrimaryContactEmail}</div>` : ''}
-    `;
+      <div>${quoteLines.length} line(s) · ${quoteLines.reduce((s,l)=>s+l.qty,0)} units</div>
+      <div>Quote Total: <strong>${PP.fmtCurrency(grandTotal)}</strong></div>
+      <div>Valid Until: <strong>${validUntil}</strong></div>
+      <div style="color:var(--orange); margin-top:4px;">Ready to export as PDF and send to customer</div>`;
     PP.openModal('successModal');
+
   } catch (err) {
-    console.error('[Order] Final submit failed:', err);
-    PP.showToast(err.message || 'Failed to submit order — please try again', 'error');
+    console.error('[Quote] Activate failed:', err);
+    PP.showToast(err.message || 'Failed to activate quote — please try again', 'error');
     btn.disabled  = false;
-    btn.innerHTML = 'Confirm &amp; Submit Order';
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirm &amp; Activate Quote';
+  }
+}
+
+/* ---- PDF Export ------------------------------------------ */
+function exportPDF() {
+  const custName  = selectedCustomer ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount) : '—';
+  const custAcct  = selectedCustomer ? (selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || '') : '—';
+  const payTerms  = document.getElementById('paymentTerms').value || '—';
+  const validUntil= document.getElementById('validUntil').value || '—';
+  const notes     = document.getElementById('quoteNotes').value || '';
+  const today     = new Date().toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric' });
+
+  // Populate hidden print view
+  document.getElementById('pdfQuoteId').textContent      = savedQuoteId || 'QUO-';
+  document.getElementById('pdfQuoteDate').textContent    = 'Date: ' + today;
+  document.getElementById('pdfValidUntil').textContent   = 'Valid Until: ' + (validUntil || '—');
+  document.getElementById('pdfValidUntilFooter').textContent = validUntil || '—';
+  document.getElementById('pdfGeneratedDate').textContent    = today;
+  document.getElementById('pdfCustName').textContent     = custName;
+  document.getElementById('pdfCustAcct').textContent     = 'Account: ' + custAcct;
+  document.getElementById('pdfPayTerms').textContent     = 'Terms: ' + payTerms;
+  document.getElementById('pdfRepName').textContent      = salesRep ? salesRep.name : '—';
+  document.getElementById('pdfRepEmail').textContent     = salesRep ? salesRep.email : '—';
+
+  let subtotal = 0;
+  const tbody = document.getElementById('pdfLinesBody');
+  tbody.innerHTML = '';
+  quoteLines.forEach(function(l, i) {
+    const net = (l.price || 0) * (l.qty || 0) * (1 - (l.discount || 0) / 100);
+    subtotal += net;
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'background:' + (i % 2 === 0 ? '#f9fafb' : 'white') + ';';
+    tr.innerHTML = '<td style="padding:7px 10px;">' + (i + 1) + '</td>'
+      + '<td style="padding:7px 10px;font-family:monospace;color:#f97316;">' + (l.itemNo || '—') + '</td>'
+      + '<td style="padding:7px 10px;">' + (l.name || '—') + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;">' + (l.qty || 0) + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;">$' + (l.price || 0).toFixed(2) + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;">' + (l.discount || 0) + '%</td>'
+      + '<td style="padding:7px 10px;text-align:right;font-weight:700;">$' + net.toFixed(2) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  const gst   = subtotal * 0.1;
+  const total = subtotal + gst;
+  document.getElementById('pdfSubtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('pdfGst').textContent      = '$' + gst.toFixed(2);
+  document.getElementById('pdfTotal').textContent    = '$' + total.toFixed(2);
+
+  const notesEl = document.getElementById('pdfNotes');
+  if (notes) { notesEl.style.display = ''; notesEl.textContent = 'Notes: ' + notes; }
+  else        { notesEl.style.display = 'none'; }
+
+  const el = document.getElementById('quotePrintView');
+  el.style.display = 'block';
+
+  if (window.html2pdf) {
+    const filename = (savedQuoteId || 'Quote') + '-' + custName.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+    html2pdf().set({
+      margin:      [10, 10, 10, 10],
+      filename:    filename,
+      image:       { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(el).save().then(function() {
+      el.style.display = 'none';
+    });
+  } else {
+    // Fallback: browser print
+    window.print();
+    el.style.display = 'none';
   }
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="bot-widget.js"></script>
 </body>
 </html>

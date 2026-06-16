@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Quotes &mdash; Pascal Press Sales Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
+  <style>
+    /* ── Stat strip ─────────────────────────────────────── */
+    .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .stat-card  { background:white; border:1px solid var(--grey-200); border-radius:var(--radius-lg); padding:16px 18px; display:flex; align-items:center; gap:14px; }
+    .stat-icon  { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+    .stat-icon.orange { background:var(--orange-light,#fff3e0); }
+    .stat-icon.teal   { background:var(--teal-light,#e0f7f7); }
+    .stat-icon.green  { background:rgba(34,197,94,.10); }
+    .stat-icon.navy   { background:rgba(30,58,95,.08); }
+    .stat-val { font-size:1.5rem; font-weight:700; color:var(--navy); line-height:1; }
+    .stat-lbl { font-size:.75rem; color:var(--grey-500); margin-top:3px; }
+
+    /* ── Draft quotes ribbon ─────────────────────────────── */
+    .draft-ribbon { background:white; border:1px solid var(--grey-200); border-left:3px solid var(--orange,#f97316); border-radius:var(--radius-lg); margin-bottom:20px; overflow:hidden; }
+    .draft-ribbon-head { padding:12px 18px; background:var(--grey-50); border-bottom:1px solid var(--grey-200); display:flex; align-items:center; gap:10px; }
+    .draft-ribbon-head h3 { flex:1; font-size:.9rem; margin:0; display:flex; align-items:center; gap:8px; }
+    .draft-row { display:flex; align-items:center; gap:12px; padding:11px 18px; border-bottom:1px solid var(--grey-100); font-size:.84rem; }
+    .draft-row:last-child { border-bottom:none; }
+    .draft-row .dq-id   { font-family:monospace; font-weight:700; color:var(--orange,#f97316); font-size:.82rem; white-space:nowrap; }
+    .draft-row .dq-cust { flex:1; color:var(--grey-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .draft-row .dq-date { font-size:.77rem; color:var(--grey-400); white-space:nowrap; }
+    .draft-row .dq-acts { display:flex; gap:6px; flex-shrink:0; }
+
+    /* ── Filter tabs ─────────────────────────────────────── */
+    .filter-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+    .filter-tab  { border:1px solid var(--grey-200); background:white; color:var(--grey-600); font-size:.78rem; font-weight:600; padding:5px 14px; border-radius:20px; cursor:pointer; transition:all .15s; }
+    .filter-tab:hover  { border-color:var(--orange,#f97316); color:var(--orange,#f97316); }
+    .filter-tab.active { background:var(--orange,#f97316); border-color:var(--orange,#f97316); color:white; }
+
+    /* ── Table ───────────────────────────────────────────── */
+    .data-panel { background:white; border:1px solid var(--grey-200); border-radius:var(--radius-lg); overflow:hidden; }
+    .panel-head { padding:14px 18px; background:var(--grey-50); border-bottom:1px solid var(--grey-200); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .panel-head h3 { flex:1; font-size:.95rem; margin:0; }
+    .quotes-table { width:100%; border-collapse:collapse; font-size:.83rem; }
+    .quotes-table th { background:var(--grey-50); color:var(--grey-600); font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.4px; padding:10px 14px; text-align:left; border-bottom:1px solid var(--grey-200); white-space:nowrap; }
+    .quotes-table td { padding:9px 14px; border-bottom:1px solid var(--grey-100); vertical-align:middle; }
+    .quotes-table tr:last-child td { border-bottom:none; }
+    .quotes-table tr:hover td { background:var(--grey-50); }
+    .quote-id-chip { font-family:monospace; font-size:.78rem; font-weight:700; color:var(--orange,#f97316); white-space:nowrap; }
+    .amount { font-family:monospace; font-weight:700; color:var(--navy); }
+
+    /* ── Status badges ───────────────────────────────────── */
+    .sq-draft     { background:#fff3e0; color:#e65100; }
+    .sq-active    { background:#e0f7f7; color:var(--teal-dark,#00a4a6); }
+    .sq-accepted  { background:rgba(34,197,94,.12); color:#16a34a; }
+    .sq-rejected  { background:rgba(239,68,68,.10); color:#dc2626; }
+    .sq-converted { background:rgba(30,58,95,.08); color:var(--navy); }
+    .sq-revised   { background:var(--grey-100); color:var(--grey-500); }
+    .sq-cancelled { background:rgba(239,68,68,.10); color:#dc2626; }
+
+    /* ── State / error ───────────────────────────────────── */
+    .state-box { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 20px; color:var(--grey-400); text-align:center; }
+    .state-box .icon { font-size:2.2rem; margin-bottom:10px; }
+    .state-box p { font-size:.88rem; max-width:260px; line-height:1.6; }
+    .error-banner { background:var(--danger-bg,#fef2f2); border:1px solid var(--danger,#ef4444); border-radius:var(--radius); padding:12px 16px; margin-bottom:16px; display:none; align-items:flex-start; gap:10px; font-size:.85rem; }
+    .error-banner.show { display:flex; }
+    .error-banner .msg { color:var(--danger,#ef4444); flex:1; }
+    .table-wrap { overflow-x:auto; }
+
+    /* ── Quote Detail Modal ───────────────────────────────── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px; }
+    .modal-card { background:white; border-radius:var(--radius-lg); width:100%; max-width:940px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.35); }
+    .modal-header { padding:16px 20px; border-bottom:1px solid var(--grey-200); display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .modal-title { flex:1; font-size:1rem; font-weight:700; color:var(--navy); margin:0; }
+    .modal-close-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--grey-200); background:white; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--grey-500); font-size:.85rem; flex-shrink:0; transition:all .15s; }
+    .modal-close-btn:hover { background:var(--grey-100); color:var(--navy); border-color:var(--grey-300); }
+    .modal-body  { padding:20px; overflow-y:auto; flex:1; }
+    .modal-footer { padding:12px 20px; border-top:1px solid var(--grey-200); display:flex; justify-content:flex-end; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+    .lines-table { width:100%; border-collapse:collapse; font-size:.83rem; }
+    .lines-table th { background:var(--grey-50); color:var(--grey-600); font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.4px; padding:10px 14px; text-align:left; border-bottom:1px solid var(--grey-200); white-space:nowrap; }
+    .lines-table td { padding:9px 14px; border-bottom:1px solid var(--grey-100); vertical-align:middle; }
+    .lines-table tr:last-child td { border-bottom:none; }
+
+    @media (max-width:900px) { .stat-strip { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:600px) { .draft-row { flex-wrap:wrap; } .draft-row .dq-acts { width:100%; } .draft-row .dq-acts .btn { flex:1; justify-content:center; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <div id="pp-sidebar"></div>
+
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">My Quotes <span class="breadcrumb">/ SharePoint Lists</span></div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Refresh" onclick="loadAll()"><i class="fas fa-sync-alt"></i></button>
+        <a href="quote.html"     class="btn btn-primary btn-sm" style="background:var(--orange,#f97316);border-color:var(--orange,#f97316);"><i class="fas fa-plus"></i> New Quote</a>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">&larr; Dashboard</a>
+        <div class="topbar-user-chip">
+          <div class="tu-avatar" id="topbarAvatar">SR</div>
+          <span class="tu-name" id="topbarUserName">Loading&hellip;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <div class="error-banner" id="errorBanner">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger,#ef4444);"></i>
+        <span class="msg" id="errorMsg"></span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('errorBanner').classList.remove('show')"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-strip">
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-file-invoice-dollar" style="color:var(--orange,#f97316);"></i></div>
+          <div><div class="stat-val" id="statTotal">&mdash;</div><div class="stat-lbl">Total Quotes</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon teal"><i class="fas fa-paper-plane" style="color:var(--teal-dark,#00a4a6);"></i></div>
+          <div><div class="stat-val" id="statActive">&mdash;</div><div class="stat-lbl">Active (Sent)</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>
+          <div><div class="stat-val" id="statAccepted">&mdash;</div><div class="stat-lbl">Accepted</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon navy"><i class="fas fa-exchange-alt" style="color:var(--navy);"></i></div>
+          <div><div class="stat-val" id="statConverted">&mdash;</div><div class="stat-lbl">Converted</div></div>
+        </div>
+      </div>
+
+      <!-- Draft Quotes Ribbon -->
+      <div id="draftRibbon" class="draft-ribbon" style="display:none;">
+        <div class="draft-ribbon-head">
+          <h3><i class="fas fa-pencil-alt" style="color:var(--orange,#f97316);"></i> Draft Quotes</h3>
+          <span class="badge" style="background:var(--orange-light,#fff3e0);color:var(--orange,#f97316);font-weight:700;" id="draftBadge">0</span>
+        </div>
+        <div id="draftList"></div>
+      </div>
+
+      <!-- Quotes Table -->
+      <div class="filter-tabs" id="filterTabs">
+        <button class="filter-tab active" data-status="All"       onclick="setFilter('All',this)">All</button>
+        <button class="filter-tab"        data-status="Draft"     onclick="setFilter('Draft',this)">Draft</button>
+        <button class="filter-tab"        data-status="Active"    onclick="setFilter('Active',this)">Active</button>
+        <button class="filter-tab"        data-status="Accepted"  onclick="setFilter('Accepted',this)">Accepted</button>
+        <button class="filter-tab"        data-status="Rejected"  onclick="setFilter('Rejected',this)">Rejected</button>
+        <button class="filter-tab"        data-status="Converted" onclick="setFilter('Converted',this)">Converted</button>
+      </div>
+
+      <div class="data-panel">
+        <div class="panel-head">
+          <h3>Quotes <span id="quoteBadge" style="font-size:.78rem;color:var(--grey-400);font-weight:400;"></span></h3>
+          <div class="search-bar" style="width:260px;">
+            <span class="search-icon"><i class="fas fa-search"></i></span>
+            <input type="text" id="quoteSearch" placeholder="Search by Quote ID or customer&hellip;" autocomplete="off" oninput="renderTable()" />
+          </div>
+        </div>
+        <div id="quotesWrap">
+          <div class="state-box">
+            <div class="icon"><i class="fas fa-file-invoice-dollar" style="color:var(--orange,#f97316);"></i></div>
+            <p>Loading quotes&hellip;</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Quote Detail Modal -->
+<div id="quoteModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <i class="fas fa-file-invoice-dollar" style="color:var(--orange,#f97316);font-size:1.1rem;"></i>
+      <h2 class="modal-title" id="modalTitle">Quote Detail</h2>
+      <button class="modal-close-btn" id="modalCloseBtn" title="Close (Esc)"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn btn-ghost btn-sm" id="modalCloseFooterBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script src="layout.js"></script>
+<script>
+var _quotes        = [];
+var _filtered      = [];
+var _curFilter     = 'All';
+var _currentQuote  = null; // quote currently shown in detail modal
+
+function authHeaders(extra) {
+  var token = localStorage.getItem('pp_token');
+  var h = token ? { Authorization: 'Bearer ' + token } : {};
+  return Object.assign(h, extra || {});
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(val) {
+  var n = parseFloat(val) || 0;
+  return 'A$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e) { return iso.slice(0,10) || '—'; }
+}
+
+function statusClass(s) {
+  var map = { Draft:'sq-draft', Active:'sq-active', Accepted:'sq-accepted', Rejected:'sq-rejected', Converted:'sq-converted', Revised:'sq-revised', Cancelled:'sq-cancelled' };
+  return map[s] || 'sq-draft';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Wire modal close buttons
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('modalCloseFooterBtn').addEventListener('click', closeModal);
+  document.getElementById('quoteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Topbar user info
+  var token = localStorage.getItem('pp_token');
+  fetch('/api/bootstrap', { headers: { Authorization: token ? 'Bearer '+token : '' } })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rep = d.salesRep || {};
+      var el;
+      el = document.getElementById('topbarUserName'); if(el) el.textContent = rep.name || 'Sales Rep';
+      el = document.getElementById('topbarAvatar');   if(el) el.textContent = (rep.name||'SR').split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    }).catch(function(){});
+  loadAll();
+});
+
+function loadAll() {
+  document.getElementById('quotesWrap').innerHTML = '<div class="state-box"><p>Loading quotes&hellip;</p></div>';
+  document.getElementById('quoteBadge').textContent = '';
+  fetch('/api/quotes', { headers: authHeaders() })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(data){
+      _quotes = data.sort(function(a,b){ return (Number(b.spItemId)||0) - (Number(a.spItemId)||0); });
+      updateStats();
+      renderDraftRibbon();
+      renderTable();
+    })
+    .catch(function(err){
+      showError('Failed to load quotes: ' + err.message);
+      document.getElementById('quotesWrap').innerHTML =
+        '<div class="state-box"><div class="icon"><i class="fas fa-exclamation-triangle" style="color:var(--danger,#ef4444)"></i></div><p>Failed to load quotes</p><p style="font-size:.76rem;color:var(--grey-300)">'+esc(err.message)+'</p></div>';
+    });
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent     = _quotes.length;
+  document.getElementById('statActive').textContent    = _quotes.filter(function(q){ return q.status==='Active'; }).length;
+  document.getElementById('statAccepted').textContent  = _quotes.filter(function(q){ return q.status==='Accepted'; }).length;
+  document.getElementById('statConverted').textContent = _quotes.filter(function(q){ return q.status==='Converted'; }).length;
+}
+
+function renderDraftRibbon() {
+  var drafts = _quotes.filter(function(q){ return q.status==='Draft'; });
+  var ribbon = document.getElementById('draftRibbon');
+  if (!drafts.length) { ribbon.style.display='none'; return; }
+  ribbon.style.display='';
+  document.getElementById('draftBadge').textContent = drafts.length;
+  var list = document.getElementById('draftList');
+  list.innerHTML = '';
+  drafts.forEach(function(q) {
+    var row = document.createElement('div');
+    row.className = 'draft-row';
+    var net = calcNet(q);
+    row.innerHTML =
+      '<span class="dq-id">'+esc(q.quoteId)+'</span>'+
+      '<span class="dq-cust">'+esc(q.customerName||q.custAccount||'—')+'</span>'+
+      '<span class="dq-date">Valid: '+fmtDate(q.validUntil)+'</span>'+
+      '<span class="dq-date" style="font-family:monospace;color:var(--navy);font-weight:700;">'+fmt(net)+'</span>'+
+      '<div class="dq-acts">'+
+        '<a href="quote.html?resume='+encodeURIComponent(q.quoteId)+'" class="btn btn-primary btn-sm" style="background:var(--orange,#f97316);border-color:var(--orange,#f97316);">'+
+          '<i class="fas fa-pencil-alt"></i> Continue</a>'+
+      '</div>';
+    list.appendChild(row);
+  });
+}
+
+function setFilter(status, btn) {
+  _curFilter = status;
+  document.querySelectorAll('.filter-tab').forEach(function(t){ t.classList.remove('active'); });
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  var q = (document.getElementById('quoteSearch').value || '').toLowerCase().trim();
+
+  var rows = _quotes.filter(function(quote) {
+    var statusOk = (_curFilter === 'All') || (quote.status === _curFilter);
+    if (!statusOk) return false;
+    if (!q) return true;
+    return (quote.quoteId + quote.customerName + quote.custAccount).toLowerCase().indexOf(q) !== -1;
+  });
+
+  _filtered = rows;
+  document.getElementById('quoteBadge').textContent = rows.length + ' record' + (rows.length !== 1 ? 's' : '');
+
+  var wrap = document.getElementById('quotesWrap');
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="state-box"><div class="icon"><i class="fas fa-file-invoice-dollar" style="color:var(--orange,#f97316);"></i></div>'+
+      '<p>'+(q ? 'No quotes match &ldquo;'+esc(q)+'&rdquo;' : 'No '+(_curFilter==='All'?'':_curFilter+' ')+'quotes found.')+'</p></div>';
+    return;
+  }
+
+  var trs = rows.map(function(q, i) {
+    var net = calcNet(q);
+    var sc  = statusClass(q.status);
+    var validUntil = fmtDate(q.validUntil);
+    var isExpired  = q.validUntil && new Date(q.validUntil) < new Date() && q.status === 'Active';
+    return '<tr>'+
+      '<td><span class="quote-id-chip">'+esc(q.quoteId)+'</span></td>'+
+      '<td style="font-weight:600;color:var(--navy)">'+esc(q.customerName||q.custAccount||'—')+'</td>'+
+      '<td style="text-align:center;color:var(--grey-500);font-size:.78rem;">'+esc(String(q.quoteRevision||1))+'</td>'+
+      '<td><span class="badge '+sc+'" style="font-size:.72rem">'+esc(q.status||'Draft')+'</span></td>'+
+      '<td style="font-size:.8rem;color:'+(isExpired?'var(--danger,#ef4444)':'var(--grey-600)')+'">'+
+        (isExpired?'<i class="fas fa-exclamation-circle" style="margin-right:4px;"></i>':'')+validUntil+'</td>'+
+      '<td class="amount">'+fmt(net)+'</td>'+
+      '<td style="text-align:center;color:var(--grey-500);font-size:.78rem;">'+esc(String((q.lines||[]).length))+'</td>'+
+      '<td>'+rowActions(q, i)+'</td>'+
+      '</tr>';
+  }).join('');
+
+  wrap.innerHTML = '<div class="table-wrap"><table class="quotes-table">'+
+    '<thead><tr>'+
+    '<th>Quote ID</th><th>Customer</th><th style="text-align:center">Rev</th>'+
+    '<th>Status</th><th>Valid Until</th><th>Net Total</th><th style="text-align:center">Lines</th><th></th>'+
+    '</tr></thead>'+
+    '<tbody>'+trs+'</tbody>'+
+    '</table></div>';
+
+  // Wire up View buttons
+  wrap.querySelectorAll('[data-view-idx]').forEach(function(btn) {
+    btn.addEventListener('click', function() { openDetail(parseInt(btn.getAttribute('data-view-idx'),10)); });
+  });
+  // Wire up Cancel buttons
+  wrap.querySelectorAll('[data-cancel-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() { cancelQuote(btn.getAttribute('data-cancel-id'), btn.getAttribute('data-cancel-spid')); });
+  });
+  // Wire up Revise buttons
+  wrap.querySelectorAll('[data-revise-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() { reviseQuote(btn.getAttribute('data-revise-id'), btn, btn.getAttribute('data-revise-spid')); });
+  });
+  // Wire up Accept buttons
+  wrap.querySelectorAll('[data-accept-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() { acceptQuote(btn.getAttribute('data-accept-id'), btn.getAttribute('data-accept-spid')); });
+  });
+  // Wire up Reject buttons
+  wrap.querySelectorAll('[data-reject-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() { rejectQuote(btn.getAttribute('data-reject-id'), btn.getAttribute('data-reject-spid')); });
+  });
+  // Wire up Convert buttons
+  wrap.querySelectorAll('[data-convert-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() { convertQuote(btn.getAttribute('data-convert-id'), btn.getAttribute('data-convert-spid'), btn); });
+  });
+}
+
+function rowActions(q, i) {
+  var btns = '<button class="btn btn-ghost btn-sm" data-view-idx="'+i+'"><i class="fas fa-eye"></i> View</button>';
+  if (q.status === 'Draft') {
+    btns += ' <a href="quote.html?resume='+encodeURIComponent(q.quoteId)+'" class="btn btn-primary btn-sm" style="background:var(--orange,#f97316);border-color:var(--orange,#f97316);"><i class="fas fa-pencil-alt"></i> Edit</a>';
+    btns += ' <button class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444);" data-cancel-id="'+esc(q.quoteId)+'" data-cancel-spid="'+esc(q.spItemId)+'"><i class="fas fa-times"></i> Cancel</button>';
+  }
+  if (q.status === 'Active') {
+    btns += ' <button class="btn btn-ghost btn-sm" style="color:var(--teal-dark,#007b7c);border-color:var(--teal,#00a4a6);" data-revise-id="'+esc(q.quoteId)+'" data-revise-spid="'+esc(q.spItemId)+'"><i class="fas fa-redo"></i> Revise</button>';
+    btns += ' <button class="btn btn-ghost btn-sm" style="color:#16a34a;border-color:#16a34a;" data-accept-id="'+esc(q.quoteId)+'" data-accept-spid="'+esc(q.spItemId)+'"><i class="fas fa-check"></i> Accept</button>';
+    btns += ' <button class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444);" data-reject-id="'+esc(q.quoteId)+'" data-reject-spid="'+esc(q.spItemId)+'"><i class="fas fa-ban"></i> Reject</button>';
+  }
+  if (q.status === 'Accepted') {
+    btns += ' <button class="btn btn-primary btn-sm" style="background:var(--teal,#00a4a6);border-color:var(--teal,#00a4a6);" data-convert-id="'+esc(q.quoteId)+'" data-convert-spid="'+esc(q.spItemId)+'"><i class="fas fa-exchange-alt"></i> Convert to Order</button>';
+  }
+  if (q.status === 'Converted' && q.convertedOrderId) {
+    btns += ' <a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" class="btn btn-ghost btn-sm" style="color:var(--navy);"><i class="fas fa-file-alt"></i> View Order</a>';
+  }
+  return btns;
+}
+
+function calcNet(q) {
+  return (q.lines||[]).reduce(function(s,l){
+    return s + (parseFloat(l.qty)||0) * (parseFloat(l.price)||0) * (1-(parseFloat(l.discount)||0)/100);
+  }, 0);
+}
+
+function openDetail(idx) {
+  var q = _filtered[idx];
+  if (!q) return;
+
+  var net      = calcNet(q);
+  var gst      = net * 0.10;
+  var sc       = statusClass(q.status);
+  var isExpired = q.validUntil && new Date(q.validUntil) < new Date() && q.status === 'Active';
+
+  var b = '';
+
+  // KPI strip
+  b += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">';
+  b += mkKpi('<i class="fas fa-hashtag"></i>','Quote ID',   '<span style="font-family:monospace;font-size:.95rem;color:var(--orange,#f97316);font-weight:700">'+esc(q.quoteId)+'</span>');
+  b += mkKpi('<i class="fas fa-tag"></i>',    'Status',     '<span class="badge '+sc+'">'+esc(q.status||'Draft')+'</span>');
+  b += mkKpi('<i class="fas fa-calendar-alt"></i>','Valid Until','<span style="color:'+(isExpired?'var(--danger,#ef4444)':'var(--navy)')+';font-weight:700">'+fmtDate(q.validUntil)+'</span>');
+  b += mkKpi('<i class="fas fa-redo"></i>',   'Revision',   '<span style="font-weight:700;color:var(--navy)">Rev '+esc(String(q.quoteRevision||1))+'</span>');
+  b += '</div>';
+
+  // Quote details
+  b += '<div style="background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;">';
+  b += '<div style="font-size:.75rem;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;"><i class="fas fa-info-circle" style="color:var(--orange,#f97316);margin-right:6px;"></i>Quote Details</div>';
+  b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">';
+  b += mkRow('Customer',       esc(q.customerName||q.custAccount||'—'));
+  b += mkRow('Account #',      '<span style="font-family:monospace;color:var(--orange,#f97316)">'+esc(q.custAccount||'—')+'</span>');
+  b += mkRow('Currency',       esc(q.currency||'AUD'));
+  b += mkRow('Customer Group', esc(q.customerGroup||'—'));
+  b += mkRow('Payment Terms',  esc(q.paymentTerms||'—'));
+  b += mkRow('Delivery Terms', esc(q.deliveryTerms||'—'));
+  b += mkRow('Sales Rep',      esc(q.userEmail||'—'));
+  if (q.notes) b += mkRow('Notes', esc(q.notes));
+  if (q.convertedOrderId) b += mkRow('Order ID',
+    '<a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" style="color:var(--teal-dark,#00a4a6);font-weight:700;font-family:monospace;">'+esc(q.convertedOrderId)+'</a>');
+  b += '</div></div>';
+
+  // Financial totals
+  b += '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:18px;align-items:center;">';
+  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
+     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">Net Amount (excl. GST)</div>'
+     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">'+fmt(net)+'</div></div>';
+  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
+     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">GST (10%)</div>'
+     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">'+fmt(gst)+'</div></div>';
+  b += '<div style="background:linear-gradient(135deg,var(--orange,#f97316),#e55300);border-radius:var(--radius);padding:14px 20px;text-align:center;min-width:130px;">'
+     + '<div style="font-size:.72rem;color:rgba(255,255,255,.8);margin-bottom:4px;">TOTAL (incl. GST)</div>'
+     + '<div style="font-weight:800;color:white;font-family:monospace;font-size:1.15rem">'+fmt(net+gst)+'</div></div>';
+  b += '</div>';
+
+  // Lines
+  b += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
+     + '<i class="fas fa-list-ul" style="color:var(--orange,#f97316)"></i>'
+     + '<span style="font-size:.85rem;font-weight:700;color:var(--navy)">Quote Lines</span>'
+     + '<span style="background:var(--grey-200);color:var(--grey-600);font-size:.7rem;padding:1px 8px;border-radius:20px;">'+(q.lines||[]).length+'</span></div>';
+
+  var lines = q.lines || [];
+  if (!lines.length) {
+    b += '<div style="text-align:center;padding:28px 20px;color:var(--grey-400);background:var(--grey-50);border:1px dashed var(--grey-300);border-radius:var(--radius);">'
+       + '<i class="fas fa-box-open" style="font-size:1.6rem;margin-bottom:8px;display:block;color:var(--grey-300)"></i>'
+       + '<div style="font-size:.85rem;">No lines found.</div></div>';
+  } else {
+    var sortedLines = lines.slice().sort(function(a,b){ return (parseInt(a.lineNo)||0)-(parseInt(b.lineNo)||0); });
+    var lrs = sortedLines.map(function(l) {
+      var lineNet = (parseFloat(l.qty)||0) * (parseFloat(l.price)||0) * (1-(parseFloat(l.discount)||0)/100);
+      return '<tr>'+
+        '<td style="text-align:center;font-weight:600;color:var(--grey-400);font-size:.78rem;">'+esc(String(l.lineNo||'—'))+'</td>'+
+        '<td><span style="font-family:monospace;font-size:.78rem;background:var(--orange-light,#fff3e0);color:var(--orange,#f97316);padding:2px 7px;border-radius:4px;font-weight:700">'+esc(l.itemNo||'—')+'</span></td>'+
+        '<td style="font-weight:500;color:var(--navy)">'+esc(l.name||'—')+'</td>'+
+        '<td style="font-size:.76rem;color:var(--grey-500)">'+esc(l.category||'—')+'</td>'+
+        '<td style="text-align:right;font-weight:700;color:var(--navy)">'+esc(String(l.qty||0))+'</td>'+
+        '<td style="font-size:.76rem;color:var(--grey-500);font-family:monospace">'+esc(l.unit||'ea')+'</td>'+
+        '<td class="amount" style="text-align:right">'+fmt(l.price)+'</td>'+
+        '<td style="text-align:right;font-size:.78rem;color:var(--grey-500)">'+esc(String(l.discount||0))+'%</td>'+
+        '<td class="amount" style="text-align:right;color:var(--orange,#f97316)">'+fmt(lineNet)+'</td>'+
+        '</tr>';
+    }).join('');
+    b += '<div style="border:1px solid var(--grey-200);border-radius:var(--radius);overflow:hidden;">'
+       + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
+       + '<th style="width:45px">Line</th><th>Item Code</th><th>Description</th><th>Category</th>'
+       + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Price</th>'
+       + '<th style="text-align:right">Disc</th><th style="text-align:right">Net</th>'
+       + '</tr></thead><tbody>'+lrs+'</tbody></table></div></div>';
+  }
+
+  document.getElementById('modalBody').innerHTML = b;
+  document.getElementById('modalTitle').textContent = 'Quote ' + q.quoteId;
+  _currentQuote = q;
+
+  // Build footer — wire buttons via event listeners (not inline onclick) for reliability
+  var footerHTML = '';
+
+  // PDF export — available for Active / Accepted / Converted
+  if (['Active','Accepted','Converted'].indexOf(q.status) !== -1) {
+    footerHTML += '<button id="mfPdfBtn" class="btn btn-ghost btn-sm" title="Download PDF"><i class="fas fa-file-pdf" style="color:#dc2626;"></i> Export PDF</button>';
+  }
+  // Status-specific actions
+  if (q.status === 'Draft') {
+    footerHTML += '<a href="quote.html?resume='+encodeURIComponent(q.quoteId)+'" class="btn btn-primary btn-sm" style="background:var(--orange,#f97316);border-color:var(--orange,#f97316);"><i class="fas fa-pencil-alt"></i> Edit Quote</a>';
+    footerHTML += '<button id="mfCancelBtn" class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444);"><i class="fas fa-times"></i> Cancel Quote</button>';
+  }
+  if (q.status === 'Active') {
+    footerHTML += '<button id="mfReviseBtn" class="btn btn-ghost btn-sm" style="color:var(--teal-dark,#007b7c);border-color:var(--teal,#00a4a6);"><i class="fas fa-redo"></i> Revise</button>';
+    footerHTML += '<button id="mfAcceptBtn" class="btn btn-ghost btn-sm" style="color:#16a34a;border-color:#16a34a;"><i class="fas fa-check"></i> Mark Accepted</button>';
+    footerHTML += '<button id="mfRejectBtn" class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444);"><i class="fas fa-ban"></i> Mark Rejected</button>';
+  }
+  if (q.status === 'Accepted') {
+    footerHTML += '<button id="mfConvertBtn" class="btn btn-primary btn-sm" style="background:var(--teal,#00a4a6);border-color:var(--teal,#00a4a6);"><i class="fas fa-exchange-alt"></i> Convert to Order</button>';
+  }
+  if (q.status === 'Converted' && q.convertedOrderId) {
+    footerHTML += '<a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" class="btn btn-primary btn-sm" style="background:var(--navy);border-color:var(--navy);"><i class="fas fa-file-alt"></i> View Order ('+esc(q.convertedOrderId)+')</a>';
+  }
+
+  var footer = document.getElementById('modalFooter');
+  footer.innerHTML = footerHTML;
+
+  // Wire footer buttons
+  var el;
+  el = document.getElementById('mfPdfBtn');    if (el) el.addEventListener('click', exportDetailPDF);
+  el = document.getElementById('mfCancelBtn'); if (el) el.addEventListener('click', function() { cancelQuote(q.quoteId, q.spItemId); });
+  el = document.getElementById('mfReviseBtn'); if (el) el.addEventListener('click', function() { reviseQuote(q.quoteId, null, q.spItemId); });
+  el = document.getElementById('mfAcceptBtn'); if (el) el.addEventListener('click', function() { acceptQuote(q.quoteId, q.spItemId); });
+  el = document.getElementById('mfRejectBtn'); if (el) el.addEventListener('click', function() { rejectQuote(q.quoteId, q.spItemId); });
+  el = document.getElementById('mfConvertBtn');if (el) el.addEventListener('click', function() { convertQuote(q.quoteId, q.spItemId, el); });
+
+  document.getElementById('quoteModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('quoteModal').style.display = 'none';
+  document.body.style.overflow = '';
+  _currentQuote = null;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+function mkKpi(icon, label, val) {
+  return '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:14px 16px;">'
+    +'<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:6px;display:flex;align-items:center;gap:5px;">'+icon+' '+label+'</div>'
+    +'<div>'+val+'</div></div>';
+}
+
+function mkRow(label, val) {
+  return '<div style="padding:9px 0;border-bottom:1px solid var(--grey-200);display:flex;flex-direction:column;gap:2px;padding-right:20px;">'
+    +'<span style="font-size:.72rem;color:var(--grey-500)">'+label+'</span>'
+    +'<span style="font-weight:600;color:var(--navy);font-size:.875rem">'+val+'</span></div>';
+}
+
+function reviseQuote(quoteId, btn, spItemId) {
+  if (!confirm('Create a new revision of ' + quoteId + '?\n\nThe current Active quote will be locked as "Revised" and a new Draft revision will open for editing.')) return;
+  closeModal();
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Revising...'; }
+  fetch('/api/quotes/' + encodeURIComponent(quoteId) + '/revise', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({})
+  })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function(data) {
+    showToast('Revision ' + data.revision + ' created (' + data.quoteId + '). Opening editor...', 'success');
+    setTimeout(function() { window.location.href = 'quote.html?resume=' + encodeURIComponent(data.quoteId); }, 1500);
+  })
+  .catch(function(err) {
+    showError('Revise failed: ' + err.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo"></i> Revise'; }
+  });
+}
+
+function acceptQuote(quoteId, spItemId) {
+  if (!confirm('Mark quote ' + quoteId + ' as Accepted?\n\nThe customer has confirmed acceptance. You can then convert it to a Sales Order.')) return;
+  closeModal();
+  fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ Status: 'Accepted' })
+  })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function() {
+    showToast('Quote ' + quoteId + ' accepted. Use "Convert to Order" to create the Sales Order.', 'success');
+    loadAll();
+  })
+  .catch(function(err){ showError('Accept failed: ' + err.message); });
+}
+
+function rejectQuote(quoteId, spItemId) {
+  if (!confirm('Mark quote ' + quoteId + ' as Rejected?\n\nThe customer has declined this quote.')) return;
+  closeModal();
+  fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ Status: 'Rejected' })
+  })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function() {
+    showToast('Quote ' + quoteId + ' marked as Rejected.', 'success');
+    loadAll();
+  })
+  .catch(function(err){ showError('Reject failed: ' + err.message); });
+}
+
+function convertQuote(quoteId, spItemId, btn) {
+  if (!confirm('Convert quote ' + quoteId + ' to a Sales Order?\n\nA new PAS-xxx order will be created. You will be redirected to review and submit it.')) return;
+  closeModal();
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting...'; }
+  fetch('/api/quotes/' + encodeURIComponent(quoteId) + '/convert', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({})
+  })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function(data) {
+    showToast('Order ' + data.salesId + ' created! Redirecting to orders...', 'success');
+    setTimeout(function() { window.location.href = 'all-orders.html'; }, 1800);
+  })
+  .catch(function(err) {
+    showError('Convert failed: ' + err.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Convert to Order'; }
+  });
+}
+
+function cancelQuote(quoteId, spItemId) {
+  if (!confirm('Cancel quote ' + quoteId + '?\n\nThis cannot be undone.')) return;
+  closeModal();
+  fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ Status: 'Cancelled' })
+  })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function() {
+    showToast('Quote ' + quoteId + ' cancelled.', 'success');
+    loadAll();
+  })
+  .catch(function(err){ showError('Cancel failed: ' + err.message); });
+}
+
+function exportDetailPDF() {
+  var q = _currentQuote;
+  if (!q) return;
+
+  // Build a minimal print-friendly page in a new window
+  var net   = calcNet(q);
+  var gst   = net * 0.10;
+  var total = net + gst;
+  var today = new Date().toLocaleDateString('en-AU', {day:'2-digit',month:'short',year:'numeric'});
+
+  var linesHtml = (q.lines||[]).slice().sort(function(a,b){return (a.lineNo||0)-(b.lineNo||0);}).map(function(l,i){
+    var ln = (parseFloat(l.qty)||0)*(parseFloat(l.price)||0)*(1-(parseFloat(l.discount)||0)/100);
+    return '<tr style="background:'+(i%2===0?'#f9fafb':'white')+'">'
+      +'<td style="padding:7px 10px">'+(l.lineNo||i+1)+'</td>'
+      +'<td style="padding:7px 10px;font-family:monospace;color:#f97316">'+(l.itemNo||'—')+'</td>'
+      +'<td style="padding:7px 10px">'+(l.name||'—')+'</td>'
+      +'<td style="padding:7px 10px;text-align:right">'+(l.qty||0)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right">$'+(parseFloat(l.price)||0).toFixed(2)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right">'+(l.discount||0)+'%</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:700">$'+ln.toFixed(2)+'</td>'
+      +'</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quote '+esc(q.quoteId)+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:740px;margin:0 auto}'
+    +'table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:white;padding:8px 10px;text-align:left}'
+    +'@media print{body{padding:16px}}</style></head><body>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316">'
+    +'<div><div style="font-size:20px;font-weight:800;color:#1e3a5f">Pascal Press</div><div style="font-size:11px;color:#666">Sales Quotation</div></div>'
+    +'<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#f97316">'+esc(q.quoteId)+'</div>'
+    +'<div style="font-size:11px;color:#666">Date: '+today+'</div>'
+    +(q.validUntil?'<div style="font-size:11px;color:#666">Valid Until: '+fmtDate(q.validUntil)+'</div>':'')+'</div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">'
+    +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
+    +'<div style="font-weight:700;color:#1e3a5f;font-size:13px">'+esc(q.customerName||q.custAccount||'—')+'</div>'
+    +'<div style="color:#666">Account: '+esc(q.custAccount||'—')+'</div>'
+    +(q.paymentTerms?'<div style="color:#666">Terms: '+esc(q.paymentTerms)+'</div>':'')+'</div>'
+    +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
+    +'<div style="color:#666">'+esc(q.userEmail||'—')+'</div></div></div>'
+    +'<table style="margin-bottom:20px"><thead><tr>'
+    +'<th>#</th><th>Item Code</th><th>Description</th><th style="text-align:right">Qty</th>'
+    +'<th style="text-align:right">Unit Price</th><th style="text-align:right">Disc%</th><th style="text-align:right">Net</th>'
+    +'</tr></thead><tbody>'+linesHtml+'</tbody></table>'
+    +'<div style="margin-left:auto;width:280px">'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span style="color:#666">Subtotal (excl. GST)</span><span style="font-weight:600">$'+net.toFixed(2)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span style="color:#666">GST (10%)</span><span style="font-weight:600">$'+gst.toFixed(2)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px"><span style="color:white;font-weight:700">TOTAL (incl. GST)</span><span style="color:white;font-weight:800;font-size:14px">$'+total.toFixed(2)+'</span></div></div>'
+    +(q.notes?'<div style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px">Notes: '+esc(q.notes)+'</div>':'')
+    +'<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center">'
+    +'Valid until '+fmtDate(q.validUntil)+' · Pascal Press Sales Portal · Generated '+today+'</div>'
+    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'</body></html>';
+
+  var w = window.open('', '_blank', 'width=820,height=700');
+  if (w) { w.document.write(html); w.document.close(); }
+  else    { showToast('Pop-up blocked — allow pop-ups for this site to export PDF', 'error'); }
+}
+
+function showToast(msg, type) {
+  try { PP.showToast(msg, type); } catch(e) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:'+(type==='success'?'#16a34a':'#ef4444')+';color:white;padding:12px 20px;border-radius:8px;font-size:.85rem;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.2)';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 3500);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorBanner').classList.add('show');
+}
+</script>
+<script src="bot-widget.js"></script>
+</body>
+</html>

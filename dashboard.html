@@ -154,6 +154,21 @@
         </div>
       </div>
 
+      <!-- ── Active Quotes (shown only when Active quotes exist) ── -->
+      <div id="activeQuotesCard" class="card" style="display:none; margin-bottom:20px; border-left: 3px solid #f97316;">
+        <div class="card-header">
+          <h3 style="display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-file-invoice-dollar" style="color:#f97316;"></i> Active Quotes
+            <span style="font-size:.75rem;font-weight:400;color:var(--grey-500);">Awaiting customer response</span>
+          </h3>
+          <span class="badge" style="background:rgba(249,115,22,.12);color:#f97316;font-weight:700;" id="activeQuotesBadge">0</span>
+          <a href="all-quotes.html" class="btn btn-ghost btn-sm" style="margin-left:auto;">View all →</a>
+        </div>
+        <div class="card-body" style="padding:4px 16px 8px;">
+          <div id="activeQuotesList"></div>
+        </div>
+      </div>
+
       <!-- Stat cards
            TODO: Data from GET /api/dashboard/summary -->
       <div class="stat-grid" id="statGrid">
@@ -377,6 +392,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             </a>
           </div>`;
         list.appendChild(row);
+      });
+    }
+
+    /* Active Quotes — quotes waiting for customer response */
+    const activeQuotes = (bootstrap.quotes || []).filter(q => q.status === 'Active');
+    if (activeQuotes.length > 0) {
+      document.getElementById('activeQuotesCard').style.display = '';
+      document.getElementById('activeQuotesBadge').textContent  = activeQuotes.length;
+      const qList = document.getElementById('activeQuotesList');
+      activeQuotes.slice(0, 5).forEach(q => {
+        const isExpired  = q.validUntil && new Date(q.validUntil) < new Date();
+        const validLabel = q.validUntil ? PP.fmtDate(q.validUntil) : '—';
+        const row = document.createElement('div');
+        row.className = 'draft-order-row';
+        row.innerHTML = `
+          <span class="order-id" style="color:#f97316;">${esc(q.quoteId)}</span>
+          <span class="cust-name">${esc(q.customerName || q.custAccount || '—')}</span>
+          <span class="draft-date" style="color:${isExpired ? 'var(--danger,#ef4444)' : 'var(--grey-400)'};">${isExpired ? '⚠ Expired ' : ''}${validLabel}</span>
+          <div class="draft-actions">
+            <a href="all-quotes.html" class="btn btn-primary btn-sm" style="background:#f97316;border-color:#f97316;">
+              <i class="fas fa-eye"></i> View
+            </a>
+          </div>`;
+        qList.appendChild(row);
       });
     }
 
