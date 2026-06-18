@@ -4,6 +4,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
+const nodemailer  = require('nodemailer');
+const puppeteer   = require('puppeteer');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
 
@@ -19,6 +21,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.static(__dirname, { etag: false, lastModified: false, setHeaders: (res) => { res.setHeader('Cache-Control', 'no-store'); } }));
+app.use('/api', (req, res, next) => { res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate'); next(); });
 
 /* ============================================================
    MICROSOFT ENTRA ID (AZURE AD) TOKEN VALIDATION
@@ -345,6 +348,229 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 
 
 // ============================================================
+// Email — Send Quote to Client
+// ============================================================
+
+async function getGraphToken() {
+    const tenantId     = process.env.ENTRA_TENANT_ID     || process.env.SHAREPOINT_TENANT_ID;
+    const clientId     = process.env.ENTRA_CLIENT_ID     || process.env.SHAREPOINT_CLIENT_ID;
+    const clientSecret = process.env.ENTRA_CLIENT_SECRET || process.env.SHAREPOINT_CLIENT_SECRET;
+    const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const body = new URLSearchParams({
+        grant_type:    'client_credentials',
+        client_id:     clientId,
+        client_secret: clientSecret,
+        scope:         'https://graph.microsoft.com/.default',
+    });
+    const resp = await axios.post(url, body.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    return resp.data.access_token;
+}
+
+async function sendGraphEmail({ fromEmail, toEmail, toName, subject, html }) {
+    const token = await getGraphToken();
+    const message = {
+        subject,
+        body: { contentType: 'HTML', content: html },
+        toRecipients: [{ emailAddress: { address: toEmail, name: toName || toEmail } }],
+    };
+    await axios.post(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(fromEmail)}/sendMail`,
+        { message, saveToSentItems: true },
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    );
+}
+
+function buildQuotePdfHtml(quote, repName) {
+    const esc      = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fmtDate  = (d) => { try { return d ? new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}) : '—'; } catch(e){ return '—'; } };
+    const today    = new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+    const lines    = quote.lines || [];
+    let netTotal   = 0;
+
+    const linesHtml = lines.map((l, i) => {
+        const net = (parseFloat(l.price)||0) * (parseFloat(l.qty)||0) * (1 - (parseFloat(l.discount)||0) / 100);
+        netTotal += net;
+        return '<tr style="background:' + (i%2===0 ? '#f9fafb' : 'white') + '">'
+            + '<td style="padding:7px 10px">'                                          + (l.lineNo||i+1)                     + '</td>'
+            + '<td style="padding:7px 10px;font-family:monospace;color:#f97316">'      + esc(l.itemNo||'—')                  + '</td>'
+            + '<td style="padding:7px 10px">'                                          + esc(l.name||'—')                    + '</td>'
+            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0)              + '</td>'
+            + '<td style="padding:7px 10px;text-align:right">$'                        + (parseFloat(l.price)||0).toFixed(2) + '</td>'
+            + '<td style="padding:7px 10px;text-align:right">'                         + (l.discount||0)                     + '%</td>'
+            + '<td style="padding:7px 10px;text-align:right;font-weight:700">$'        + net.toFixed(2)                      + '</td>'
+            + '</tr>';
+    }).join('');
+
+    const gst   = netTotal * 0.1;
+    const total = netTotal + gst;
+    const repEmail = process.env.EMAIL_USER || '';
+
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        + '<title>Quote ' + esc(quote.quoteId||'') + '</title>'
+        + '<style>'
+        + 'body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:740px;margin:0 auto}'
+        + 'table{width:100%;border-collapse:collapse}'
+        + 'th{background:#1e3a5f;color:white;padding:8px 10px;text-align:left}'
+        + '@media print{body{padding:16px}}'
+        + '</style></head><body>'
+        + '<div style="display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316">'
+            + '<div><div style="font-size:20px;font-weight:800;color:#1e3a5f">Pascal Press</div>'
+            + '<div style="font-size:11px;color:#666">Sales Quotation</div></div>'
+            + '<div style="text-align:right">'
+                + '<div style="font-size:18px;font-weight:700;color:#f97316">' + esc(quote.quoteId||'QUO-') + '</div>'
+                + '<div style="font-size:11px;color:#666">Date: ' + today + '</div>'
+                + (quote.validUntil ? '<div style="font-size:11px;color:#666">Valid Until: ' + fmtDate(quote.validUntil) + '</div>' : '')
+            + '</div>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">'
+            + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
+                + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(quote.customerName||quote.custAccount||'—') + '</div>'
+                + '<div style="color:#666">Account: ' + esc(quote.custAccount||'—') + '</div>'
+                + (quote.paymentTerms ? '<div style="color:#666">Terms: ' + esc(quote.paymentTerms) + '</div>' : '')
+            + '</div>'
+            + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
+                + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(repName) + '</div>'
+                + (repEmail ? '<div style="color:#666">' + esc(repEmail) + '</div>' : '')
+            + '</div>'
+        + '</div>'
+        + '<table style="margin-bottom:20px"><thead><tr>'
+            + '<th style="width:30px">#</th><th>Item Code</th><th>Description</th>'
+            + '<th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th>'
+            + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net</th>'
+        + '</tr></thead><tbody>' + (linesHtml || '<tr><td colspan="7" style="padding:12px;text-align:center;color:#999;">No line items</td></tr>') + '</tbody></table>'
+        + '<div style="margin-left:auto;width:280px">'
+            + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
+                + '<span style="color:#666">Subtotal (excl. GST)</span><span style="font-weight:600">$' + netTotal.toFixed(2) + '</span></div>'
+            + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
+                + '<span style="color:#666">GST (10%)</span><span style="font-weight:600">$' + gst.toFixed(2) + '</span></div>'
+            + '<div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px">'
+                + '<span style="color:white;font-weight:700">TOTAL (incl. GST)</span>'
+                + '<span style="color:white;font-weight:800;font-size:14px">$' + total.toFixed(2) + '</span></div>'
+        + '</div>'
+        + (quote.notes ? '<div style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px">Notes: ' + esc(quote.notes) + '</div>' : '')
+        + '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center">'
+            + 'Valid until ' + fmtDate(quote.validUntil) + ' · Pascal Press Sales Portal · Generated ' + today
+        + '</div>'
+        + '</body></html>';
+}
+
+async function generateQuotePdf(quote, repName) {
+    const execPath = await puppeteer.executablePath();
+    const browser = await puppeteer.launch({
+        headless: true,
+        executablePath: execPath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        timeout: 60000,
+    });
+    try {
+        const page = await browser.newPage();
+        await page.setContent(buildQuotePdfHtml(quote, repName), { waitUntil: 'domcontentloaded' });
+        const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+        return pdf;
+    } finally {
+        await browser.close();
+    }
+}
+
+function buildShortEmailHtml({ quote, repName, toName, customMessage }) {
+    const esc      = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+    const greeting = toName ? `Dear ${esc(toName)},` : 'Dear Valued Customer,';
+    const fromEmail = process.env.EMAIL_USER || '1dcopilot@1dynamics.com.au';
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+
+  <div style="background-color:#1e3a5f;padding:32px 40px;text-align:center;">
+    <div style="font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-.5px;">Pascal Press</div>
+    <div style="font-size:11px;color:#a8c4e0;margin-top:4px;letter-spacing:1px;text-transform:uppercase;">Sales Quotation</div>
+  </div>
+
+  <div style="padding:36px 40px;">
+    <p style="margin:0 0 16px;font-size:16px;font-weight:600;color:#1e293b;">${greeting}</p>
+    ${customMessage ? `<p style="margin:0 0 16px;line-height:1.7;color:#334155;">${esc(customMessage).replace(/\n/g,'<br>')}</p>` : ''}
+    <p style="margin:0 0 16px;line-height:1.7;color:#334155;">
+      Thank you for your interest in Pascal Press. Please find attached your quotation
+      <strong style="color:#1e3a5f;">${esc(quote.quoteId)}</strong>, valid until
+      <strong>${fmtDate(quote.validUntil)}</strong>.
+    </p>
+    <p style="margin:0 0 28px;line-height:1.7;color:#334155;">
+      Please review the attached PDF and feel free to contact us if you have any questions or would like to proceed.
+    </p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Your Sales Representative</div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b;">${esc(repName)}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:3px;">📧 <a href="mailto:${esc(fromEmail)}" style="color:#1e3a5f;">${esc(fromEmail)}</a></div>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#64748b;line-height:1.7;">
+      Kind regards,<br>
+      <strong style="color:#1e293b;">${esc(repName)}</strong><br>
+      Pascal Press Pty Ltd
+    </p>
+  </div>
+
+  <div style="background-color:#1e3a5f;padding:16px 40px;text-align:center;">
+    <div style="font-size:11px;color:#a8c4e0;line-height:1.8;">
+      Pascal Press Pty Ltd &nbsp;|&nbsp; Prices in AUD incl. 10% GST &nbsp;|&nbsp; ${esc(quote.quoteId)}
+    </div>
+  </div>
+
+</div>
+</body></html>`;
+}
+
+app.post('/api/email/quote/:quoteId', async (req, res) => {
+    try {
+        const { toEmail, toName, subject, customMessage, quoteData } = req.body;
+        if (!toEmail) return res.status(400).json({ error: 'toEmail is required' });
+
+        const fromEmail = process.env.EMAIL_USER || '1dcopilot@1dynamics.com.au';
+
+        // Use client-supplied quoteData if provided (avoids SP cache miss on new quotes)
+        let quote = quoteData || null;
+        if (!quote) {
+            const bootstrap = await sharepoint.getBootstrapData(req.user);
+            quote = (bootstrap.quotes || []).find(
+                q => q.id === req.params.quoteId || q.quoteId === req.params.quoteId
+            );
+        }
+        if (!quote) return res.status(404).json({ error: 'Quote not found' });
+
+        const repName = req.user?.name || req.user?.preferred_username || process.env.DEV_REP_NAME || 'Sales Team';
+
+        const [emailHtml, pdfBuffer] = await Promise.all([
+            Promise.resolve(buildShortEmailHtml({ quote, repName, toName, customMessage })),
+            generateQuotePdf(quote, repName),
+        ]);
+
+        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+        const paUrl = process.env.POWER_AUTOMATE_EMAIL_URL;
+        if (!paUrl) throw new Error('POWER_AUTOMATE_EMAIL_URL not configured in .env');
+
+        await axios.post(paUrl, {
+            toEmail,
+            toName:      toName || '',
+            subject:     subject || `Quotation ${quote.quoteId} — Pascal Press`,
+            body:        emailHtml,
+            pdfBase64,
+            pdfFileName: `Quotation-${quote.quoteId}.pdf`,
+        }, { headers: { 'Content-Type': 'application/json' } });
+
+        console.log(`[Email] Quote ${quote.quoteId} sent to ${toEmail} with PDF attachment`);
+        res.json({ success: true, quoteId: quote.quoteId, sentTo: toEmail });
+    } catch (error) {
+        const detail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+        console.error('[Email] Send failed:', detail);
+        res.status(500).json({ error: detail });
+    }
+});
+
+// ============================================================
 // Start Server
 app.listen(PORT, () => {
     console.log(`\n🚀 Backend API Middleware started!`);
@@ -641,8 +867,6 @@ app.post('/api/quotes/header', async (req, res) => {
             QuoteRevision:   b.QuoteRevision || 1,
             ParentQuoteId:   b.ParentQuoteId || '',
             ConvertedOrderId:b.ConvertedOrderId || '',
-            Warehouse:       b.Warehouse        || '',
-            DeliveryAddress: b.DeliveryAddress  || '',
             Email:           userEmail,
         };
         // Remove empty strings to avoid SP validation issues
@@ -679,8 +903,6 @@ app.put('/api/quotes/item/:itemId', async (req, res) => {
         if (b.QuoteRevision !== undefined) fields.QuoteRevision   = b.QuoteRevision;
         if (b.ParentQuoteId    !== undefined) fields.ParentQuoteId    = b.ParentQuoteId;
         if (b.ConvertedOrderId !== undefined) fields.ConvertedOrderId = b.ConvertedOrderId;
-        if (b.Warehouse        !== undefined) fields.Warehouse        = b.Warehouse;
-        if (b.DeliveryAddress  !== undefined) fields.DeliveryAddress  = b.DeliveryAddress;
         const updated = await sharepoint.updateListItem('SalesQuoteHeader', req.params.itemId, fields);
         res.json(updated);
     } catch (error) {

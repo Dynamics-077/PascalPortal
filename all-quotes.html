@@ -385,9 +385,6 @@ function rowActions(q, i) {
   if (q.status === 'Accepted') {
     btns += ' <button class="btn btn-primary btn-sm" style="background:var(--teal,#00a4a6);border-color:var(--teal,#00a4a6);" data-convert-id="'+esc(q.quoteId)+'" data-convert-spid="'+esc(q.spItemId)+'"><i class="fas fa-exchange-alt"></i> Convert to Order</button>';
   }
-  if (q.status === 'Converted' && q.convertedOrderId) {
-    btns += ' <a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" class="btn btn-ghost btn-sm" style="color:var(--navy);"><i class="fas fa-file-alt"></i> View Order</a>';
-  }
   return btns;
 }
 
@@ -490,6 +487,7 @@ function openDetail(idx) {
   // PDF export — available for Active / Accepted / Converted
   if (['Active','Accepted','Converted'].indexOf(q.status) !== -1) {
     footerHTML += '<button id="mfPdfBtn" class="btn btn-ghost btn-sm" title="Download PDF"><i class="fas fa-file-pdf" style="color:#dc2626;"></i> Export PDF</button>';
+    footerHTML += '<button id="mfEmailBtn" class="btn btn-ghost btn-sm" title="Send to Client"><i class="fas fa-envelope" style="color:#1e3a5f;"></i> Send Email</button>';
   }
   // Status-specific actions
   if (q.status === 'Draft') {
@@ -504,9 +502,6 @@ function openDetail(idx) {
   if (q.status === 'Accepted') {
     footerHTML += '<button id="mfConvertBtn" class="btn btn-primary btn-sm" style="background:var(--teal,#00a4a6);border-color:var(--teal,#00a4a6);"><i class="fas fa-exchange-alt"></i> Convert to Order</button>';
   }
-  if (q.status === 'Converted' && q.convertedOrderId) {
-    footerHTML += '<a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" class="btn btn-primary btn-sm" style="background:var(--navy);border-color:var(--navy);"><i class="fas fa-file-alt"></i> View Order ('+esc(q.convertedOrderId)+')</a>';
-  }
 
   var footer = document.getElementById('modalFooter');
   // Always include Close button first, then status-specific actions
@@ -516,6 +511,7 @@ function openDetail(idx) {
   var el;
   el = document.getElementById('modalCloseFooterBtn'); if (el) el.addEventListener('click', closeModal);
   el = document.getElementById('mfPdfBtn');    if (el) el.addEventListener('click', exportDetailPDF);
+  el = document.getElementById('mfEmailBtn'); if (el) el.addEventListener('click', function() { openEmailModal(q); });
   el = document.getElementById('mfCancelBtn'); if (el) el.addEventListener('click', function() { cancelQuote(q.quoteId, q.spItemId); });
   el = document.getElementById('mfReviseBtn'); if (el) el.addEventListener('click', function() { reviseQuote(q.quoteId, null, q.spItemId); });
   el = document.getElementById('mfAcceptBtn'); if (el) el.addEventListener('click', function() { acceptQuote(q.quoteId, q.spItemId); });
@@ -710,5 +706,131 @@ function showError(msg) {
 }
 </script>
 <script src="bot-widget.js"></script>
+
+<!-- ===== EMAIL MODAL ===== -->
+<div id="emailModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 24px 64px rgba(0,0,0,.22);overflow:hidden;">
+
+    <!-- Modal Header -->
+    <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2a5298 100%);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#fff;"><i class="fas fa-envelope" style="margin-right:8px;opacity:.8;"></i>Send Quote to Client</div>
+        <div id="emailModalSubtitle" style="font-size:12px;color:rgba(255,255,255,.65);margin-top:3px;"></div>
+      </div>
+      <button onclick="closeEmailModal()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+
+    <!-- Form -->
+    <div style="padding:24px;">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">From</label>
+        <input type="text" value="1dcopilot@1dynamics.com.au" readonly
+          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#94a3b8;background:#f8fafc;box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">To <span style="color:#ef4444;">*</span></label>
+        <input type="email" id="emailTo" placeholder="client@example.com" required
+          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Client Name <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
+        <input type="text" id="emailToName" placeholder="e.g. John Smith"
+          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Subject</label>
+        <input type="text" id="emailSubject"
+          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;" />
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Personal Message <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
+        <textarea id="emailMessage" rows="3" placeholder="Add a personal message to the client..."
+          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+
+      <!-- Preview note -->
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;margin-bottom:20px;font-size:12px;color:#0369a1;display:flex;gap:8px;align-items:flex-start;">
+        <i class="fas fa-info-circle" style="margin-top:1px;flex-shrink:0;"></i>
+        <span>A professional HTML email with full quote details, line items, and totals will be sent.</span>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeEmailModal()" class="btn btn-ghost btn-sm">Cancel</button>
+        <button id="emailSendBtn" onclick="sendQuoteEmail()" class="btn btn-primary btn-sm"
+          style="background:linear-gradient(135deg,#1e3a5f,#2a5298);border-color:#1e3a5f;min-width:120px;">
+          <i class="fas fa-paper-plane"></i> Send Email
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var _emailQuote = null;
+
+function openEmailModal(q) {
+  _emailQuote = q;
+  document.getElementById('emailModalSubtitle').textContent = (q.quoteId || '') + ' — ' + (q.customerName || q.custAccount || '');
+  document.getElementById('emailTo').value      = q.customerEmail || '';
+  document.getElementById('emailToName').value  = q.customerName  || '';
+  document.getElementById('emailSubject').value = 'Quotation ' + (q.quoteId || '') + ' from Pascal Press';
+  document.getElementById('emailMessage').value = '';
+  document.getElementById('emailSendBtn').disabled = false;
+  document.getElementById('emailSendBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+  var m = document.getElementById('emailModal');
+  m.style.display = 'flex';
+  document.getElementById('emailTo').focus();
+}
+
+function closeEmailModal() {
+  document.getElementById('emailModal').style.display = 'none';
+  _emailQuote = null;
+}
+
+async function sendQuoteEmail() {
+  if (!_emailQuote) return;
+  var toEmail = document.getElementById('emailTo').value.trim();
+  if (!toEmail) {
+    document.getElementById('emailTo').style.borderColor = '#ef4444';
+    document.getElementById('emailTo').focus();
+    return;
+  }
+  document.getElementById('emailTo').style.borderColor = '#e2e8f0';
+
+  var btn = document.getElementById('emailSendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+  var token = localStorage.getItem('pp_token') || '';
+  try {
+    var resp = await fetch('/api/email/quote/' + encodeURIComponent(_emailQuote.quoteId || _emailQuote.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': token ? 'Bearer ' + token : '' },
+      body: JSON.stringify({
+        toEmail:       toEmail,
+        toName:        document.getElementById('emailToName').value.trim(),
+        subject:       document.getElementById('emailSubject').value.trim(),
+        customMessage: document.getElementById('emailMessage').value.trim(),
+        quoteData:     _emailQuote,
+      })
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to send email');
+    closeEmailModal();
+    if (window.PP && PP.showToast) PP.showToast('Email sent to ' + toEmail, 'success');
+    else alert('Email sent successfully to ' + toEmail);
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+    if (window.PP && PP.showToast) PP.showToast('Failed: ' + err.message, 'error');
+    else alert('Error: ' + err.message);
+  }
+}
+
+document.getElementById('emailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEmailModal();
+});
+</script>
 </body>
 </html>

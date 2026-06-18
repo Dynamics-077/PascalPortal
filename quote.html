@@ -405,32 +405,11 @@
           <div class="form-row cols-4">
             <div class="form-group">
               <label>Delivery Terms</label>
-              <select id="deliveryTerms">
-                <option value="">— Select —</option>
-                <option value="EXW">EXW — Ex Works</option>
-                <option value="FCA">FCA — Free Carrier</option>
-                <option value="FAS">FAS — Free Alongside Ship</option>
-                <option value="FOB">FOB — Free on Board</option>
-                <option value="CFR">CFR — Cost &amp; Freight</option>
-                <option value="CIF">CIF — Cost, Insurance &amp; Freight</option>
-                <option value="DDP">DDP — Delivered Duty Paid</option>
-              </select>
+              <input type="text" id="deliveryTerms" readonly style="background:var(--grey-50);" placeholder="Auto-filled from customer" />
             </div>
             <div class="form-group">
               <label>Payment Terms</label>
-              <select id="paymentTerms">
-                <option value="">— Select —</option>
-                <option value="Cash">Cash</option>
-                <option value="COD">COD</option>
-                <option value="Net1">Net1</option>
-                <option value="Net10">Net10</option>
-                <option value="Net15">Net15</option>
-                <option value="Net30">Net30</option>
-                <option value="Net45">Net45</option>
-                <option value="Month+15">Month+15</option>
-                <option value="Sch_5M">Sch_5M</option>
-                <option value="Sch_6M">Sch_6M</option>
-              </select>
+              <input type="text" id="paymentTerms" readonly style="background:var(--grey-50);" placeholder="Auto-filled from customer" />
             </div>
             <div class="form-group">
               <label>Warehouse</label>
@@ -601,6 +580,7 @@
     </div>
     <div class="modal-footer" style="justify-content:center; gap:12px; flex-wrap:wrap;">
       <button class="btn btn-primary" style="background:var(--orange);border-color:var(--orange);" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Export PDF</button>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#1e3a5f,#2a5298);border-color:#1e3a5f;" onclick="openEmailModalFromSuccess()"><i class="fas fa-envelope"></i> Send Email</button>
       <a href="all-quotes.html" class="btn btn-ghost"><i class="fas fa-list"></i> View All Quotes</a>
       <a href="dashboard.html"  class="btn btn-ghost">← Dashboard</a>
     </div>
@@ -664,6 +644,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('validUntil').min   = today;
 
     initCustomerSearch();
+
+    // Auto-fill customer passed from customers page via sessionStorage (consumed once)
+    const _storedCust = sessionStorage.getItem('d365_selected_customer');
+    if (_storedCust) {
+      sessionStorage.removeItem('d365_selected_customer');
+      try { const c = JSON.parse(_storedCust); if (c && c.CustomerAccount) selectCustomer(c); } catch(e) {}
+    }
 
     // Resume existing draft quote via ?resume=QUO-xxx
     const _urlP     = new URLSearchParams(window.location.search);
@@ -818,13 +805,16 @@ function selectCustomer(customer) {
   document.getElementById('creditStatusDisplay').innerHTML =
     `<span class="credit-indicator credit-good"><i class="fas fa-check"></i> Active</span>`;
 
-  const payTerms = customer.PaymentTermsName || customer.paymentTerms || '';
+  const payTerms  = customer.PaymentTerms || customer.PaymentTermsName || customer.paymentTerms || '';
+  const delivTerms = customer.DeliveryTerms || customer.deliveryTerms || '';
+
   document.getElementById('availableCreditDisplay').textContent = payTerms ? `Terms: ${payTerms}` : 'Terms: —';
 
-  if (payTerms) {
-    const ptSelect = document.getElementById('paymentTerms');
-    if (ptSelect) for (const opt of ptSelect.options) { if (opt.value === payTerms) { ptSelect.value = payTerms; break; } }
-  }
+  const ptInput = document.getElementById('paymentTerms');
+  if (ptInput) ptInput.value = payTerms;
+
+  const dtInput = document.getElementById('deliveryTerms');
+  if (dtInput) dtInput.value = delivTerms;
 
   document.getElementById('customerNotesAlert').style.display = 'none';
 
@@ -1353,6 +1343,128 @@ function exportPDF() {
   else    { PP.showToast('Pop-up blocked — allow pop-ups to export PDF', 'error'); }
 }
 </script>
+<!-- Email Modal -->
+<div id="quoteEmailModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:540px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;margin:16px;">
+    <div style="background:linear-gradient(135deg,#1e3a5f,#2a5298);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-envelope" style="color:#fff;font-size:20px;"></i>
+        <div>
+          <div style="color:#fff;font-weight:700;font-size:16px;">Send Quotation by Email</div>
+          <div style="color:rgba(255,255,255,.75);font-size:12px;" id="qemQuoteId"></div>
+        </div>
+      </div>
+      <button onclick="closeQuoteEmailModal()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">From</label>
+        <input type="text" value="1dcopilot@1dynamics.com.au" readonly style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#6b7280;font-size:14px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">To Email <span style="color:#ef4444;">*</span></label>
+        <input type="email" id="qemToEmail" placeholder="client@example.com" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Client Name (optional)</label>
+        <input type="text" id="qemToName" placeholder="e.g. John Smith" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Subject</label>
+        <input type="text" id="qemSubject" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Personal Message (optional)</label>
+        <textarea id="qemMessage" rows="3" placeholder="Add a personal note to accompany the quotation..." style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;outline:none;font-family:inherit;"></textarea>
+      </div>
+    </div>
+    <div style="padding:16px 24px 24px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #f3f4f6;">
+      <button onclick="closeQuoteEmailModal()" style="padding:10px 20px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;font-size:14px;cursor:pointer;color:#374151;">Cancel</button>
+      <button id="qemSendBtn" onclick="sendQuoteEmailFromQuotePage()" style="padding:10px 24px;background:linear-gradient(135deg,#1e3a5f,#2a5298);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i class="fas fa-paper-plane"></i> Send Email</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEmailModalFromSuccess() {
+  const quoteId = savedQuoteId || currentOrderId;
+  if (!quoteId) { PP.showToast('No quote ID found', 'error'); return; }
+
+  // Close success modal first to avoid overlap
+  PP.closeModal('successModal');
+
+  document.getElementById('qemQuoteId').textContent = quoteId;
+  document.getElementById('qemSubject').value = `Quotation ${quoteId} from Pascal Press`;
+
+  const custName = selectedCustomer
+    ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount || '')
+    : '';
+  document.getElementById('qemToName').value = custName;
+  document.getElementById('qemToEmail').value = '';
+  document.getElementById('qemMessage').value = '';
+
+  const modal = document.getElementById('quoteEmailModal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('qemToEmail').focus(), 150);
+}
+
+function closeQuoteEmailModal() {
+  document.getElementById('quoteEmailModal').style.display = 'none';
+}
+
+async function sendQuoteEmailFromQuotePage() {
+  const quoteId = savedQuoteId || currentOrderId;
+  const toEmail = document.getElementById('qemToEmail').value.trim();
+  const toName  = document.getElementById('qemToName').value.trim();
+  const subject = document.getElementById('qemSubject').value.trim();
+  const message = document.getElementById('qemMessage').value.trim();
+
+  if (!toEmail) { PP.showToast('Please enter a recipient email address', 'warning'); document.getElementById('qemToEmail').focus(); return; }
+  if (!quoteId)  { PP.showToast('No quote ID available', 'error'); return; }
+
+  const btn = document.getElementById('qemSendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+
+  try {
+    // Build quoteData from current page state to avoid SP cache miss
+    const quoteData = {
+      quoteId,
+      customerName: selectedCustomer ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount) : '',
+      custAccount:  selectedCustomer ? (selectedCustomer.CustomerAccount || '') : '',
+      paymentTerms: document.getElementById('paymentTerms') ? document.getElementById('paymentTerms').value : '',
+      deliveryTerms: document.getElementById('deliveryTerms') ? document.getElementById('deliveryTerms').value : '',
+      validUntil:   document.getElementById('validUntil') ? document.getElementById('validUntil').value : '',
+      notes:        document.getElementById('quoteNotes') ? document.getElementById('quoteNotes').value : '',
+      status:       'Active',
+      lines: (quoteLines || []).map(l => ({
+        lineNo: l.lineNo, itemNo: l.itemNo, name: l.name,
+        qty: l.qty, price: l.price, discount: l.discount
+      }))
+    };
+
+    const resp = await fetch(`/api/email/quote/${encodeURIComponent(quoteId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toEmail, toName, subject, customMessage: message, quoteData })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    closeQuoteEmailModal();
+    PP.showToast(`Email sent to ${data.sentTo}`, 'success');
+  } catch (err) {
+    PP.showToast('Failed to send email: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+  }
+}
+
+document.getElementById('quoteEmailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeQuoteEmailModal();
+});
+</script>
+
 <script src="bot-widget.js"></script>
 </body>
 </html>

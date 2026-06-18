@@ -399,7 +399,7 @@
     </div>
     <div class="detail-footer">
       <button class="btn btn-ghost" onclick="closeCustDetail()">Close</button>
-      <button class="btn btn-primary btn-sm" onclick="newOrderForCustomer()"><i class="fas fa-shopping-cart"></i> New Order</button>
+      <button class="btn btn-primary btn-sm" onclick="newOrderForCustomer()"><i class="fas fa-shopping-cart"></i> New Quote</button>
     </div>
   </div>
 </div>
@@ -446,7 +446,7 @@
     </div>
     <div class="detail-footer">
       <button class="btn btn-ghost" onclick="closeProdDetail()">Close</button>
-      <button class="btn btn-primary btn-sm" onclick="newOrderWithProduct()"><i class="fas fa-shopping-cart"></i> New Order</button>
+      <button class="btn btn-primary btn-sm" onclick="newOrderWithProduct()"><i class="fas fa-shopping-cart"></i> New Quote</button>
     </div>
   </div>
 </div>
@@ -725,7 +725,7 @@ function newOrderForCustomer() {
     PaymentTermsName:    currentCustomer.PaymentTermsName    || '',
     DeliveryTerms:       currentCustomer.DeliveryTerms       || '',
   }));
-  window.location.href = 'sales-order.html';
+  window.location.href = 'quote.html';
 }
 
 /* ============================================================
@@ -889,7 +889,7 @@ function newOrderWithProduct() {
     SalesPrice:      currentProduct.SalesPrice      || 0,
     SalesUnitSymbol: currentProduct.SalesUnitSymbol || 'ea',
   }));
-  window.location.href = 'sales-order.html';
+  window.location.href = 'quote.html';
 }
 
 /* ============================================================
