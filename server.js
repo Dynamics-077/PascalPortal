@@ -562,11 +562,14 @@ app.post('/api/email/quote/:quoteId', async (req, res) => {
 
         const payload = {
             toEmail,
-            toName:      toName || '',
-            subject:     subject || `Quotation ${quote.quoteId} — Pascal Press`,
-            body:        emailHtml,
-            pdfBase64:   pdfBase64 || '',
-            pdfFileName: `Quotation-${quote.quoteId}.pdf`,
+            toName:   toName || '',
+            subject:  subject || `Quotation ${quote.quoteId} — Pascal Press`,
+            body:     emailHtml,
+            hasPdf:   !!pdfBase64,
+            ...(pdfBase64 && {
+                pdfBase64,
+                pdfFileName: `Quotation-${quote.quoteId}.pdf`,
+            }),
         };
 
         await axios.post(paUrl, payload, { headers: { 'Content-Type': 'application/json' } });
