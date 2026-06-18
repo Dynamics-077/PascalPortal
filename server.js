@@ -396,9 +396,9 @@ function buildQuotePdfHtml(quote, repName) {
             + '<td style="padding:7px 10px">'                                          + (l.lineNo||i+1)                     + '</td>'
             + '<td style="padding:7px 10px;font-family:monospace;color:#f97316">'      + esc(l.itemNo||'—')                  + '</td>'
             + '<td style="padding:7px 10px">'                                          + esc(l.name||'—')                    + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0)              + '</td>'
+            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0).toFixed(2)   + '</td>'
             + '<td style="padding:7px 10px;text-align:right">$'                        + (parseFloat(l.price)||0).toFixed(2) + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">'                         + (l.discount||0)                     + '%</td>'
+            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.discount)||0).toFixed(2) + '%</td>'
             + '<td style="padding:7px 10px;text-align:right;font-weight:700">$'        + net.toFixed(2)                      + '</td>'
             + '</tr>';
     }).join('');
@@ -428,7 +428,9 @@ function buildQuotePdfHtml(quote, repName) {
             + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
                 + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(quote.customerName||quote.custAccount||'—') + '</div>'
                 + '<div style="color:#666">Account: ' + esc(quote.custAccount||'—') + '</div>'
-                + (quote.paymentTerms ? '<div style="color:#666">Terms: ' + esc(quote.paymentTerms) + '</div>' : '')
+                + (quote.paymentTerms  ? '<div style="color:#666">Payment Terms: '  + esc(quote.paymentTerms)  + '</div>' : '')
+                + (quote.deliveryTerms ? '<div style="color:#666">Delivery Terms: ' + esc(quote.deliveryTerms) + '</div>' : '')
+                + (quote.currency      ? '<div style="color:#666">Currency: '       + esc(quote.currency)      + '</div>' : '')
             + '</div>'
             + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
                 + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(repName) + '</div>'
@@ -438,7 +440,7 @@ function buildQuotePdfHtml(quote, repName) {
         + '<table style="margin-bottom:20px"><thead><tr>'
             + '<th style="width:30px">#</th><th>Item Code</th><th>Description</th>'
             + '<th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th>'
-            + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net</th>'
+            + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net Price</th>'
         + '</tr></thead><tbody>' + (linesHtml || '<tr><td colspan="7" style="padding:12px;text-align:center;color:#999;">No line items</td></tr>') + '</tbody></table>'
         + '<div style="margin-left:auto;width:280px">'
             + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
