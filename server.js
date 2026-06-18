@@ -546,23 +546,30 @@ app.post('/api/email/quote/:quoteId', async (req, res) => {
 
         const repName = req.user?.name || req.user?.preferred_username || process.env.DEV_REP_NAME || 'Sales Team';
 
-        const [emailHtml, pdfBuffer] = await Promise.all([
-            Promise.resolve(buildShortEmailHtml({ quote, repName, toName, customMessage })),
-            generateQuotePdf(quote, repName),
-        ]);
-
-        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
         const paUrl = process.env.POWER_AUTOMATE_EMAIL_URL;
-        if (!paUrl) throw new Error('POWER_AUTOMATE_EMAIL_URL not configured in .env');
+        if (!paUrl) throw new Error('POWER_AUTOMATE_EMAIL_URL not configured in Azure App Settings');
 
-        await axios.post(paUrl, {
+        const emailHtml = buildShortEmailHtml({ quote, repName, toName, customMessage });
+
+        // Try PDF generation — fall back to email without attachment if Chrome unavailable
+        let pdfBase64 = null;
+        try {
+            const pdfBuffer = await generateQuotePdf(quote, repName);
+            pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+        } catch (pdfErr) {
+            console.warn('[Email] PDF generation skipped (Chrome unavailable):', pdfErr.message);
+        }
+
+        const payload = {
             toEmail,
             toName:      toName || '',
             subject:     subject || `Quotation ${quote.quoteId} — Pascal Press`,
             body:        emailHtml,
-            pdfBase64,
+            pdfBase64:   pdfBase64 || '',
             pdfFileName: `Quotation-${quote.quoteId}.pdf`,
-        }, { headers: { 'Content-Type': 'application/json' } });
+        };
+
+        await axios.post(paUrl, payload, { headers: { 'Content-Type': 'application/json' } });
 
         console.log(`[Email] Quote ${quote.quoteId} sent to ${toEmail} with PDF attachment`);
         res.json({ success: true, quoteId: quote.quoteId, sentTo: toEmail });
