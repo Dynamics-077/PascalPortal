@@ -527,8 +527,8 @@ async function createSalesOrder(orderPayload, user = {}) {
                 CustGroup:       cleanText(orderPayload.customerGroup || orderPayload.custGroup),
                 SalesUnit:       cleanText(line.unit               || 'ea'),
                 SalesPrice:      asNumber(line.unitPrice           || line.price),
-                SalesQty:        String(asNumber(line.qty)),   // SP column is Text type
-                Discount:        asNumber(line.discount        || 0),
+                SalesQty:        asNumber(line.qty),
+                ...(line.discount > 0 ? { Discount: asNumber(line.discount) } : {}),
                 OrderLineStatus: cleanText(line.orderLineStatus    || line.status || 'In Progress'),
                 ...(line.itemNo ? { ItemCode: cleanText(line.itemNo) } : {}),
                 Email:           cleanText(user?.preferred_username || user?.email || ''),
