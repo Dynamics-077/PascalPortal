@@ -503,6 +503,8 @@ async function createSalesOrder(orderPayload, user = {}) {
     };
 
     if (ordersListId) {
+        // Remove empty strings — writing '' to non-existent SP columns causes 400
+        Object.keys(orderFields).forEach(k => { if (orderFields[k] === '') delete orderFields[k]; });
         await graphRequest(
             'post',
             `/sites/${requireEnv('SHAREPOINT_SITE_ID')}/lists/${ordersListId}/items`,
@@ -533,6 +535,7 @@ async function createSalesOrder(orderPayload, user = {}) {
                 ...(line.itemNo ? { ItemCode: cleanText(line.itemNo) } : {}),
                 Email:           cleanText(user?.preferred_username || user?.email || ''),
             };
+            Object.keys(lineFields).forEach(k => { if (lineFields[k] === '') delete lineFields[k]; });
 
             await graphRequest(
                 'post',

@@ -1110,11 +1110,15 @@ app.post('/api/quotes/:quoteId/convert', async (req, res) => {
         const result = await sharepoint.createSalesOrder(orderPayload, req.user);
         if (!result.success) throw new Error(result.message || 'Order creation failed');
 
-        // Update quote: Converted + store back-reference
-        await sharepoint.updateListItem('SalesQuoteHeader', quote.spItemId, {
-            Status:          'Converted',
-            ConvertedOrderId: salesId,
-        });
+        // Update quote: Converted + store back-reference (ConvertedOrderId col may not exist — fallback)
+        try {
+            await sharepoint.updateListItem('SalesQuoteHeader', quote.spItemId, {
+                Status:           'Converted',
+                ConvertedOrderId: salesId,
+            });
+        } catch (_) {
+            await sharepoint.updateListItem('SalesQuoteHeader', quote.spItemId, { Status: 'Converted' });
+        }
 
         res.json({ salesId, quoteId, linesCreated: (quote.lines || []).length });
     } catch (error) {
