@@ -317,11 +317,88 @@ async function updateSalesOrderLine(inventoryLotId, areaId, updates) {
   return _patch(key, updates);
 }
 
+/* ----------------------------------------------------------
+   SalesPriceAgreements — 4-case price cascade
+   ---------------------------------------------------------- */
+const PRICE_SELECT = 'ItemNumber,Price,PriceCurrencyCode,CustomerAccountNumber,PriceCustomerGroupCode,FromQuantity,ToQuantity,QuantityUnitySymbol';
+
+function _esc(s) { return String(s || '').replace(/'/g, "''"); }
+
+async function getSalesPriceAgreements({ itemNumber, customerAccount = '', customerGroupCode = '', quantity = 1, caseOnly = 0 } = {}) {
+  if (!itemNumber) throw new Error('itemNumber is required');
+
+  // Case 1 — customer-specific price at quantity
+  if (!caseOnly || caseOnly === 1) {
+    if (customerAccount) {
+      const r1 = await _get('SalesPriceAgreements', {
+        '$filter':  `ItemNumber eq '${_esc(itemNumber)}' and CustomerAccountNumber eq '${_esc(customerAccount)}' and FromQuantity le ${quantity}`,
+        '$select':  PRICE_SELECT,
+        '$orderby': 'FromQuantity desc',
+        '$top':     1,
+      });
+      if ((r1.value || []).length > 0) return { source: 'customer', record: r1.value[0] };
+    }
+    if (caseOnly === 1) return { source: 'none', record: null };
+  }
+
+  // Case 2 — customer group price
+  if (!caseOnly || caseOnly === 2) {
+    if (customerGroupCode) {
+      const r2 = await _get('SalesPriceAgreements', {
+        '$filter':  `ItemNumber eq '${_esc(itemNumber)}' and PriceCustomerGroupCode eq '${_esc(customerGroupCode)}'`,
+        '$select':  PRICE_SELECT,
+        '$orderby': 'FromQuantity desc',
+        '$top':     1,
+      });
+      if ((r2.value || []).length > 0) return { source: 'group', record: r2.value[0] };
+    }
+    if (caseOnly === 2) return { source: 'none', record: null };
+  }
+
+  // Case 3 — global / all-customer price
+  if (!caseOnly || caseOnly === 3) {
+    const r3 = await _get('SalesPriceAgreements', {
+      '$filter':  `ItemNumber eq '${_esc(itemNumber)}' and CustomerAccountNumber eq '' and PriceCustomerGroupCode eq ''`,
+      '$select':  'ItemNumber,CustomerAccountNumber,PriceCustomerGroupCode,Price,PriceCurrencyCode,FromQuantity,ToQuantity,QuantityUnitySymbol',
+      '$orderby': 'FromQuantity desc',
+      '$top':     1,
+    });
+    if ((r3.value || []).length > 0) return { source: 'global', record: r3.value[0] };
+    if (caseOnly === 3) return { source: 'none', record: null };
+  }
+
+  // Case 4 — product base SalesPrice from ReleasedProductsV2
+  if (!caseOnly || caseOnly === 4) {
+    const r4 = await _get('ReleasedProductsV2', {
+      '$filter': `ItemNumber eq '${_esc(itemNumber)}'`,
+      '$select': 'ItemNumber,SalesPrice,SalesPriceQuantity,SalesUnitSymbol,UnitCost,PurchasePrice,BaseSalesPriceSource',
+      '$top':    1,
+    });
+    const prod = (r4.value || [])[0] || null;
+    if (prod) {
+      const effectivePrice = prod.SalesPrice || prod.PurchasePrice || prod.UnitCost || 0;
+      return { source: 'base', record: { ...prod, Price: effectivePrice, _salesPrice: prod.SalesPrice, _purchasePrice: prod.PurchasePrice, _unitCost: prod.UnitCost, PriceCurrencyCode: '', QuantityUnitySymbol: prod.SalesUnitSymbol } };
+    }
+  }
+
+  return { source: 'none', record: null };
+}
+
+async function getAllPriceAgreementsForItem(itemNumber) {
+  if (!itemNumber) throw new Error('itemNumber is required');
+  return _get('SalesPriceAgreements', {
+    '$filter':  `ItemNumber eq '${_esc(itemNumber)}'`,
+    '$orderby': 'CustomerAccountNumber desc,FromQuantity desc',
+    '$top':     100,
+  });
+}
+
 module.exports = {
   getToken,
   getCustomers, getCustomer,
   getProducts,  getProduct,
   getSalesOrders, createSalesOrderHeader, updateSalesOrderHeader,
   getSalesOrderLines, createSalesOrderLine, updateSalesOrderLine,
+  getSalesPriceAgreements, getAllPriceAgreementsForItem,
   getDefaultDataAreaId,
 };

@@ -15,10 +15,9 @@
   const NAV = [
     { section: 'Main' },
     { id: 'dashboard',  href: 'dashboard.html',                icon: 'fa-chart-bar',      label: 'Dashboard' },
-    { id: 'all-orders', href: 'all-orders.html',               icon: 'fa-clipboard-list', label: 'All Orders' },
+    { id: 'all-orders', href: 'all-orders.html',               icon: 'fa-clipboard-list', label: 'Orders' },
     { id: 'all-quotes', href: 'all-quotes.html',               icon: 'fa-file-invoice-dollar', label: 'Quotes' },
-    { id: 'quote',      href: 'quote.html',                    icon: 'fa-plus-square',    label: 'New Quote' },
-    { id: 'data-admin', href: 'data-admin.html',               icon: 'fa-database',       label: 'Data Admin', minRole: 'admin' },
+    { id: 'data-admin', href: 'data-admin.html', icon: 'fa-database', label: 'Data Admin', minRole: 'admin' },
 
     { section: 'Dynamics 365' },
     { id: 'customers',  href: 'customers.html',                icon: 'fa-building',       label: 'Customers' },
@@ -67,8 +66,9 @@
       if (!canSee(item, role)) return '';
 
       const isActive = active === item.id;
+      const subClass = item.sub ? ' nav-sub' : '';
       return `<a href="${item.href}"
-                 class="nav-item${isActive ? ' active' : ''}"
+                 class="nav-item${subClass}${isActive ? ' active' : ''}"
                  ${item.navId ? `id="${item.navId}"` : ''}>
                 <i class="fas ${item.icon} nav-icon"></i> ${item.label}
               </a>`;

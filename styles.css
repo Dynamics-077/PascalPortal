@@ -147,6 +147,14 @@ p  { color: var(--grey-600); }
   font-weight: 600;
 }
 .nav-item .nav-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item.nav-sub {
+  padding-left: 40px;
+  font-size: .82rem;
+  color: rgba(255,255,255,.5);
+}
+.nav-item.nav-sub .nav-icon { font-size: .8rem; }
+.nav-item.nav-sub:hover { color: rgba(255,255,255,.85); }
+.nav-item.nav-sub.active { color: white; font-size: .84rem; }
 .nav-item .nav-badge {
   margin-left: auto;
   background: var(--orange);

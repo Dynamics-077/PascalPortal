@@ -1065,11 +1065,16 @@ app.post('/api/quotes/:quoteId/revise', async (req, res) => {
 // POST /api/quotes/:quoteId/convert — convert Accepted quote into a new Sales Order
 app.post('/api/quotes/:quoteId/convert', async (req, res) => {
     try {
-        const quoteId   = req.params.quoteId;
-        const bootstrap = await sharepoint.getBootstrapData(req.user);
-        const quote     = (bootstrap.quotes || []).find(q => q.quoteId === quoteId || q.id === quoteId);
-        if (!quote)                      return res.status(404).json({ error: 'Quote not found' });
-        if (quote.status !== 'Accepted') return res.status(400).json({ error: 'Only Accepted quotes can be converted to orders' });
+        const quoteId = req.params.quoteId;
+
+        // Use client-supplied quoteData if provided (avoids SP cache miss on freshly accepted quotes)
+        let quote = req.body?.quoteData || null;
+        if (!quote || (quote.quoteId !== quoteId && quote.id !== quoteId)) {
+            const bootstrap = await sharepoint.getBootstrapData(req.user);
+            quote = (bootstrap.quotes || []).find(q => q.quoteId === quoteId || q.id === quoteId);
+        }
+        if (!quote) return res.status(404).json({ error: `Quote ${quoteId} not found` });
+        if (quote.status !== 'Accepted') return res.status(400).json({ error: `Quote status is "${quote.status}" — only Accepted quotes can be converted` });
 
         const salesId = generateId('PAS');
         console.log(`[SP] Converting quote ${quoteId} → order ${salesId}`);
@@ -1161,6 +1166,7 @@ app.get('/api/orderlines', async (req, res) => {
 // D365 F&O — Customers & Products
 // ============================================================
 
+
 // GET /api/d365/customers?search=&top=&skip=
 app.get('/api/d365/customers', async (req, res) => {
     try {
@@ -1173,6 +1179,7 @@ app.get('/api/d365/customers', async (req, res) => {
             OrganizationName:    c.OrganizationName    || '',
             NameAlias:           c.NameAlias           || '',
             CustomerGroupId:     c.CustomerGroupId     || '',
+            DiscountPriceGroupId: c.DiscountPriceGroupId || '',
             CurrencyCode:        c.SalesCurrencyCode   || c.CurrencyCode || '',
             AddressCity:         c.AddressCity         || '',
             AddressState:        c.AddressState        || '',
@@ -1276,5 +1283,39 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
         console.error('[D365] Product detail error:', error.message);
         const status = error.message.includes('not found') ? 404 : 500;
         res.status(status).json({ error: error.message });
+    }
+});
+
+// GET /api/d365/price?itemNumber=D0001&customerAccount=US-010&customerGroupCode=09&quantity=10
+// Runs 4-case cascade: customer-specific → group → global → base product price
+app.get('/api/d365/price', async (req, res) => {
+    try {
+        const { itemNumber = '', customerAccount = '', customerGroupCode = '', quantity = '1', caseOnly = '0' } = req.query;
+        if (!itemNumber) return res.status(400).json({ error: 'itemNumber is required' });
+        const result = await d365.getSalesPriceAgreements({
+            itemNumber,
+            customerAccount,
+            customerGroupCode,
+            quantity: parseFloat(quantity) || 1,
+            caseOnly: parseInt(caseOnly) || 0,
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('[D365] Price lookup error:', error.message);
+        if (error.response) console.error('[D365] Detail:', JSON.stringify(error.response.data));
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/d365/price/table?itemNumber=D0001 — all price agreements for this item (price table view)
+app.get('/api/d365/price/table', async (req, res) => {
+    try {
+        const { itemNumber = '' } = req.query;
+        if (!itemNumber) return res.status(400).json({ error: 'itemNumber is required' });
+        const data = await d365.getAllPriceAgreementsForItem(itemNumber);
+        res.json(data);
+    } catch (error) {
+        console.error('[D365] Price table error:', error.message);
+        res.status(500).json({ error: error.message });
     }
 });

@@ -600,12 +600,21 @@ function convertQuote(quoteId, spItemId, btn) {
   if (!confirm('Convert quote ' + quoteId + ' to a Sales Order?\n\nA new PAS-xxx order will be created. You will be redirected to review and submit it.')) return;
   closeModal();
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting...'; }
+
+  // Pass quote data in body so server doesn't need SP re-fetch (avoids cache miss)
+  var q = _quotes.find(function(x){ return x.quoteId === quoteId || x.id === quoteId; }) || null;
+
   fetch('/api/quotes/' + encodeURIComponent(quoteId) + '/convert', {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({})
+    body: JSON.stringify({ quoteData: q })
   })
-  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(function(r){
+    return r.json().then(function(body) {
+      if (!r.ok) throw new Error(body.error || body.message || ('HTTP ' + r.status));
+      return body;
+    });
+  })
   .then(function(data) {
     showToast('Order ' + data.salesId + ' created! Redirecting to orders...', 'success');
     setTimeout(function() { window.location.href = 'all-orders.html'; }, 1800);

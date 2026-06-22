@@ -970,10 +970,30 @@ function selectProduct(idx, p) {
   quoteLines[idx].itemNo   = p.ItemNumber     || '';
   quoteLines[idx].name     = p.SearchName     || p.ItemNumber || '';
   quoteLines[idx].category = p.ProductGroupId || '';
-  quoteLines[idx].price    = p.SalesPrice || p.UnitCost || 0;
+  quoteLines[idx].price    = p.UnitCost       || 0;
   quoteLines[idx].unit     = p.SalesUnitSymbol || 'ea';
-  delete quoteLines[idx]._fromSP; // product changed — must re-save
+  delete quoteLines[idx]._fromSP;
   renderLines();
+
+  // Fetch best price via 4-case cascade
+  const custAccount = selectedCustomer ? (selectedCustomer.CustomerAccount      || '') : '';
+  const custGroup   = selectedCustomer ? (selectedCustomer.DiscountPriceGroupId || '') : '';
+  if (!p.ItemNumber) return;
+  const token = localStorage.getItem('pp_token');
+  const headers = token ? { Authorization: 'Bearer ' + token } : {};
+  fetch('/api/d365/price?itemNumber=' + encodeURIComponent(p.ItemNumber)
+    + '&customerAccount='    + encodeURIComponent(custAccount)
+    + '&customerGroupCode='  + encodeURIComponent(custGroup)
+    + '&quantity=1', { headers })
+    .then(r => r.json())
+    .then(data => {
+      if (data.record && data.record.Price != null) {
+        const fetched = parseFloat(data.record.Price);
+        quoteLines[idx].price = isNaN(fetched) ? quoteLines[idx].price : fetched;
+        renderLines();
+      }
+    })
+    .catch(() => {});
 }
 
 function updateTotals() {
@@ -996,7 +1016,7 @@ function updateTotals() {
   const cats = [...new Set(quoteLines.map(l => l.category).filter(Boolean))];
   document.getElementById('summaryNotes').innerHTML = lineCount === 0
     ? 'No items added yet. Click "+ Add Row" to add quote lines.'
-    : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} · <strong>${quoteLines.reduce((s,l)=>s+l.qty,0)}</strong> total units<br>
+    : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} · <strong>${+quoteLines.reduce((s,l)=>s+l.qty,0).toFixed(2)}</strong> total units<br>
        Categories: ${cats.join(', ') || '—'}`;
 
   const hasValidLine = quoteLines.some(l => (l.name || l.itemNo).trim() && l.qty >= 1);
