@@ -1180,7 +1180,8 @@ function updateTotals() {
 
 /* ---- Cancel order (Step 2) — set status to Cancel in SP -- */
 async function cancelOrder() {
-  if (!confirm(`Cancel order ${savedSalesId || 'this order'}?\n\nThe order will be marked as Cancelled. This cannot be undone.`)) return;
+  var ok = await ppConfirm({ title: 'Cancel Order', message: 'Cancel order <strong>' + (savedSalesId || 'this order') + '</strong>?<br><br>The order will be marked as Cancelled. This cannot be undone.', confirmLabel: 'Cancel Order', danger: true });
+  if (!ok) return;
 
   const btn = document.getElementById('cancelOrderBtn');
   btn.disabled = true;

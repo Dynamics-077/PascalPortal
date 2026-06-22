@@ -218,3 +218,51 @@
   window.Layout = { refresh: boot };
 
 })();
+
+/* =============================================================
+   ppConfirm — professional confirm dialog replacing browser confirm()
+   Usage: const ok = await ppConfirm({ title, message, confirmLabel, danger })
+   ============================================================= */
+window.ppConfirm = function(opts) {
+  opts = opts || {};
+  var title        = opts.title        || 'Confirm';
+  var message      = opts.message      || 'Are you sure?';
+  var confirmLabel = opts.confirmLabel || 'Confirm';
+  var cancelLabel  = opts.cancelLabel  || 'Cancel';
+  var danger       = opts.danger       || false;
+  var icon         = danger ? 'fa-exclamation-triangle' : 'fa-question-circle';
+  var iconColor    = danger ? 'var(--danger,#ef4444)' : 'var(--teal,#00a4a6)';
+  var btnClass     = danger ? 'btn-danger' : 'btn-primary';
+
+  return new Promise(function(resolve) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal" style="max-width:400px;width:92%;">' +
+        '<div class="modal-header">' +
+          '<i class="fas ' + icon + '" style="font-size:1.25rem;color:' + iconColor + '"></i>' +
+          '<h3 style="margin:0;font-size:1rem;font-weight:600;">' + title + '</h3>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<p style="margin:0;color:var(--grey-600,#6b7280);font-size:.875rem;line-height:1.6;">' + message + '</p>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost btn-sm" data-action="cancel">' + cancelLabel + '</button>' +
+          '<button class="btn ' + btnClass + ' btn-sm" data-action="ok">' + confirmLabel + '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function() { overlay.classList.add('open'); });
+
+    function close(result) {
+      overlay.classList.remove('open');
+      setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 220);
+      resolve(result);
+    }
+
+    overlay.querySelector('[data-action="ok"]').addEventListener('click',     function() { close(true);  });
+    overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(false); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(false); });
+  });
+};

@@ -544,8 +544,9 @@ function mkRow(label, val) {
     +'<span style="font-weight:600;color:var(--navy);font-size:.875rem">'+val+'</span></div>';
 }
 
-function reviseQuote(quoteId, btn, spItemId) {
-  if (!confirm('Create a new revision of ' + quoteId + '?\n\nThe current Active quote will be locked as "Revised" and a new Draft revision will open for editing.')) return;
+async function reviseQuote(quoteId, btn, spItemId) {
+  var ok = await ppConfirm({ title: 'Revise Quote', message: 'Create a new revision of <strong>' + quoteId + '</strong>?<br><br>The current Active quote will be locked as "Revised" and a new Draft revision will open for editing.', confirmLabel: 'Revise' });
+  if (!ok) return;
   closeModal();
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Revising...'; }
   fetch('/api/quotes/' + encodeURIComponent(quoteId) + '/revise', {
@@ -564,8 +565,9 @@ function reviseQuote(quoteId, btn, spItemId) {
   });
 }
 
-function acceptQuote(quoteId, spItemId) {
-  if (!confirm('Mark quote ' + quoteId + ' as Accepted?\n\nThe customer has confirmed acceptance. You can then convert it to a Sales Order.')) return;
+async function acceptQuote(quoteId, spItemId) {
+  var ok = await ppConfirm({ title: 'Accept Quote', message: 'Mark <strong>' + quoteId + '</strong> as Accepted?<br><br>The customer has confirmed acceptance. You can then convert it to a Sales Order.', confirmLabel: 'Accept' });
+  if (!ok) return;
   closeModal();
   fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
     method: 'PUT',
@@ -580,8 +582,9 @@ function acceptQuote(quoteId, spItemId) {
   .catch(function(err){ showError('Accept failed: ' + err.message); });
 }
 
-function rejectQuote(quoteId, spItemId) {
-  if (!confirm('Mark quote ' + quoteId + ' as Rejected?\n\nThe customer has declined this quote.')) return;
+async function rejectQuote(quoteId, spItemId) {
+  var ok = await ppConfirm({ title: 'Reject Quote', message: 'Mark <strong>' + quoteId + '</strong> as Rejected?<br><br>The customer has declined this quote.', confirmLabel: 'Reject', danger: true });
+  if (!ok) return;
   closeModal();
   fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
     method: 'PUT',
@@ -596,8 +599,9 @@ function rejectQuote(quoteId, spItemId) {
   .catch(function(err){ showError('Reject failed: ' + err.message); });
 }
 
-function convertQuote(quoteId, spItemId, btn) {
-  if (!confirm('Convert quote ' + quoteId + ' to a Sales Order?\n\nA new PAS-xxx order will be created. You will be redirected to review and submit it.')) return;
+async function convertQuote(quoteId, spItemId, btn) {
+  var ok = await ppConfirm({ title: 'Convert to Order', message: 'Convert <strong>' + quoteId + '</strong> to a Sales Order?<br><br>A new order will be created. You will be redirected to review and submit it.', confirmLabel: 'Convert' });
+  if (!ok) return;
   closeModal();
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Converting...'; }
 
@@ -625,8 +629,9 @@ function convertQuote(quoteId, spItemId, btn) {
   });
 }
 
-function cancelQuote(quoteId, spItemId) {
-  if (!confirm('Cancel quote ' + quoteId + '?\n\nThis cannot be undone.')) return;
+async function cancelQuote(quoteId, spItemId) {
+  var ok = await ppConfirm({ title: 'Cancel Quote', message: 'Cancel <strong>' + quoteId + '</strong>?<br><br>This cannot be undone.', confirmLabel: 'Cancel Quote', danger: true });
+  if (!ok) return;
   closeModal();
   fetch('/api/quotes/item/' + encodeURIComponent(spItemId), {
     method: 'PUT',
