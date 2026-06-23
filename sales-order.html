@@ -857,8 +857,8 @@ function initCustomerSearch() {
   async function doSearch(q) {
     try {
       const url  = q
-        ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=20`
-        : `/api/d365/customers?top=30`;
+        ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=50`
+        : `/api/d365/customers?top=100`;
       const data = await fetch(url).then(r => r.json());
       const results = data.value || [];
       if (results.length === 0) { dropdown.classList.remove('open'); return; }
