@@ -34,6 +34,7 @@ const PRODUCT_SELECT = [
   'SalesPrice', 'UnitCost', 'PurchasePrice',
   'SalesUnitSymbol', 'InventoryUnitSymbol', 'PurchaseUnitSymbol',
   'dataAreaId',
+  'SalesLineDiscountProductGroupCode',
 ].join(',');
 
 // Fields to fetch from SalesOrderHeadersV2
@@ -393,6 +394,43 @@ async function getAllPriceAgreementsForItem(itemNumber) {
   });
 }
 
+/* ----------------------------------------------------------
+   getSalesLineDiscounts — 9-case line discount cascade
+   Runs all 9 Party×Product combinations against
+   SalesLineDiscountAgreements, sums DiscountPercentage1.
+   ---------------------------------------------------------- */
+const DISC_SELECT = [
+  'ItemNumber', 'LineDiscountProductGroupCode',
+  'CustomerAccountNumber', 'LineDiscountCustomerGroupCode',
+  'DiscountPercentage1', 'DiscountPercentage2', 'DiscountAmount',
+].join(',');
+
+async function getSalesLineDiscounts({ itemNumber, customerAccount = '', customerGroupCode = '', productGroupCode = '' } = {}) {
+  if (!itemNumber) throw new Error('itemNumber is required');
+  const a = _esc(customerAccount);
+  const cg = _esc(customerGroupCode);
+  const i = _esc(itemNumber);
+  const pg = _esc(productGroupCode);
+  const _f = filter => _get('SalesLineDiscountAgreements', { '$filter': filter, '$select': DISC_SELECT, '$top': 50 });
+  const empty = { value: [] };
+
+  const results = await Promise.allSettled([
+    customerAccount                       ? _f(`CustomerAccountNumber eq '${a}' and ItemNumber eq '${i}'`) : empty,
+    customerGroupCode && itemNumber       ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and ItemNumber eq '${i}'`) : empty,
+    _f(`LineDiscountCustomerGroupCode eq '' and CustomerAccountNumber eq '' and ItemNumber eq '${i}'`),
+    customerAccount && productGroupCode   ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    productGroupCode                      ? _f(`LineDiscountCustomerGroupCode eq '' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    productGroupCode                      ? _f(`CustomerAccountNumber eq '' and LineDiscountCustomerGroupCode eq '' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    customerAccount                       ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountCustomerGroupCode eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
+    customerGroupCode                     ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
+    _f(`LineDiscountCustomerGroupCode eq '' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`),
+  ]);
+
+  const allRecords = results.flatMap(r => (r.status === 'fulfilled' ? r.value.value : null) || []);
+  const totalDiscount = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountPercentage1) || 0), 0);
+  return { totalDiscount: +totalDiscount.toFixed(4), records: allRecords };
+}
+
 module.exports = {
   getToken,
   getCustomers, getCustomer,
@@ -400,5 +438,6 @@ module.exports = {
   getSalesOrders, createSalesOrderHeader, updateSalesOrderHeader,
   getSalesOrderLines, createSalesOrderLine, updateSalesOrderLine,
   getSalesPriceAgreements, getAllPriceAgreementsForItem,
+  getSalesLineDiscounts,
   getDefaultDataAreaId,
 };

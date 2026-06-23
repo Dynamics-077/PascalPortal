@@ -5,7 +5,14 @@
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Force)",
       "Bash(node server.js)",
-      "PowerShell(Get-Process | Where-Object { $_.Id -eq 8680 })"
+      "PowerShell(Get-Process | Where-Object { $_.Id -eq 8680 })",
+      "PowerShell($resp = Invoke-RestMethod -Uri \"http://localhost:5000/api/bootstrap\"; $orders = $resp.salesOrders; Write-Host \"Orders after filter: $\\($orders.Count\\)\"; $orders | Select-Object -First 5 | ForEach-Object { Write-Host \"  $\\($_.salesId\\) | userEmail: '$\\($_.userEmail\\)'\" })",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ],
+    "additionalDirectories": [
+      "D:\\myprojects\\Profile Pages(Power Pages)\\PortalTester"
     ]
   }
 }

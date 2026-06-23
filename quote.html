@@ -971,6 +971,7 @@ function selectProduct(idx, p) {
   quoteLines[idx].name     = p.SearchName     || p.ItemNumber || '';
   quoteLines[idx].category = p.ProductGroupId || '';
   quoteLines[idx].price    = p.UnitCost       || 0;
+  quoteLines[idx].discount = 0;
   quoteLines[idx].unit     = p.SalesUnitSymbol || 'ea';
   delete quoteLines[idx]._fromSP;
   renderLines();
@@ -990,6 +991,22 @@ function selectProduct(idx, p) {
       if (data.record && data.record.Price != null) {
         const fetched = parseFloat(data.record.Price);
         quoteLines[idx].price = isNaN(fetched) ? quoteLines[idx].price : fetched;
+        renderLines();
+      }
+    })
+    .catch(() => {});
+
+  // Fetch line discount via 9-case cascade
+  const custLineDiscGrp = selectedCustomer ? (selectedCustomer.LineDiscountCode || '') : '';
+  const prodLineDiscGrp = p.SalesLineDiscountProductGroupCode || '';
+  fetch('/api/d365/linediscount?itemNumber=' + encodeURIComponent(p.ItemNumber)
+    + '&customerAccount='   + encodeURIComponent(custAccount)
+    + '&customerGroupCode=' + encodeURIComponent(custLineDiscGrp)
+    + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
+    .then(r => r.json())
+    .then(data => {
+      if (typeof data.totalDiscount === 'number') {
+        quoteLines[idx].discount = data.totalDiscount;
         renderLines();
       }
     })

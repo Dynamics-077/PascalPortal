@@ -1184,6 +1184,7 @@ app.get('/api/d365/customers', async (req, res) => {
             NameAlias:           c.NameAlias           || '',
             CustomerGroupId:     c.CustomerGroupId     || '',
             DiscountPriceGroupId: c.DiscountPriceGroupId || '',
+            LineDiscountCode:     c.LineDiscountCode     || '',
             CurrencyCode:        c.SalesCurrencyCode   || c.CurrencyCode || '',
             AddressCity:         c.AddressCity         || '',
             AddressState:        c.AddressState        || '',
@@ -1227,6 +1228,7 @@ app.get('/api/d365/products', async (req, res) => {
             ProductNumber:       p.ProductNumber       || '',
             SearchName:          p.SearchName          || p.ProductSearchName || '',
             ProductGroupId:      p.ProductGroupId      || '',
+            SalesLineDiscountProductGroupCode: p.SalesLineDiscountProductGroupCode || '',
             ProductType:         p.ProductType         || '',
             SalesPrice:          p.SalesPrice          || 0,
             UnitCost:            p.UnitCost            || 0,
@@ -1306,6 +1308,21 @@ app.get('/api/d365/price', async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('[D365] Price lookup error:', error.message);
+        if (error.response) console.error('[D365] Detail:', JSON.stringify(error.response.data));
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/d365/linediscount?itemNumber=&customerAccount=&customerGroupCode=&productGroupCode=
+// Runs all 9 Party×Product line discount combinations, returns sum of DiscountPercentage1
+app.get('/api/d365/linediscount', async (req, res) => {
+    try {
+        const { itemNumber = '', customerAccount = '', customerGroupCode = '', productGroupCode = '' } = req.query;
+        if (!itemNumber) return res.status(400).json({ error: 'itemNumber is required' });
+        const result = await d365.getSalesLineDiscounts({ itemNumber, customerAccount, customerGroupCode, productGroupCode });
+        res.json(result);
+    } catch (error) {
+        console.error('[D365] Line discount error:', error.message);
         if (error.response) console.error('[D365] Detail:', JSON.stringify(error.response.data));
         res.status(500).json({ error: error.message });
     }
