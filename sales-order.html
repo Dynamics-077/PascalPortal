@@ -1149,10 +1149,16 @@ function selectProduct(idx, p) {
     + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
     .then(r => r.json())
     .then(data => {
-      if (typeof data.totalDiscount === 'number') {
-        orderLines[idx].discount = data.totalDiscount;
-        renderLines();
+      let disc = 0;
+      if (data.totalDiscount > 0) {
+        // D365 has percentage-based discount
+        disc = data.totalDiscount;
+      } else if (data.totalDiscountAmt > 0 && orderLines[idx].price > 0) {
+        // D365 has flat dollar discount — convert to percentage of unit price
+        disc = +(data.totalDiscountAmt / orderLines[idx].price * 100).toFixed(2);
       }
+      orderLines[idx].discount = disc;
+      renderLines();
     })
     .catch(() => {});
 }

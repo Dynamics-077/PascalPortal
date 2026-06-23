@@ -1005,10 +1005,14 @@ function selectProduct(idx, p) {
     + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
     .then(r => r.json())
     .then(data => {
-      if (typeof data.totalDiscount === 'number') {
-        quoteLines[idx].discount = data.totalDiscount;
-        renderLines();
+      let disc = 0;
+      if (data.totalDiscount > 0) {
+        disc = data.totalDiscount;
+      } else if (data.totalDiscountAmt > 0 && quoteLines[idx].price > 0) {
+        disc = +(data.totalDiscountAmt / quoteLines[idx].price * 100).toFixed(2);
       }
+      quoteLines[idx].discount = disc;
+      renderLines();
     })
     .catch(() => {});
 }

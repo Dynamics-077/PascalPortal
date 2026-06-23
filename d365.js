@@ -427,8 +427,13 @@ async function getSalesLineDiscounts({ itemNumber, customerAccount = '', custome
   ]);
 
   const allRecords = results.flatMap(r => (r.status === 'fulfilled' ? r.value.value : null) || []);
-  const totalDiscount = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountPercentage1) || 0), 0);
-  return { totalDiscount: +totalDiscount.toFixed(4), records: allRecords };
+  const totalDiscountPct = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountPercentage1) || 0), 0);
+  const totalDiscountAmt = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountAmount) || 0), 0);
+  return {
+    totalDiscount:    +totalDiscountPct.toFixed(4),
+    totalDiscountAmt: +totalDiscountAmt.toFixed(4),
+    records: allRecords,
+  };
 }
 
 module.exports = {
