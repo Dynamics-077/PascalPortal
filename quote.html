@@ -1285,6 +1285,11 @@ async function finalActivate() {
       <div>Quote Total: <strong>${PP.fmtCurrency(grandTotal)}</strong></div>
       <div>Valid Until: <strong>${validUntil}</strong></div>
       <div style="color:var(--orange); margin-top:4px;">Ready to export as PDF and send to customer</div>`;
+    
+    // Reset button state in case they close success modal and return to form
+    btn.disabled  = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirm &amp; Activate Quote';
+    
     PP.openModal('successModal');
 
   } catch (err) {
@@ -1457,6 +1462,8 @@ function openEmailModalFromSuccess() {
 
 function closeQuoteEmailModal() {
   document.getElementById('quoteEmailModal').style.display = 'none';
+  // Reopen the success modal so the user isn't stranded on the form
+  PP.openModal('successModal');
 }
 
 async function sendQuoteEmailFromQuotePage() {
@@ -1499,8 +1506,9 @@ async function sendQuoteEmailFromQuotePage() {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-    closeQuoteEmailModal();
-    PP.showToast(`Email sent to ${data.sentTo}`, 'success');
+    document.getElementById('quoteEmailModal').style.display = 'none'; // hide without reopening success modal
+    PP.showToast(`Email sent to ${data.sentTo}. Redirecting...`, 'success');
+    setTimeout(() => { window.location.href = 'all-quotes.html'; }, 2000);
   } catch (err) {
     PP.showToast('Failed to send email: ' + err.message, 'error');
   } finally {
