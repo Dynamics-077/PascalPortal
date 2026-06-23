@@ -215,7 +215,7 @@ msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
     // ── Acquire APP token — this one contains App Roles ──────
     // The login token (User.Read) does NOT have roles.
     // We need a token scoped to our own app to get roles claim.
-    let appToken = tokenResponse.accessToken;
+    let appToken = tokenResponse.idToken || tokenResponse.accessToken; // Fallback to idToken
     try {
       const appTokenRes = await msalInstance.acquireTokenSilent({
         scopes: [`api://${APP_CLIENT_ID}/.default`],
@@ -224,7 +224,7 @@ msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
       appToken = appTokenRes.accessToken;
       console.log('[Auth] App token acquired — roles will be in this token');
     } catch (e) {
-      console.warn('[Auth] Could not get app token, using login token:', e.message);
+      console.warn('[Auth] Could not get app token, using ID token instead:', e.message);
     }
 
     // ── Store user info ───────────────────────────────────────
