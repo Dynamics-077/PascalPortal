@@ -1,17 +1,17 @@
 /* ============================================================
    Pascal Press B2B Portal — Global Styles
-   Brand: Navy #1e3a5f | Teal #00a4a6 | Orange #f4851f | White #fff
+   Brand: Navy #1c2857 | Blue #2563b8 | Orange #f47920 (minimal) | White #fff
    ============================================================ */
 
 /* --- CSS Variables ------------------------------------------ */
 :root {
-  --navy:       #1e3a5f;
-  --navy-dark:  #152c48;
-  --navy-light: #2a4d7a;
-  --teal:       #00a4a6;
-  --teal-dark:  #008385;
-  --teal-light: #e6f7f7;
-  --orange:     #f4851f;
+  --navy:       #1c2857;
+  --navy-dark:  #141e3f;
+  --navy-light: #253470;
+  --teal:       #2563b8;
+  --teal-dark:  #1d4ed8;
+  --teal-light: #eff6ff;
+  --orange:     #f47920;
   --orange-light: #fff3e8;
   --white:      #ffffff;
   --grey-50:    #f5f7fa;
@@ -33,9 +33,9 @@
   --font:       'Segoe UI', system-ui, -apple-system, sans-serif;
   --radius:     8px;
   --radius-lg:  12px;
-  --shadow-sm:  0 1px 3px rgba(30,58,95,.08);
-  --shadow:     0 4px 12px rgba(30,58,95,.12);
-  --shadow-lg:  0 8px 24px rgba(30,58,95,.16);
+  --shadow-sm:  0 1px 3px rgba(28,40,87,.08);
+  --shadow:     0 4px 12px rgba(28,40,87,.12);
+  --shadow-lg:  0 8px 24px rgba(28,40,87,.16);
   --transition: 0.18s ease;
 }
 
@@ -141,7 +141,7 @@ p  { color: var(--grey-600); }
   color: white;
 }
 .nav-item.active {
-  background: rgba(0,164,166,.15);
+  background: rgba(37,99,184,.15);
   color: white;
   border-left-color: var(--teal);
   font-weight: 600;
