@@ -1009,7 +1009,7 @@ function selectProduct(idx, p) {
       if (data.totalDiscountAmt > 0 && quoteLines[idx].price > 0) {
         disc += +(data.totalDiscountAmt / quoteLines[idx].price * 100).toFixed(2);
       }
-      quoteLines[idx].discount = +disc.toFixed(2);
+      quoteLines[idx].discount = Math.min(+disc.toFixed(2), 100);
       renderLines();
     })
     .catch(() => {});

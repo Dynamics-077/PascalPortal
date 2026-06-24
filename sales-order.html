@@ -1153,7 +1153,7 @@ function selectProduct(idx, p) {
       if (data.totalDiscountAmt > 0 && orderLines[idx].price > 0) {
         disc += +(data.totalDiscountAmt / orderLines[idx].price * 100).toFixed(2);
       }
-      orderLines[idx].discount = +disc.toFixed(2);
+      orderLines[idx].discount = Math.min(+disc.toFixed(2), 100);
       renderLines();
     })
     .catch(() => {});
