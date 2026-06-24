@@ -24,7 +24,7 @@
     { id: 'products',   href: 'customers.html#products',       icon: 'fa-box',            label: 'Products', navId: 'navProducts' },
 
     { section: 'Support' },
-    { id: 'contact',    href: 'mailto:orders@pascalpress.com.au', icon: 'fa-envelope',    label: 'Contact' },
+    { id: 'contact',    href: 'mailto:orders@pascalpress.com.au', icon: 'fa-envelope',    label: 'Contact Us' },
   ];
 
   // Role display config
