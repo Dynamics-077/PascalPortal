@@ -43,18 +43,17 @@ function getKey(header, callback) {
 const validateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        // For development/mocking purposes when testing without real token:
-        console.warn('⚠️ No token provided. Passing through for dev mock testing.');
-        req.user = {
-            oid:   'dev-user',
-            name:  process.env.DEV_REP_NAME  || 'Sales Rep',
-            email: process.env.DEV_REP_EMAIL || '',
-        };
-        applyAdminWhitelist(req.user);
-        return next();
-        
-        // Use this in production:
-        // return res.status(401).json({ error: 'Missing Authorization header' });
+        if (process.env.NODE_ENV === 'development' || process.env.ALLOW_DEV_BYPASS === 'true') {
+            console.warn('⚠️ No token — dev bypass active (NODE_ENV=development or ALLOW_DEV_BYPASS=true).');
+            req.user = {
+                oid:   'dev-user',
+                name:  process.env.DEV_REP_NAME  || 'Sales Rep',
+                email: process.env.DEV_REP_EMAIL || '',
+            };
+            applyAdminWhitelist(req.user);
+            return next();
+        }
+        return res.status(401).json({ error: 'Missing Authorization header' });
     }
 
     const token = authHeader.split(' ')[1];
@@ -65,8 +64,8 @@ const validateToken = (req, res, next) => {
     }, (err, decoded) => {
         if (err) {
             console.error('Token validation failed:', err.message);
-            // Token signature/audience invalid — but decode payload to get real user identity
-            // so the email filter still works correctly with the actual logged-in user.
+            // Decode payload (without verification) only to extract email for logging.
+            // Role is NEVER trusted from an unverified payload — always forced to 'salesrep'.
             try {
                 const unverified = jwt.decode(token);
                 const uemail = unverified?.preferred_username || unverified?.email || unverified?.upn || '';
@@ -76,20 +75,14 @@ const validateToken = (req, res, next) => {
                         name:               unverified.name || process.env.DEV_REP_NAME || 'Sales Rep',
                         preferred_username: uemail,
                         email:              uemail,
-                        role:               (unverified.roles && unverified.roles[0]) || process.env.DEV_REP_ROLE || 'salesrep',
+                        role:               'salesrep',
                     };
                     applyAdminWhitelist(req.user);
-                    console.warn(`⚠️ Token unverified — identity from payload: ${uemail} | role: ${req.user.role}`);
+                    console.warn(`⚠️ Token unverified — identity from payload: ${uemail} | role forced to salesrep`);
                     return next();
                 }
             } catch (_) { /* ignore decode error */ }
-            // No identity in token — fall back to dev mock
-            req.user = {
-                oid:   'dev-user',
-                name:  process.env.DEV_REP_NAME  || 'Sales Rep',
-                email: process.env.DEV_REP_EMAIL || '',
-            };
-            return next();
+            return res.status(401).json({ error: 'Token verification failed' });
         }
 
         // Token is valid — attach decoded claims + extract role
@@ -351,7 +344,11 @@ app.get('/api/sync/status', requireRole('admin'), async (req, res) => {
 // Email — Send Quote to Client
 // ============================================================
 
+let _graphToken = null;
+let _graphTokenExpiry = 0;
+
 async function getGraphToken() {
+    if (_graphToken && Date.now() < _graphTokenExpiry) return _graphToken;
     const tenantId     = process.env.ENTRA_TENANT_ID     || process.env.SHAREPOINT_TENANT_ID;
     const clientId     = process.env.ENTRA_CLIENT_ID     || process.env.SHAREPOINT_CLIENT_ID;
     const clientSecret = process.env.ENTRA_CLIENT_SECRET || process.env.SHAREPOINT_CLIENT_SECRET;
@@ -365,7 +362,9 @@ async function getGraphToken() {
     const resp = await axios.post(url, body.toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-    return resp.data.access_token;
+    _graphToken = resp.data.access_token;
+    _graphTokenExpiry = Date.now() + ((resp.data.expires_in || 3600) - 60) * 1000;
+    return _graphToken;
 }
 
 async function sendGraphEmail({ fromEmail, toEmail, toName, subject, html }) {
@@ -390,7 +389,8 @@ function buildQuotePdfHtml(quote, repName) {
     let netTotal   = 0;
 
     const linesHtml = lines.map((l, i) => {
-        const net = (parseFloat(l.price)||0) * (parseFloat(l.qty)||0) * (1 - (parseFloat(l.discount)||0) / 100);
+        const disc = Math.min(Math.max(parseFloat(l.discount) || 0, 0), 100);
+        const net  = (parseFloat(l.price)||0) * (parseFloat(l.qty)||0) * (1 - disc / 100);
         netTotal += net;
         return '<tr style="background:' + (i%2===0 ? '#f9fafb' : 'white') + '">'
             + '<td style="padding:7px 10px">'                                          + (l.lineNo||i+1)                     + '</td>'
@@ -398,7 +398,7 @@ function buildQuotePdfHtml(quote, repName) {
             + '<td style="padding:7px 10px">'                                          + esc(l.name||'—')                    + '</td>'
             + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0).toFixed(2)   + '</td>'
             + '<td style="padding:7px 10px;text-align:right">$'                        + (parseFloat(l.price)||0).toFixed(2) + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.discount)||0).toFixed(2) + '%</td>'
+            + '<td style="padding:7px 10px;text-align:right">'                         + disc.toFixed(2)                     + '%</td>'
             + '<td style="padding:7px 10px;text-align:right;font-weight:700">$'        + net.toFixed(2)                      + '</td>'
             + '</tr>';
     }).join('');
@@ -459,10 +459,9 @@ function buildQuotePdfHtml(quote, repName) {
 }
 
 async function generateQuotePdf(quote, repName) {
-    const execPath = await puppeteer.executablePath().catch(() => null)
+    const execPath = (() => { try { return puppeteer.executablePath(); } catch (_) { return null; } })()
         || process.env.PUPPETEER_EXECUTABLE_PATH
-        || '/usr/bin/google-chrome-stable'
-        || '/usr/bin/chromium-browser';
+        || '/usr/bin/google-chrome-stable';
     const browser = await puppeteer.launch({
         headless: true,
         executablePath: execPath,
@@ -794,6 +793,7 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
         const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','OrderLineStatus','ItemCode'];
         const fields = {};
         LINE_COLS.forEach(k => { if (req.body[k] !== undefined && req.body[k] !== '') fields[k] = req.body[k]; });
+        if (fields.lineNumber === undefined) fields.lineNumber = lineNumber;
         fields.SalesId = salesId;
         fields.Email   = userEmail;
         console.log('[SP] Creating SalesOrderLine', salesId, 'fields:', JSON.stringify(fields));
@@ -1024,9 +1024,8 @@ app.post('/api/quotes/:quoteId/revise', async (req, res) => {
         const created = await sharepoint.createListItem('SalesQuoteHeader', newHeader);
         console.log(`[SP] Revision ${newRevision} created: ${newQuoteId} (parent: ${parentId})`);
 
-        // 3. Copy all lines to the new revision
-        for (let i = 0; i < (original.lines || []).length; i++) {
-            const l  = original.lines[i];
+        // 3. Copy all lines to the new revision (parallel writes — each line is independent)
+        await Promise.all((original.lines || []).map(async (l, i) => {
             const lf = {
                 Title:           l.name         || `${newQuoteId}-L${i + 1}`,
                 QuotationId:     `${newQuoteId}-L${i + 1}`,
@@ -1046,7 +1045,7 @@ app.post('/api/quotes/:quoteId/revise', async (req, res) => {
             };
             Object.keys(lf).forEach(k => { if (lf[k] === '') delete lf[k]; });
             await sharepoint.createListItem('SalesQuoteLines', lf);
-        }
+        }));
 
         res.status(201).json({
             quoteId:       newQuoteId,
@@ -1273,17 +1272,18 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
     try {
         const product = await d365.getProduct(req.params.itemNumber);
         res.json({
-            ItemNumber:          product.ItemNumber          || '',
-            ProductNumber:       product.ProductNumber       || '',
-            SearchName:          product.SearchName          || product.ProductSearchName || '',
-            ProductGroupId:      product.ProductGroupId      || '',
-            ProductType:         product.ProductType         || '',
-            SalesPrice:          product.SalesPrice          || 0,
-            UnitCost:            product.UnitCost            || 0,
-            PurchasePrice:       product.PurchasePrice       || 0,
-            SalesUnitSymbol:     product.SalesUnitSymbol     || 'ea',
-            InventoryUnitSymbol: product.InventoryUnitSymbol || 'ea',
-            dataAreaId:          product.dataAreaId          || '',
+            ItemNumber:                        product.ItemNumber                        || '',
+            ProductNumber:                     product.ProductNumber                     || '',
+            SearchName:                        product.SearchName                        || product.ProductSearchName || '',
+            ProductGroupId:                    product.ProductGroupId                    || '',
+            ProductType:                       product.ProductType                       || '',
+            SalesPrice:                        product.SalesPrice                        || 0,
+            UnitCost:                          product.UnitCost                          || 0,
+            PurchasePrice:                     product.PurchasePrice                     || 0,
+            SalesUnitSymbol:                   product.SalesUnitSymbol                   || 'ea',
+            InventoryUnitSymbol:               product.InventoryUnitSymbol               || 'ea',
+            SalesLineDiscountProductGroupCode: product.SalesLineDiscountProductGroupCode || '',
+            dataAreaId:                        product.dataAreaId                        || '',
         });
     } catch (error) {
         console.error('[D365] Product detail error:', error.message);

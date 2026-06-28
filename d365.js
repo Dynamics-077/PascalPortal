@@ -360,7 +360,7 @@ async function getSalesPriceAgreements({ itemNumber, customerAccount = '', custo
   if (!caseOnly || caseOnly === 3) {
     const r3 = await _get('SalesPriceAgreements', {
       '$filter':  `ItemNumber eq '${_esc(itemNumber)}' and CustomerAccountNumber eq '' and PriceCustomerGroupCode eq ''`,
-      '$select':  'ItemNumber,CustomerAccountNumber,PriceCustomerGroupCode,Price,PriceCurrencyCode,FromQuantity,ToQuantity,QuantityUnitySymbol',
+      '$select':  PRICE_SELECT,
       '$orderby': 'FromQuantity desc',
       '$top':     1,
     });
@@ -403,6 +403,8 @@ const DISC_SELECT = [
   'ItemNumber', 'LineDiscountProductGroupCode',
   'CustomerAccountNumber', 'LineDiscountCustomerGroupCode',
   'DiscountPercentage1', 'DiscountPercentage2', 'DiscountAmount',
+  'FromQuantity', 'ToQuantity',
+  'DiscountApplicableFromDate', 'DiscountApplicableToDate', 'DiscountCurrencyCode',
 ].join(',');
 
 async function getSalesLineDiscounts({ itemNumber, customerAccount = '', customerGroupCode = '', productGroupCode = '' } = {}) {
@@ -415,14 +417,23 @@ async function getSalesLineDiscounts({ itemNumber, customerAccount = '', custome
   const empty = { value: [] };
 
   const results = await Promise.allSettled([
-    customerAccount                       ? _f(`CustomerAccountNumber eq '${a}' and ItemNumber eq '${i}'`) : empty,
-    customerGroupCode && itemNumber       ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and ItemNumber eq '${i}'`) : empty,
+    // Case 1: Cust=Table + Item=Table
+    customerAccount                         ? _f(`CustomerAccountNumber eq '${a}' and ItemNumber eq '${i}'`) : empty,
+    // Case 2: Cust=Group + Item=Table
+    customerGroupCode                       ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and ItemNumber eq '${i}'`) : empty,
+    // Case 3: Cust=All + Item=Table
     _f(`LineDiscountCustomerGroupCode eq '' and CustomerAccountNumber eq '' and ItemNumber eq '${i}'`),
-    customerAccount && productGroupCode   ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
-    productGroupCode                      ? _f(`LineDiscountCustomerGroupCode eq '' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
-    productGroupCode                      ? _f(`CustomerAccountNumber eq '' and LineDiscountCustomerGroupCode eq '' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
-    customerAccount                       ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountCustomerGroupCode eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
-    customerGroupCode                     ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
+    // Case 4: Cust=Table + Item=Group
+    customerAccount && productGroupCode     ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    // Case 5: Cust=Group + Item=Group
+    customerGroupCode && productGroupCode   ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    // Case 6: Cust=All + Item=Group
+    productGroupCode                        ? _f(`CustomerAccountNumber eq '' and LineDiscountCustomerGroupCode eq '' and LineDiscountProductGroupCode eq '${pg}'`) : empty,
+    // Case 7: Cust=Table + Item=All
+    customerAccount                         ? _f(`CustomerAccountNumber eq '${a}' and LineDiscountCustomerGroupCode eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
+    // Case 8: Cust=Group + Item=All
+    customerGroupCode                       ? _f(`LineDiscountCustomerGroupCode eq '${cg}' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`) : empty,
+    // Case 9: Cust=All + Item=All
     _f(`LineDiscountCustomerGroupCode eq '' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`),
   ]);
 
