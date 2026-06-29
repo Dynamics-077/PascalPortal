@@ -1497,7 +1497,7 @@ async function sendQuoteEmailFromQuotePage() {
 
     const resp = await fetch(`/api/email/quote/${encodeURIComponent(quoteId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ toEmail, toName, subject, customMessage: message, quoteData })
     });
     const data = await resp.json();

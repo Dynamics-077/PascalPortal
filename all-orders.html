@@ -440,7 +440,7 @@ function renderHeaders() {
     var rawT     = o.total || o.Total || 0;
     var tot      = rawT > 0 ? fmt(rawT) : '—';
     var lc       = Array.isArray(o.lines) ? o.lines.length : (o.LineCount || '—');
-    var dt       = fmtDT(o.dateTime || '');
+    var dt       = fmtDT(o.dateTime || o.createdDateTime || '');
     var sc       = SC[stat] || 'badge-open';
     var fromQuote = _quoteMap[sid]
       ? ' <span title="Converted from quote" style="font-size:.68rem;font-weight:700;color:#f97316;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);padding:1px 7px;border-radius:10px;white-space:nowrap;">QUO</span>'
