@@ -859,7 +859,7 @@ function initCustomerSearch() {
       const url  = q
         ? `/api/d365/customers?search=${encodeURIComponent(q)}&top=50`
         : `/api/d365/customers?top=100`;
-      const data = await fetch(url).then(r => r.json());
+      const data = await fetch(url, { headers: authHeaders() }).then(r => r.json());
       const results = data.value || [];
       if (results.length === 0) { dropdown.classList.remove('open'); return; }
 
@@ -1078,7 +1078,7 @@ async function doProductSearch(idx, q) {
     const url = q
       ? '/api/d365/products?search=' + encodeURIComponent(q) + '&top=50'
       : '/api/d365/products?top=300';
-    const data = await fetch(url).then(function(r) { return r.json(); });
+    const data = await fetch(url, { headers: authHeaders() }).then(function(r) { return r.json(); });
     const results = data.value || [];
     if (results.length === 0) { drop.classList.remove('open'); return; }
 
@@ -1149,11 +1149,10 @@ function selectProduct(idx, p) {
     + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
     .then(r => r.json())
     .then(data => {
-      let disc = data.totalDiscount || 0;
-      if (data.totalDiscountAmt > 0 && orderLines[idx].price > 0) {
-        disc += +(data.totalDiscountAmt / orderLines[idx].price * 100).toFixed(2);
-      }
-      orderLines[idx].discount = Math.min(+disc.toFixed(2), 100);
+      // Use DiscountPercentage1 total only — DiscountAmount is a flat $$ per-unit
+      // field in D365 trade agreements and cannot be reliably converted to % here.
+      const disc = Math.min(+(data.totalDiscount || 0).toFixed(2), 100);
+      orderLines[idx].discount = disc;
       renderLines();
     })
     .catch(() => {});
