@@ -1121,14 +1121,14 @@ function selectProduct(idx, p) {
   renderLines();
 
   // Fetch best price via 4-case cascade
-  const custAccount = selectedCustomer ? (selectedCustomer.CustomerAccount      || '') : '';
-  const custGroup   = selectedCustomer ? (selectedCustomer.DiscountPriceGroupId || '') : '';
+  const custAccount = selectedCustomer ? (selectedCustomer.CustomerAccount || '') : '';
+  const groupCodes  = selectedCustomer ? (selectedCustomer.DiscountPriceGroupId || '') : '';
   if (!p.ItemNumber) return;
   const token = localStorage.getItem('pp_token');
   const headers = token ? { Authorization: 'Bearer ' + token } : {};
   fetch('/api/d365/price?itemNumber=' + encodeURIComponent(p.ItemNumber)
-    + '&customerAccount='    + encodeURIComponent(custAccount)
-    + '&customerGroupCode='  + encodeURIComponent(custGroup)
+    + '&customerAccount='     + encodeURIComponent(custAccount)
+    + '&customerGroupCodes='  + encodeURIComponent(groupCodes)
     + '&quantity=1', { headers })
     .then(r => r.json())
     .then(data => {
@@ -1494,6 +1494,6 @@ async function finalSubmit() {
   }
 }
 </script>
-<script src="bot-widget.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script><script src="pp-auth.js"></script><script src="bot-widget.js"></script>
 </body>
 </html>

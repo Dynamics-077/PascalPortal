@@ -646,62 +646,48 @@ async function cancelQuote(quoteId, spItemId) {
   .catch(function(err){ showError('Cancel failed: ' + err.message); });
 }
 
-function exportDetailPDF() {
+async function exportDetailPDF() {
   var q = _currentQuote;
   if (!q) return;
 
-  // Build a minimal print-friendly page in a new window
-  var net   = calcNet(q);
-  var gst   = net * 0.10;
-  var total = net + gst;
-  var today = new Date().toLocaleDateString('en-AU', {day:'2-digit',month:'short',year:'numeric'});
+  var btn = document.getElementById('mfPdfBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; }
 
-  var linesHtml = (q.lines||[]).slice().sort(function(a,b){return (a.lineNo||0)-(b.lineNo||0);}).map(function(l,i){
-    var ln = (parseFloat(l.qty)||0)*(parseFloat(l.price)||0)*(1-(parseFloat(l.discount)||0)/100);
-    return '<tr style="background:'+(i%2===0?'#f9fafb':'white')+'">'
-      +'<td style="padding:7px 10px">'+(l.lineNo||i+1)+'</td>'
-      +'<td style="padding:7px 10px;font-family:monospace;color:#f97316">'+(l.itemNo||'—')+'</td>'
-      +'<td style="padding:7px 10px">'+(l.name||'—')+'</td>'
-      +'<td style="padding:7px 10px;text-align:right">'+(l.qty||0)+'</td>'
-      +'<td style="padding:7px 10px;text-align:right">$'+(parseFloat(l.price)||0).toFixed(2)+'</td>'
-      +'<td style="padding:7px 10px;text-align:right">'+(l.discount||0)+'%</td>'
-      +'<td style="padding:7px 10px;text-align:right;font-weight:700">$'+ln.toFixed(2)+'</td>'
-      +'</tr>';
-  }).join('');
+  try {
+    var quoteData = {
+      quoteId      : q.quoteId      || '',
+      customerName : q.customerName || q.custAccount || '',
+      custAccount  : q.custAccount  || '',
+      paymentTerms : q.paymentTerms || '',
+      deliveryTerms: q.deliveryTerms|| '',
+      validUntil   : q.validUntil   || '',
+      notes        : q.notes        || '',
+      currency     : q.currency     || 'AUD',
+      lines        : (q.lines||[]).slice().sort(function(a,b){return (a.lineNo||0)-(b.lineNo||0);}).map(function(l,i){
+        return { lineNo: l.lineNo||i+1, name: l.name||'', itemNo: l.itemNo||'', qty: l.qty||0, unit: l.unit||'ea', price: l.price||0, discount: l.discount||0 };
+      }),
+    };
 
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quote '+esc(q.quoteId)+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:740px;margin:0 auto}'
-    +'table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:white;padding:8px 10px;text-align:left}'
-    +'@media print{body{padding:16px}}</style></head><body>'
-    +'<div style="display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316">'
-    +'<div><div style="font-size:20px;font-weight:800;color:#1e3a5f">Pascal Press</div><div style="font-size:11px;color:#666">Sales Quotation</div></div>'
-    +'<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#f97316">'+esc(q.quoteId)+'</div>'
-    +'<div style="font-size:11px;color:#666">Date: '+today+'</div>'
-    +(q.validUntil?'<div style="font-size:11px;color:#666">Valid Until: '+fmtDate(q.validUntil)+'</div>':'')+'</div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">'
-    +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
-    +'<div style="font-weight:700;color:#1e3a5f;font-size:13px">'+esc(q.customerName||q.custAccount||'—')+'</div>'
-    +'<div style="color:#666">Account: '+esc(q.custAccount||'—')+'</div>'
-    +(q.paymentTerms?'<div style="color:#666">Terms: '+esc(q.paymentTerms)+'</div>':'')+'</div>'
-    +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
-    +'<div style="color:#666">'+esc(q.userEmail||'—')+'</div></div></div>'
-    +'<table style="margin-bottom:20px"><thead><tr>'
-    +'<th>#</th><th>Item Code</th><th>Description</th><th style="text-align:right">Qty</th>'
-    +'<th style="text-align:right">Unit Price</th><th style="text-align:right">Disc%</th><th style="text-align:right">Net</th>'
-    +'</tr></thead><tbody>'+linesHtml+'</tbody></table>'
-    +'<div style="margin-left:auto;width:280px">'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span style="color:#666">Subtotal (excl. GST)</span><span style="font-weight:600">$'+net.toFixed(2)+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span style="color:#666">GST (10%)</span><span style="font-weight:600">$'+gst.toFixed(2)+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px"><span style="color:white;font-weight:700">TOTAL (incl. GST)</span><span style="color:white;font-weight:800;font-size:14px">$'+total.toFixed(2)+'</span></div></div>'
-    +(q.notes?'<div style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px">Notes: '+esc(q.notes)+'</div>':'')
-    +'<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center">'
-    +'Valid until '+fmtDate(q.validUntil)+' · Pascal Press Sales Portal · Generated '+today+'</div>'
-    +'<script>window.onload=function(){window.print();}<\/script>'
-    +'</body></html>';
-
-  var w = window.open('', '_blank', 'width=820,height=700');
-  if (w) { w.document.write(html); w.document.close(); }
-  else    { showToast('Pop-up blocked — allow pop-ups for this site to export PDF', 'error'); }
+    var resp = await fetch('/api/quotes/pdf', {
+      method : 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body   : JSON.stringify({ quoteData }),
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function(){ return {}; });
+      throw new Error(err.error || 'PDF generation failed');
+    }
+    var blob = await resp.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'Quotation-' + (q.quoteId || 'Quote') + '.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch (err) {
+    showToast('PDF failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF'; }
+  }
 }
 
 function showToast(msg, type) {
@@ -719,7 +705,7 @@ function showError(msg) {
   document.getElementById('errorBanner').classList.add('show');
 }
 </script>
-<script src="bot-widget.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script><script src="pp-auth.js"></script><script src="bot-widget.js"></script>
 
 <!-- ===== EMAIL MODAL ===== -->
 <div id="emailModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;align-items:center;justify-content:center;padding:16px;">

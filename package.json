@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "html-to-docx": "^1.8.0",
-    "marked": "^18.0.5"
+    "marked": "^18.0.5",
+    "xlsx": "^0.18.5"
   }
 }

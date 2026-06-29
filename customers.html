@@ -560,7 +560,8 @@ async function loadCustomers(reset = false) {
 
   try {
     const params = new URLSearchParams({ search: c_search, top: c_top, skip: c_skip });
-    const res  = await fetch(`/api/d365/customers?${params}`);
+    const _tok = localStorage.getItem('pp_token');
+    const res  = await fetch(`/api/d365/customers?${params}`, { headers: _tok ? { Authorization: `Bearer ${_tok}` } : {} });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
@@ -739,7 +740,8 @@ async function loadProducts(reset = false) {
 
   try {
     const params = new URLSearchParams({ search: p_search, top: p_top, skip: p_skip });
-    const res  = await fetch(`/api/d365/products?${params}`);
+    const _tok = localStorage.getItem('pp_token');
+    const res  = await fetch(`/api/d365/products?${params}`, { headers: _tok ? { Authorization: `Bearer ${_tok}` } : {} });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
@@ -917,6 +919,6 @@ function esc(str) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
 }
 </script>
-<script src="bot-widget.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script><script src="pp-auth.js"></script><script src="bot-widget.js"></script>
 </body>
 </html>

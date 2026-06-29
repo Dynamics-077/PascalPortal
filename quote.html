@@ -977,14 +977,14 @@ function selectProduct(idx, p) {
   renderLines();
 
   // Fetch best price via 4-case cascade
-  const custAccount = selectedCustomer ? (selectedCustomer.CustomerAccount      || '') : '';
-  const custGroup   = selectedCustomer ? (selectedCustomer.DiscountPriceGroupId || '') : '';
+  const custAccount   = selectedCustomer ? (selectedCustomer.CustomerAccount      || '') : '';
+  const groupCodes    = selectedCustomer ? (selectedCustomer.DiscountPriceGroupId || '') : '';
   if (!p.ItemNumber) return;
   const token = localStorage.getItem('pp_token');
   const headers = token ? { Authorization: 'Bearer ' + token } : {};
   fetch('/api/d365/price?itemNumber=' + encodeURIComponent(p.ItemNumber)
-    + '&customerAccount='    + encodeURIComponent(custAccount)
-    + '&customerGroupCode='  + encodeURIComponent(custGroup)
+    + '&customerAccount='     + encodeURIComponent(custAccount)
+    + '&customerGroupCodes='  + encodeURIComponent(groupCodes)
     + '&quantity=1', { headers })
     .then(r => r.json())
     .then(data => {
@@ -1297,98 +1297,44 @@ async function finalActivate() {
 }
 
 /* ---- PDF Export ------------------------------------------ */
-function exportPDF() {
-  const custName   = selectedCustomer ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount) : '—';
-  const custAcct   = selectedCustomer ? (selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || '') : '—';
-  const payTerms   = document.getElementById('paymentTerms').value   || '';
-  const delivTerms = document.getElementById('deliveryTerms')?.value || '';
-  const validUntil = document.getElementById('validUntil').value     || '';
-  const notes      = document.getElementById('quoteNotes').value     || '';
-  const currency   = selectedCustomer ? (selectedCustomer.CurrencyCode || 'AUD') : 'AUD';
-  const custGroup  = selectedCustomer ? (selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || '') : '';
-  const today      = new Date().toLocaleDateString('en-AU', { day:'2-digit', month:'long', year:'numeric' });
-  const repName    = salesRep ? salesRep.name  : '—';
-  const repEmail   = salesRep ? (salesRep.email || salesRep.preferred_username || salesRep.mail || salesRep.userEmail || salesRep.upn || '') : '';
+async function exportPDF() {
+  const btn = document.querySelector('[onclick="exportPDF()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; }
 
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleDateString('en-AU', { day:'2-digit', month:'long', year:'numeric' }); }
-    catch(e) { return iso.slice(0,10) || '—'; }
+  try {
+    const quoteData = {
+      quoteId      : savedQuoteId || currentOrderId || '',
+      customerName : selectedCustomer ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount) : '',
+      custAccount  : selectedCustomer ? (selectedCustomer.CustomerAccount  || selectedCustomer.accountNum || '') : '',
+      validUntil      : document.getElementById('validUntil').value       || '',
+      deliveryAddress : document.getElementById('deliveryAddress').value  || '',
+      notes           : document.getElementById('quoteNotes').value       || '',
+      currency        : selectedCustomer ? (selectedCustomer.CurrencyCode || 'AUD') : 'AUD',
+      lines        : quoteLines.map(function(l, i) {
+        return { lineNo: l.lineNo||i+1, name: l.name||'', itemNo: l.itemNo||'', qty: l.qty||0, unit: l.unit||'ea', price: l.price||0, discount: l.discount||0 };
+      }),
+    };
+
+    const resp = await fetch('/api/quotes/pdf', {
+      method : 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body   : JSON.stringify({ quoteData }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || 'PDF generation failed');
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'Quotation-' + (quoteData.quoteId || 'Quote') + '.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch (err) {
+    PP.showToast('PDF failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF'; }
   }
-
-  let netTotal = 0;
-  const linesHtml = quoteLines.map(function(l, i) {
-    const net = (parseFloat(l.price)||0) * (parseFloat(l.qty)||0) * (1 - (parseFloat(l.discount)||0) / 100);
-    netTotal += net;
-    return '<tr style="background:' + (i%2===0 ? '#f9fafb' : 'white') + '">'
-      + '<td style="padding:7px 10px">'                                          + (l.lineNo||i+1)                     + '</td>'
-      + '<td style="padding:7px 10px;font-family:monospace;color:#f97316">'      + (l.itemNo||'—')                     + '</td>'
-      + '<td style="padding:7px 10px">'                                          + (l.name||'—')                       + '</td>'
-      + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0).toFixed(2)              + '</td>'
-      + '<td style="padding:7px 10px;text-align:right">$'                        + (parseFloat(l.price)||0).toFixed(2) + '</td>'
-      + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.discount)||0).toFixed(2)              + '%</td>'
-      + '<td style="padding:7px 10px;text-align:right;font-weight:700">$'        + net.toFixed(2)                      + '</td>'
-      + '</tr>';
-  }).join('');
-
-  const gst   = netTotal * 0.1;
-  const total = netTotal + gst;
-
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-    + '<title></title>'
-    + '<style>'
-    + '@page{margin:0;size:A4}'
-    + 'body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:28px 32px;max-width:740px;margin:0 auto}'
-    + 'table{width:100%;border-collapse:collapse}'
-    + 'th{background:#1e3a5f;color:white;padding:8px 10px;text-align:left}'
-    + '@media print{body{padding:16mm 18mm}}'
-    + '</style></head><body>'
-    + '<div style="display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316">'
-      + '<div><div style="font-size:20px;font-weight:800;color:#1e3a5f">Pascal Press</div>'
-      + '<div style="font-size:11px;color:#666">Sales Quotation</div></div>'
-      + '<div style="text-align:right">'
-        + '<div style="font-size:18px;font-weight:700;color:#f97316">' + (savedQuoteId||'QUO-') + '</div>'
-        + '<div style="font-size:11px;color:#666">Date: ' + today + '</div>'
-        + (validUntil ? '<div style="font-size:11px;color:#666">Valid Until: ' + fmtDate(validUntil) + '</div>' : '')
-      + '</div>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">'
-      + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
-        + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + custName + '</div>'
-        + '<div style="color:#666">Account: ' + custAcct + '</div>'
-        + (payTerms  ? '<div style="color:#666">Payment Terms: '  + payTerms  + '</div>' : '')
-        + (delivTerms? '<div style="color:#666">Delivery Terms: ' + delivTerms + '</div>' : '')
-        + (currency  ? '<div style="color:#666">Currency: '       + currency   + '</div>' : '')
-      + '</div>'
-      + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
-        + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + repName + '</div>'
-        + (repEmail ? '<div style="color:#666">' + repEmail + '</div>' : '')
-      + '</div>'
-    + '</div>'
-    + '<table style="margin-bottom:20px"><thead><tr>'
-      + '<th style="width:30px">#</th><th>Item Code</th><th>Description</th>'
-      + '<th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th>'
-      + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net Price</th>'
-    + '</tr></thead><tbody>' + linesHtml + '</tbody></table>'
-    + '<div style="margin-left:auto;width:280px">'
-      + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
-        + '<span style="color:#666">Subtotal (excl. GST)</span><span style="font-weight:600">$' + netTotal.toFixed(2) + '</span></div>'
-      + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
-        + '<span style="color:#666">GST (10%)</span><span style="font-weight:600">$' + gst.toFixed(2) + '</span></div>'
-      + '<div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px">'
-        + '<span style="color:white;font-weight:700">TOTAL (incl. GST)</span>'
-        + '<span style="color:white;font-weight:800;font-size:14px">$' + total.toFixed(2) + '</span></div>'
-    + '</div>'
-    + (notes ? '<div style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px">Notes: ' + notes + '</div>' : '')
-    + '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center">'
-      + 'Valid until ' + fmtDate(validUntil) + ' · Pascal Press Sales Portal · Generated ' + today
-    + '</div>'
-    + '<script>window.onload=function(){window.print();}<\/script>'
-    + '</body></html>';
-
-  const w = window.open('', '_blank', 'width=820,height=700');
-  if (w) { w.document.write(html); w.document.close(); }
-  else    { PP.showToast('Pop-up blocked — allow pop-ups to export PDF', 'error'); }
 }
 </script>
 <!-- Email Modal -->
@@ -1482,16 +1428,15 @@ async function sendQuoteEmailFromQuotePage() {
       quoteId,
       customerName:  selectedCustomer ? (selectedCustomer.OrganizationName || selectedCustomer.name || selectedCustomer.CustomerAccount) : '',
       custAccount:   selectedCustomer ? (selectedCustomer.CustomerAccount || '') : '',
-      paymentTerms:  document.getElementById('paymentTerms')  ? document.getElementById('paymentTerms').value  : '',
-      deliveryTerms: document.getElementById('deliveryTerms') ? document.getElementById('deliveryTerms').value : '',
-      currency:      selectedCustomer ? (selectedCustomer.CurrencyCode || 'AUD') : 'AUD',
-      customerGroup: selectedCustomer ? (selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || '') : '',
-      validUntil:    document.getElementById('validUntil')    ? document.getElementById('validUntil').value    : '',
-      notes:         document.getElementById('quoteNotes')    ? document.getElementById('quoteNotes').value    : '',
-      status:        'Active',
+      validUntil:      document.getElementById('validUntil')       ? document.getElementById('validUntil').value       : '',
+      deliveryAddress: document.getElementById('deliveryAddress')  ? document.getElementById('deliveryAddress').value  : '',
+      currency:        selectedCustomer ? (selectedCustomer.CurrencyCode || 'AUD') : 'AUD',
+      customerGroup:   selectedCustomer ? (selectedCustomer.CustomerGroupId || selectedCustomer.customerGroup || '') : '',
+      notes:           document.getElementById('quoteNotes')       ? document.getElementById('quoteNotes').value       : '',
+      status:          'Active',
       lines: (quoteLines || []).map(l => ({
         lineNo: l.lineNo, itemNo: l.itemNo, name: l.name,
-        qty: l.qty, price: l.price, discount: l.discount
+        qty: l.qty, unit: l.unit || 'ea', price: l.price, discount: l.discount
       }))
     };
 
@@ -1518,6 +1463,6 @@ document.getElementById('quoteEmailModal').addEventListener('click', function(e)
 });
 </script>
 
-<script src="bot-widget.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script><script src="pp-auth.js"></script><script src="bot-widget.js"></script>
 </body>
 </html>

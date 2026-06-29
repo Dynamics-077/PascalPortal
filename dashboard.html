@@ -453,7 +453,8 @@ async function buildTopCustomers(orders) {
   // Get customers with orders from D365 (fast — uses server-side cache)
   let d365Customers = [];
   try {
-    const d = await fetch('/api/d365/customers?top=500').then(r => r.json());
+    const _tok2 = localStorage.getItem('pp_token');
+    const d = await fetch('/api/d365/customers?top=500', { headers: _tok2 ? { Authorization: `Bearer ${_tok2}` } : {} }).then(r => r.json());
     d365Customers = d.value || [];
   } catch (e) {
     console.warn('D365 customer fetch failed', e);
@@ -706,6 +707,6 @@ function buildPerformanceSummary(s, orders, customers) {
   `;
 }
 </script>
-<script src="bot-widget.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script><script src="pp-auth.js"></script><script src="bot-widget.js"></script>
 </body>
 </html>

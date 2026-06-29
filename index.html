@@ -234,8 +234,13 @@ msalInstance.handleRedirectPromise().then(async (tokenResponse) => {
     realRep.email     = account.username || realRep.email;
     realRep.entraOid  = account.localAccountId || realRep.entraOid;
 
-    localStorage.setItem('pp_salesrep', JSON.stringify(realRep));
-    localStorage.setItem('pp_token',    appToken);
+    localStorage.setItem('pp_salesrep',       JSON.stringify(realRep));
+    localStorage.setItem('pp_token',          appToken);
+    // Decode expiry from JWT so other pages can proactively refresh
+    try {
+      const payload = JSON.parse(atob(appToken.split('.')[1]));
+      localStorage.setItem('pp_token_expiry', String(payload.exp * 1000));
+    } catch(e) { localStorage.removeItem('pp_token_expiry'); }
 
     // ── Acquire Power Platform token for Copilot Studio bot ──
     try {

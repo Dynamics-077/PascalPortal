@@ -382,80 +382,117 @@ async function sendGraphEmail({ fromEmail, toEmail, toName, subject, html }) {
 }
 
 function buildQuotePdfHtml(quote, repName) {
-    const esc      = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const fmtDate  = (d) => { try { return d ? new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}) : '—'; } catch(e){ return '—'; } };
-    const today    = new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
-    const lines    = quote.lines || [];
-    let netTotal   = 0;
+    const esc     = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fmtDate = (d) => { try { return d ? new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}) : '—'; } catch(e){ return '—'; } };
+    const today   = new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+    const lines   = quote.lines || [];
+
+    const companyABN     = process.env.COMPANY_ABN     || '';
+    const companyAddress = process.env.COMPANY_ADDRESS || '';
+    const companyPhone   = process.env.COMPANY_PHONE   || '';
+    const companyWebsite = process.env.COMPANY_WEBSITE || '';
+    const repEmail       = process.env.EMAIL_USER      || '';
+
+    const hasDiscount = lines.some(l => (parseFloat(l.discount) || 0) > 0);
+    let netTotal = 0;
 
     const linesHtml = lines.map((l, i) => {
-        const disc = Math.min(Math.max(parseFloat(l.discount) || 0, 0), 100);
-        const net  = (parseFloat(l.price)||0) * (parseFloat(l.qty)||0) * (1 - disc / 100);
+        const disc  = Math.min(Math.max(parseFloat(l.discount) || 0, 0), 100);
+        const qty   = parseFloat(l.qty)   || 0;
+        const price = parseFloat(l.price) || 0;
+        const net   = price * qty * (1 - disc / 100);
         netTotal += net;
+        const qtyStr = qty % 1 === 0 ? qty.toFixed(0) : qty.toFixed(2);
         return '<tr style="background:' + (i%2===0 ? '#f9fafb' : 'white') + '">'
-            + '<td style="padding:7px 10px">'                                          + (l.lineNo||i+1)                     + '</td>'
-            + '<td style="padding:7px 10px;font-family:monospace;color:#f97316">'      + esc(l.itemNo||'—')                  + '</td>'
-            + '<td style="padding:7px 10px">'                                          + esc(l.name||'—')                    + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">'                         + (parseFloat(l.qty)||0).toFixed(2)   + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">$'                        + (parseFloat(l.price)||0).toFixed(2) + '</td>'
-            + '<td style="padding:7px 10px;text-align:right">'                         + disc.toFixed(2)                     + '%</td>'
-            + '<td style="padding:7px 10px;text-align:right;font-weight:700">$'        + net.toFixed(2)                      + '</td>'
+            + '<td style="padding:8px 10px;text-align:center;color:#9ca3af">'          + (l.lineNo||i+1)        + '</td>'
+            + '<td style="padding:8px 10px">'                                           + esc(l.name||'—')       + '</td>'
+            + '<td style="padding:8px 10px;text-align:right">'                          + qtyStr                 + '</td>'
+            + '<td style="padding:8px 10px;text-align:center;color:#6b7280">'           + esc(l.unit||'ea')      + '</td>'
+            + '<td style="padding:8px 10px;text-align:right">$'                         + price.toFixed(2)       + '</td>'
+            + (hasDiscount ? '<td style="padding:8px 10px;text-align:right;color:#16a34a">' + (disc > 0 ? disc.toFixed(2)+'%' : '—') + '</td>' : '')
+            + '<td style="padding:8px 10px;text-align:right;font-weight:700">$'         + net.toFixed(2)         + '</td>'
             + '</tr>';
     }).join('');
 
-    const gst   = netTotal * 0.1;
-    const total = netTotal + gst;
-    const repEmail = process.env.EMAIL_USER || '';
+    const colSpan = 5 + (hasDiscount ? 1 : 0) + 1;
+    const gst     = netTotal * 0.1;
+    const total   = netTotal + gst;
 
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-        + '<title>Quote ' + esc(quote.quoteId||'') + '</title>'
-        + '<style>'
-        + 'body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:740px;margin:0 auto}'
-        + 'table{width:100%;border-collapse:collapse}'
-        + 'th{background:#1e3a5f;color:white;padding:8px 10px;text-align:left}'
-        + '@media print{body{padding:16px}}'
-        + '</style></head><body>'
-        + '<div style="display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f97316">'
-            + '<div><div style="font-size:20px;font-weight:800;color:#1e3a5f">Pascal Press</div>'
-            + '<div style="font-size:11px;color:#666">Sales Quotation</div></div>'
-            + '<div style="text-align:right">'
-                + '<div style="font-size:18px;font-weight:700;color:#f97316">' + esc(quote.quoteId||'QUO-') + '</div>'
-                + '<div style="font-size:11px;color:#666">Date: ' + today + '</div>'
-                + (quote.validUntil ? '<div style="font-size:11px;color:#666">Valid Until: ' + fmtDate(quote.validUntil) + '</div>' : '')
-            + '</div>'
-        + '</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">'
-            + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Customer</div>'
-                + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(quote.customerName||quote.custAccount||'—') + '</div>'
-                + '<div style="color:#666">Account: ' + esc(quote.custAccount||'—') + '</div>'
-                + (quote.paymentTerms  ? '<div style="color:#666">Payment Terms: '  + esc(quote.paymentTerms)  + '</div>' : '')
-                + (quote.deliveryTerms ? '<div style="color:#666">Delivery Terms: ' + esc(quote.deliveryTerms) + '</div>' : '')
-                + (quote.currency      ? '<div style="color:#666">Currency: '       + esc(quote.currency)      + '</div>' : '')
-            + '</div>'
-            + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Sales Rep</div>'
-                + '<div style="font-weight:700;color:#1e3a5f;font-size:13px">' + esc(repName) + '</div>'
-                + (repEmail ? '<div style="color:#666">' + esc(repEmail) + '</div>' : '')
-            + '</div>'
-        + '</div>'
-        + '<table style="margin-bottom:20px"><thead><tr>'
-            + '<th style="width:30px">#</th><th>Item Code</th><th>Description</th>'
-            + '<th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th>'
-            + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net Price</th>'
-        + '</tr></thead><tbody>' + (linesHtml || '<tr><td colspan="7" style="padding:12px;text-align:center;color:#999;">No line items</td></tr>') + '</tbody></table>'
-        + '<div style="margin-left:auto;width:280px">'
-            + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
-                + '<span style="color:#666">Subtotal (excl. GST)</span><span style="font-weight:600">$' + netTotal.toFixed(2) + '</span></div>'
-            + '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">'
-                + '<span style="color:#666">GST (10%)</span><span style="font-weight:600">$' + gst.toFixed(2) + '</span></div>'
-            + '<div style="display:flex;justify-content:space-between;padding:10px;background:#f97316;border-radius:6px;margin-top:6px">'
-                + '<span style="color:white;font-weight:700">TOTAL (incl. GST)</span>'
-                + '<span style="color:white;font-weight:800;font-size:14px">$' + total.toFixed(2) + '</span></div>'
-        + '</div>'
-        + (quote.notes ? '<div style="margin-top:20px;font-size:11px;color:#555;padding:12px;background:#f9fafb;border-radius:4px">Notes: ' + esc(quote.notes) + '</div>' : '')
-        + '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#999;text-align:center">'
-            + 'Valid until ' + fmtDate(quote.validUntil) + ' · Pascal Press Sales Portal · Generated ' + today
-        + '</div>'
-        + '</body></html>';
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Quotation ${esc(quote.quoteId||'')}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:12px;color:#111827;padding:32px;max-width:760px;margin:0 auto}
+table{width:100%;border-collapse:collapse}
+th{background:#1e3a5f;color:white;padding:9px 10px;text-align:left;font-size:11px;font-weight:600}
+th.r{text-align:right}
+.section-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#f97316;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #fed7aa}
+@media print{body{padding:14mm 16mm}}
+</style>
+</head><body>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:18px;border-bottom:3px solid #f97316">
+  <div>
+    <div style="font-size:22px;font-weight:800;color:#1e3a5f">Pascal Press</div>
+    ${companyAddress ? `<div style="font-size:10px;color:#6b7280;margin-top:3px">${esc(companyAddress)}</div>` : ''}
+    ${companyABN     ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">ABN: ${esc(companyABN)}</div>` : ''}
+    ${companyPhone   ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">Ph: ${esc(companyPhone)}${companyWebsite ? '  ·  ' + esc(companyWebsite) : ''}</div>` : (companyWebsite ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${esc(companyWebsite)}</div>` : '')}
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:13px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:1px">Sales Quotation</div>
+    <div style="font-size:17px;font-weight:800;color:#f97316;margin-top:4px">${esc(quote.quoteId||'')}</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:3px">Date: ${today}</div>
+    ${quote.validUntil ? `<div style="font-size:11px;color:#6b7280;margin-top:1px">Valid Until: ${fmtDate(quote.validUntil)}</div>` : ''}
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:24px">
+  <div>
+    <div class="section-label">Bill To</div>
+    <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:4px">${esc(quote.customerName||quote.custAccount||'—')}</div>
+    ${quote.custAccount     ? `<div style="color:#555;margin-top:2px">Account No: ${esc(quote.custAccount)}</div>` : ''}
+    ${quote.deliveryAddress ? `<div style="color:#555;margin-top:4px">${esc(quote.deliveryAddress)}</div>` : ''}
+  </div>
+  <div>
+    <div class="section-label">Prepared By</div>
+    <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:4px">${esc(repName||'Sales Team')}</div>
+    ${repEmail ? `<div style="color:#555;margin-top:2px">${esc(repEmail)}</div>` : ''}
+  </div>
+</div>
+
+<table style="margin-bottom:20px"><thead><tr>
+  <th style="width:32px;text-align:center">#</th>
+  <th>Description</th>
+  <th class="r" style="width:48px">Qty</th>
+  <th style="width:42px;text-align:center">Unit</th>
+  <th class="r" style="width:82px">Unit Price</th>
+  ${hasDiscount ? '<th class="r" style="width:58px">Disc</th>' : ''}
+  <th class="r" style="width:90px">Net Amount</th>
+</tr></thead>
+<tbody>${linesHtml || `<tr><td colspan="${colSpan}" style="padding:14px;text-align:center;color:#9ca3af">No items</td></tr>`}</tbody>
+</table>
+
+<div style="margin-left:auto;width:270px">
+  <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">
+    <span style="color:#6b7280">Subtotal (excl. GST)</span><span style="font-weight:600">$${netTotal.toFixed(2)}</span></div>
+  <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb">
+    <span style="color:#6b7280">GST (10%)</span><span style="font-weight:600">$${gst.toFixed(2)}</span></div>
+  <div style="display:flex;justify-content:space-between;padding:10px 12px;background:#1e3a5f;border-radius:6px;margin-top:6px">
+    <span style="color:white;font-weight:700">TOTAL (incl. GST)</span>
+    <span style="color:white;font-weight:800;font-size:14px">$${total.toFixed(2)}</span></div>
+</div>
+
+${quote.notes ? `<div style="margin-top:20px;font-size:11px;color:#555;padding:12px 14px;background:#f9fafb;border-radius:4px;border-left:3px solid #f97316"><strong>Notes:</strong> ${esc(quote.notes)}</div>` : ''}
+
+<div style="margin-top:20px;padding:12px 16px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#374151;background:#f8fafc">
+  To accept this quotation, please contact your sales representative or reply to this email.
+  This quote is valid until <strong>${fmtDate(quote.validUntil)}</strong>.
+</div>
+
+<div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center">
+  Pascal Press · Generated ${today}
+</div>
+</body></html>`;
 }
 
 async function generateQuotePdf(quote, repName) {
@@ -528,6 +565,22 @@ function buildShortEmailHtml({ quote, repName, toName, customMessage }) {
 </div>
 </body></html>`;
 }
+
+app.post('/api/quotes/pdf', async (req, res) => {
+    try {
+        const { quoteData } = req.body;
+        if (!quoteData) return res.status(400).json({ error: 'quoteData required' });
+        const repName = req.user?.name || process.env.DEV_REP_NAME || 'Sales Team';
+        const pdfBuffer = await generateQuotePdf(quoteData, repName);
+        const filename  = `Quotation-${(quoteData.quoteId || 'Quote').replace(/[^a-zA-Z0-9-]/g,'_')}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(Buffer.from(pdfBuffer));
+    } catch (err) {
+        console.error('[PDF] generation failed:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.post('/api/email/quote/:quoteId', async (req, res) => {
     try {
@@ -1297,12 +1350,16 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
 // Runs 4-case cascade: customer-specific → group → global → base product price
 app.get('/api/d365/price', async (req, res) => {
     try {
-        const { itemNumber = '', customerAccount = '', customerGroupCode = '', quantity = '1', caseOnly = '0' } = req.query;
+        const { itemNumber = '', customerAccount = '', customerGroupCode = '', customerGroupCodes = '', quantity = '1', caseOnly = '0' } = req.query;
         if (!itemNumber) return res.status(400).json({ error: 'itemNumber is required' });
+        // Accept comma-separated group codes OR single value for backward compatibility
+        const groupCodesArr = customerGroupCodes
+            ? customerGroupCodes.split(',').map(s => s.trim()).filter(Boolean)
+            : (customerGroupCode ? [customerGroupCode] : []);
         const result = await d365.getSalesPriceAgreements({
             itemNumber,
             customerAccount,
-            customerGroupCode,
+            customerGroupCodes: groupCodesArr,
             quantity: parseFloat(quantity) || 1,
             caseOnly: parseInt(caseOnly) || 0,
         });
