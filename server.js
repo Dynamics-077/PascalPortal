@@ -185,10 +185,34 @@ function buildFallbackBootstrap(user = {}) {
     };
 }
 
+// Enrich orders where customerName == custAccount (account number saved instead of name).
+// Looks up real OrganizationName from D365 for affected accounts (batched, parallel).
+async function enrichOrderCustomerNames(orders) {
+    const needsEnrichment = orders.filter(
+        o => o.customerName && o.custAccount && o.customerName === o.custAccount
+    );
+    if (needsEnrichment.length === 0) return orders;
+
+    const unique = [...new Set(needsEnrichment.map(o => o.custAccount))];
+    const lookups = await Promise.allSettled(unique.map(acc => d365.getCustomer(acc)));
+    const nameMap = {};
+    lookups.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value?.OrganizationName) {
+            nameMap[unique[i]] = r.value.OrganizationName;
+        }
+    });
+    return orders.map(o =>
+        (o.customerName === o.custAccount && nameMap[o.custAccount])
+            ? { ...o, customerName: nameMap[o.custAccount] }
+            : o
+    );
+}
+
 // 0. Bootstrap data for the portal
 app.get('/api/bootstrap', async (req, res) => {
     try {
         const data = await sharepoint.getBootstrapData(req.user);
+        data.salesOrders = await enrichOrderCustomerNames(data.salesOrders || []);
         res.json(data);
     } catch (error) {
         console.warn('[SharePoint] Bootstrap unavailable:', error.message);
@@ -294,7 +318,8 @@ app.get('/api/customers/:id', async (req, res) => {
 app.get('/api/salesorders', async (req, res) => {
     try {
         const bootstrap = await sharepoint.getBootstrapData(req.user);
-        res.json(bootstrap.salesOrders || []);
+        const orders = await enrichOrderCustomerNames(bootstrap.salesOrders || []);
+        res.json(orders);
     } catch (error) {
         console.error('Error fetching sales orders:', error.message);
         res.status(500).json({ error: 'Failed to fetch sales orders' });
@@ -764,7 +789,9 @@ app.post('/api/salesorders/header', async (req, res) => {
         HEADER_COLS.forEach(k => { if (req.body[k] !== undefined) fields[k] = req.body[k]; });
         fields.SalesId = salesId;
         fields.Email   = userEmail;
-        if (!fields.Title) fields.Title = salesId;
+        // Embed customer name in Title as "SalesId | CustomerName" so mapOrder can extract it reliably
+        const clientTitle = (fields.Title || '').trim();
+        fields.Title = clientTitle ? `${salesId} | ${clientTitle}` : salesId;
         console.log('[SP] Creating SalesOrderHeader with fields:', JSON.stringify(fields));
         const created = await sharepoint.createListItem('SalesOrderHeader', fields);
         const spItemId = created?.id || created?.fields?.id || null;

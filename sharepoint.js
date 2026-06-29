@@ -186,10 +186,18 @@ function mapCompany(item) {
 }
 
 function mapCustomer(item) {
+    const acctNum = cleanText(
+        item.fields.AccountNum || item.fields.AccountNumber ||
+        item.fields.CustomerAccount || item.fields.CustAccount || item.fields.Title
+    );
+    const custName = cleanText(
+        item.fields.OrganizationName || item.fields.Name ||
+        item.fields.CustomerName || item.fields.CompanyName || item.fields.Title
+    );
     return {
-        id: cleanText(item.fields.AccountNum || item.fields.AccountNumber || item.fields.Title),
-        accountNum: cleanText(item.fields.AccountNum || item.fields.AccountNumber || item.fields.Title),
-        name: cleanText(item.fields.Name || item.fields.Title),
+        id: acctNum,
+        accountNum: acctNum,
+        name: custName,
         title: cleanText(item.fields.Title || ''),
         customerGroup: cleanText(item.fields.CustGroup || item.fields.CustomerGroup),
         companyId: cleanText(item.fields.CompanyId || item.fields.CompanyID),
@@ -210,9 +218,14 @@ function mapOrder(item, customerMap) {
     const customerId = cleanText(fields.CustAccount || fields.CustomerAccount || fields.AccountNum);
     const customer   = customerMap.get(customerId);
 
-    // Title pattern written by createSalesOrder: "SalesId | CustomerName | PO:Ref"
-    const titleParts      = cleanText(fields.Title || '').split(' | ');
-    const custNameInTitle = titleParts.length >= 2 ? titleParts[1].replace(/^PO:.*/, '').trim() : '';
+    // Title may be "SalesId | CustomerName | PO:Ref" (preferred) OR just "CustomerName" (legacy)
+    const titleParts       = cleanText(fields.Title || '').split(' | ');
+    const titleIsSalesId   = /^(PAS|SO|ORD)-\d{8}/i.test(titleParts[0]);
+    const rawNameFromTitle = titleIsSalesId && titleParts.length >= 2
+        ? titleParts[1].replace(/^PO:.*/, '').trim()
+        : (!titleIsSalesId ? titleParts[0] : '');
+    // Discard title-derived name if it's the same as the account number (name was never saved)
+    const custNameInTitle  = rawNameFromTitle && rawNameFromTitle !== customerId ? rawNameFromTitle : '';
 
     return {
         id:       cleanText(fields.SalesId || fields.Title || item.id),
@@ -220,7 +233,12 @@ function mapOrder(item, customerMap) {
         salesId:  cleanText(fields.SalesId || fields.Title || item.id),
         customerId,
         custAccount:  customerId,
-        customerName: cleanText(customer?.name || custNameInTitle || fields.CustomerName || customerId),
+        customerName: cleanText(
+            (customer?.name && customer.name !== customerId ? customer.name : '') ||
+            custNameInTitle ||
+            fields.CustomerName ||
+            customerId
+        ),
         customerRef:  titleParts.find(p => p.startsWith('PO:'))?.replace('PO:', '') || '',
         userEmail:    cleanText(fields.Email || fields.UserEmail || ''),
         date: getDateKey(item.createdDateTime),
@@ -375,7 +393,12 @@ async function getBootstrapData(user = {}) {
 
     const companies = companyRows.map(mapCompany);
     let customers = customerRows.map(mapCustomer);
-    const customerMap = new Map(customers.map(customer => [customer.id, customer]));
+    // Build customerMap with both id and accountNum as keys to maximise lookup coverage
+    const customerMap = new Map();
+    customers.forEach(c => {
+        if (c.id)         customerMap.set(c.id, c);
+        if (c.accountNum && c.accountNum !== c.id) customerMap.set(c.accountNum, c);
+    });
     let salesOrders = orderRows.map(item => mapOrder(item, customerMap));
 
     // Filter by current user email
