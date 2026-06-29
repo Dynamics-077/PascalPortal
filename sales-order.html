@@ -1149,9 +1149,8 @@ function selectProduct(idx, p) {
     + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
     .then(r => r.json())
     .then(data => {
-      // Use DiscountPercentage1 total only — DiscountAmount is a flat $$ per-unit
-      // field in D365 trade agreements and cannot be reliably converted to % here.
-      const disc = Math.min(+(data.totalDiscount || 0).toFixed(2), 100);
+      // Use DiscountPercentage1 if set; otherwise DiscountAmount (stored as % in this D365)
+      const disc = Math.min(+((data.totalDiscount || data.totalDiscountAmt || 0)).toFixed(2), 100);
       orderLines[idx].discount = disc;
       renderLines();
     })

@@ -459,9 +459,10 @@ function buildQuotePdfHtml(quote, repName) {
 }
 
 async function generateQuotePdf(quote, repName) {
-    const execPath = (() => { try { return puppeteer.executablePath(); } catch (_) { return null; } })()
+    const execPath = await puppeteer.executablePath().catch(() => null)
         || process.env.PUPPETEER_EXECUTABLE_PATH
-        || '/usr/bin/google-chrome-stable';
+        || '/usr/bin/google-chrome-stable'
+        || '/usr/bin/chromium-browser';
     const browser = await puppeteer.launch({
         headless: true,
         executablePath: execPath,
@@ -1192,8 +1193,8 @@ app.get('/api/d365/customers', async (req, res) => {
             AddressZipCode:      c.AddressZipCode      || '',
             PrimaryContactEmail: c.PrimaryContactEmail || '',
             PrimaryContactPhone: c.PrimaryContactPhone || '',
-            PaymentTermsName:    c.PaymentTerms        || '',
-            DeliveryTerms:       c.DeliveryTerms       || '',
+            PaymentTermsName:    c.PaymentTermsName    || c.PaymentTerms || '',
+            DeliveryTerms:       c.DeliveryTermsCode   || c.DeliveryTerms || '',
             SalesTaxGroup:       c.SalesTaxGroup       || '',
             LanguageId:          c.LanguageId          || '',
         }));
