@@ -552,7 +552,6 @@ function openOrderDetail(idx) {
        + '<i class="fas fa-box-open" style="font-size:1.8rem;margin-bottom:10px;display:block;color:var(--grey-300)"></i>'
        + '<div style="font-size:.85rem;">No order lines found for this order.</div></div>';
   } else {
-    var hasDisc = orderLines.some(function (l) { return Number(l.Discount || 0) > 0; });
     var lineRows = orderLines.map(function (l) {
       var ln   = l.lineNumber != null ? l.lineNumber : '—';
       var ic   = l.ItemCode || '—';
@@ -565,7 +564,7 @@ function openOrderDetail(idx) {
       var un   = l.SalesUnit || 'ea';
       var discCell = disc > 0
         ? '<span style="color:#16a34a;font-weight:700">' + disc + '%</span>'
-        : '<span style="color:var(--grey-300)">—</span>';
+        : '<span style="font-size:.78rem;color:var(--grey-400)">0%</span>';
       return '<tr>'
         + '<td style="text-align:center;font-weight:600;color:var(--grey-400);font-size:.78rem;">' + esc(String(ln)) + '</td>'
         + '<td><span style="font-family:monospace;font-size:.78rem;background:var(--teal-light);color:var(--teal-dark);padding:2px 7px;border-radius:4px;font-weight:700">' + esc(ic) + '</span></td>'
@@ -573,7 +572,7 @@ function openOrderDetail(idx) {
         + '<td style="text-align:right;font-weight:700;color:var(--navy)">' + esc(String(qty)) + '</td>'
         + '<td style="font-size:.76rem;color:var(--grey-500);font-family:monospace">' + esc(un) + '</td>'
         + '<td class="amount">' + up + '</td>'
-        + (hasDisc ? '<td style="text-align:right">' + discCell + '</td>' : '')
+        + '<td style="text-align:right">' + discCell + '</td>'
         + '<td class="amount" style="color:var(--teal-dark)">' + lt + '</td>'
         + '</tr>';
     }).join('');
@@ -581,7 +580,7 @@ function openOrderDetail(idx) {
        + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
        + '<th style="width:50px">Line</th><th>Item ID</th><th>Description</th>'
        + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th>'
-       + (hasDisc ? '<th style="text-align:right">Disc%</th>' : '')
+       + '<th style="text-align:right">Disc%</th>'
        + '<th style="text-align:right">Net Amount</th>'
        + '</tr></thead><tbody>' + lineRows + '</tbody></table></div></div>';
   }
