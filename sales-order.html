@@ -1428,6 +1428,7 @@ async function finalSubmit() {
         SalesUnit:       line.unit  || 'ea',
         SalesPrice:      line.price || 0,
         SalesQty:        line.qty   || 1,
+        Discount:        line.discount || 0,
         OrderLineStatus: 'Submitted',
         ...(line.itemNo ? { ItemCode: line.itemNo } : {}),
       };
