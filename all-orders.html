@@ -267,7 +267,6 @@
     </div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="closeOrderModal(null)">Close</button>
     </div>
   </div>
 </div>
@@ -518,7 +517,7 @@ function openOrderDetail(idx) {
      + '<i class="fas fa-info-circle" style="color:var(--teal);margin-right:6px;"></i>Order Details</div>';
   b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">';
   b += odRow('Customer',           esc(cust));
-  b += odRow('Account #',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(acct) + '</span>');
+  b += odRow('Customer ID',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(acct) + '</span>');
   b += odRow('Sales Rep',          esc(rep));
   b += odRow('Date &amp; Time',    dt);
   b += odRow('Line Count',         orderLines.length + ' product' + (orderLines.length !== 1 ? 's' : ''));
@@ -580,7 +579,7 @@ function openOrderDetail(idx) {
        + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
        + '<th style="width:50px">Line</th><th>Item ID</th><th>Description</th>'
        + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th>'
-       + '<th style="text-align:right">Disc%</th>'
+       + '<th style="text-align:right">Discount %</th>'
        + '<th style="text-align:right">Net Amount</th>'
        + '</tr></thead><tbody>' + lineRows + '</tbody></table></div></div>';
   }

@@ -201,8 +201,14 @@ function calcNet(price, qty, discount) {
 /* ---- Generate a draft Sales Order ID (matches server format) */
 function nextOrderId() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(Math.random() * 9000) + 1000; // 1000-9999, matches PA rand(1000,9999)
+  const rand = Math.floor(Math.random() * 9000) + 1000;
   return `PAS-${date}-${rand}`;
+}
+
+function nextQuoteId() {
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(Math.random() * 9000) + 1000;
+  return `QUO-${date}-${rand}`;
 }
 
 /* ============================================================
@@ -338,7 +344,7 @@ function setTopbarUser(name) {
 /* ---- Expose globals --------------------------------------- */
 window.PP = {
   MOCK, searchCustomers, getSalesRep, setTopbarUser,
-  fmtCurrency, fmtDate, statusBadge, calcNet, nextOrderId,
+  fmtCurrency, fmtDate, statusBadge, calcNet, nextOrderId, nextQuoteId,
   showToast, openModal, closeModal,
   exportOrders, exportOrderLines,
 };

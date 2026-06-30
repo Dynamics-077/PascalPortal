@@ -180,7 +180,6 @@
     </div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer" id="modalFooter">
-      <button class="btn btn-ghost btn-sm" id="modalCloseFooterBtn">Close</button>
     </div>
   </div>
 </div>
@@ -224,7 +223,6 @@ function statusClass(s) {
 document.addEventListener('DOMContentLoaded', function () {
   // Wire modal close buttons
   document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
-  document.getElementById('modalCloseFooterBtn').addEventListener('click', closeModal);
   document.getElementById('quoteModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
@@ -418,7 +416,7 @@ function openDetail(idx) {
   b += '<div style="font-size:.75rem;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;"><i class="fas fa-info-circle" style="color:var(--orange,#f97316);margin-right:6px;"></i>Quote Details</div>';
   b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">';
   b += mkRow('Customer',       esc(q.customerName||q.custAccount||'—'));
-  b += mkRow('Account #',      '<span style="font-family:monospace;color:var(--orange,#f97316)">'+esc(q.custAccount||'—')+'</span>');
+  b += mkRow('Customer ID',      '<span style="font-family:monospace;color:var(--orange,#f97316)">'+esc(q.custAccount||'—')+'</span>');
   b += mkRow('Currency',       esc(q.currency||'AUD'));
   b += mkRow('Customer Group', esc(q.customerGroup||'—'));
   b += mkRow('Payment Terms',  esc(q.paymentTerms||'—'));
@@ -473,7 +471,7 @@ function openDetail(idx) {
        + '<div class="table-wrap"><table class="lines-table"><thead><tr>'
        + '<th style="width:45px">Line</th><th>Item Code</th><th>Description</th><th>Category</th>'
        + '<th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Price</th>'
-       + '<th style="text-align:right">Disc%</th><th style="text-align:right">Net Amount</th>'
+       + '<th style="text-align:right">Discount %</th><th style="text-align:right">Net Amount</th>'
        + '</tr></thead><tbody>'+lrs+'</tbody></table></div></div>';
   }
 
@@ -505,11 +503,10 @@ function openDetail(idx) {
 
   var footer = document.getElementById('modalFooter');
   // Always include Close button first, then status-specific actions
-  footer.innerHTML = '<button class="btn btn-ghost btn-sm" id="modalCloseFooterBtn">Close</button>' + footerHTML;
+  footer.innerHTML = footerHTML;
 
   // Wire all footer buttons (re-wire Close since innerHTML replaced the static one)
   var el;
-  el = document.getElementById('modalCloseFooterBtn'); if (el) el.addEventListener('click', closeModal);
   el = document.getElementById('mfPdfBtn');    if (el) el.addEventListener('click', exportDetailPDF);
   el = document.getElementById('mfEmailBtn'); if (el) el.addEventListener('click', function() { openEmailModal(q); });
   el = document.getElementById('mfCancelBtn'); if (el) el.addEventListener('click', function() { cancelQuote(q.quoteId, q.spItemId); });
@@ -723,11 +720,6 @@ function showError(msg) {
     <!-- Form -->
     <div style="padding:24px;">
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">From</label>
-        <input type="text" value="1dcopilot@1dynamics.com.au" readonly
-          style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#94a3b8;background:#f8fafc;box-sizing:border-box;" />
-      </div>
-      <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">To <span style="color:#ef4444;">*</span></label>
         <input type="email" id="emailTo" placeholder="client@example.com" required
           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;" />
@@ -748,15 +740,8 @@ function showError(msg) {
           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;outline:none;resize:vertical;font-family:inherit;"></textarea>
       </div>
 
-      <!-- Preview note -->
-      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;margin-bottom:20px;font-size:12px;color:#0369a1;display:flex;gap:8px;align-items:flex-start;">
-        <i class="fas fa-info-circle" style="margin-top:1px;flex-shrink:0;"></i>
-        <span>A professional HTML email with full quote details, line items, and totals will be sent.</span>
-      </div>
-
       <!-- Buttons -->
       <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button onclick="closeEmailModal()" class="btn btn-ghost btn-sm">Cancel</button>
         <button id="emailSendBtn" onclick="sendQuoteEmail()" class="btn btn-primary btn-sm"
           style="background:linear-gradient(135deg,#1e3a5f,#2a5298);border-color:#1e3a5f;min-width:120px;">
           <i class="fas fa-paper-plane"></i> Send Email

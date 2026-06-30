@@ -475,7 +475,7 @@ th.r{text-align:right}
   <div>
     <div class="section-label">Bill To</div>
     <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:4px">${esc(quote.customerName||quote.custAccount||'—')}</div>
-    ${quote.custAccount     ? `<div style="color:#555;margin-top:2px">Account No: ${esc(quote.custAccount)}</div>` : ''}
+    ${quote.custAccount     ? `<div style="color:#555;margin-top:2px">Customer ID: ${esc(quote.custAccount)}</div>` : ''}
     ${quote.deliveryAddress ? `<div style="color:#555;margin-top:4px">${esc(quote.deliveryAddress)}</div>` : ''}
   </div>
   <div>
@@ -491,7 +491,7 @@ th.r{text-align:right}
   <th class="r" style="width:48px">Qty</th>
   <th style="width:42px;text-align:center">Unit</th>
   <th class="r" style="width:82px">Unit Price</th>
-  ${hasDiscount ? '<th class="r" style="width:58px">Disc</th>' : ''}
+  ${hasDiscount ? '<th class="r" style="width:72px">Discount %</th>' : ''}
   <th class="r" style="width:90px">Net Amount</th>
 </tr></thead>
 <tbody>${linesHtml || `<tr><td colspan="${colSpan}" style="padding:14px;text-align:center;color:#9ca3af">No items</td></tr>`}</tbody>
@@ -1026,6 +1026,16 @@ app.put('/api/quotes/lines/item/:lineSpItemId', async (req, res) => {
         res.json(updated);
     } catch (error) {
         console.error('[SP] Update quote line error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/quotes/lines/item/:itemId', async (req, res) => {
+    try {
+        await sharepoint.deleteListItem('SalesQuoteLines', req.params.itemId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete quote line error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });

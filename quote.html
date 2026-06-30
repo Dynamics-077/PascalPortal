@@ -88,7 +88,6 @@
     .order-lines-table .col-price { width: 90px; }
     .order-lines-table .col-disc  { width: 75px; }
     .order-lines-table .col-net   { width: 100px; text-align: right; }
-    .order-lines-table .col-del   { width: 100px; }
     .order-lines-table .col-act   { width: 42px; text-align: center; }
     .net-amount { font-weight: 600; color: var(--navy); }
 
@@ -200,9 +199,8 @@
       .order-lines-table .col-cat::before   { content: "Category"; }
       .order-lines-table .col-qty::before   { content: "Qty"; }
       .order-lines-table .col-price::before { content: "Unit Price"; }
-      .order-lines-table .col-disc::before  { content: "Disc %"; }
+      .order-lines-table .col-disc::before  { content: "Discount %"; }
       .order-lines-table .col-net::before   { content: "Net Amount"; }
-      .order-lines-table .col-del::before   { content: "Delivery"; }
       .order-lines-table .line-no  { display: none; }
       .order-lines-table .col-unit { display: none; }
       .order-lines-table .col-item { grid-column: 1 / -1; min-width: unset; }
@@ -332,38 +330,27 @@
 
       <div class="order-panel rep-panel">
         <div class="order-panel-header">
-          <h3>Sales Rep &amp; Customer Selection</h3>
+          <h3>Customer Selection</h3>
           <span class="badge" style="background:var(--orange-light);color:var(--orange);border:1px solid var(--orange);">Step 1 — Required</span>
         </div>
         <div class="order-panel-body">
-          <div class="form-row cols-3">
-            <div class="form-group">
-              <label>Sales Rep Name</label>
-              <input type="text" id="repName" readonly
-                style="background:var(--grey-50); font-weight:600; color:var(--navy);" />
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label>Select Customer <span class="required">*</span></label>
-              <div class="customer-search-wrap">
-                <div class="search-bar">
-                  <span class="search-icon"></span>
-                  <input type="text" id="customerSearch"
-                    placeholder="Search by school name or account number…"
-                    autocomplete="off" />
-                </div>
-                <div class="customer-dropdown" id="customerDropdown"></div>
+          <div class="form-group">
+            <label>Select Customer <span class="required">*</span></label>
+            <div class="customer-search-wrap">
+              <div class="search-bar">
+                <span class="search-icon"></span>
+                <input type="text" id="customerSearch"
+                  placeholder="Search by school name or account number…"
+                  autocomplete="off" />
               </div>
+              <div class="customer-dropdown" id="customerDropdown"></div>
             </div>
           </div>
 
-          <div class="form-row cols-4" id="customerDetailsRow">
+          <div class="form-row cols-3" id="customerDetailsRow">
             <div class="form-group">
-              <label>Account #</label>
+              <label>Customer ID</label>
               <input type="text" id="customerAccNo" readonly style="background:var(--grey-50); font-family:monospace;" />
-            </div>
-            <div class="form-group">
-              <label>Customer Name</label>
-              <input type="text" id="customerNameDisplay" readonly style="background:var(--grey-50);" />
             </div>
             <div class="form-group">
               <label>Credit Status</label>
@@ -402,7 +389,8 @@
               <input type="text" value="Pascal Portal" readonly style="background:var(--grey-50);" />
             </div>
           </div>
-          <div class="form-row cols-4">
+          <input type="hidden" id="warehouse" value="SYD" />
+          <div class="form-row cols-3">
             <div class="form-group">
               <label>Delivery Terms</label>
               <input type="text" id="deliveryTerms" readonly style="background:var(--grey-50);" placeholder="Auto-filled from customer" />
@@ -410,13 +398,6 @@
             <div class="form-group">
               <label>Payment Terms</label>
               <input type="text" id="paymentTerms" readonly style="background:var(--grey-50);" placeholder="Auto-filled from customer" />
-            </div>
-            <div class="form-group">
-              <label>Warehouse</label>
-              <select id="warehouse">
-                <option value="SYD">Sydney (SYD)</option>
-                <option value="MEL">Melbourne (MEL)</option>
-              </select>
             </div>
             <div class="form-group">
               <label>Delivery Address</label>
@@ -455,9 +436,8 @@
                 <th class="col-qty">Qty <span class="required">*</span></th>
                 <th>Unit</th>
                 <th class="col-price">Unit Price</th>
-                <th class="col-disc">Disc %</th>
+                <th class="col-disc">Discount %</th>
                 <th class="col-net">Net Amount</th>
-                <th>Delivery</th>
                 <th class="col-act"></th>
               </tr>
             </thead>
@@ -604,7 +584,8 @@ function esc(s) {
 }
 
 let quoteLines       = [];
-let currentOrderId   = 'QUO-Draft';
+let removedLineSpIds = [];
+let currentOrderId   = PP.nextQuoteId();
 let salesRep         = null;
 let selectedCustomer = null;
 let currentStep      = 1;
@@ -624,8 +605,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).then(r => r.json());
 
     salesRep = bootstrap.salesRep || PP.getSalesRep();
-
-    document.getElementById('repName').value = salesRep.name;
 
     const initials = salesRep.name.split(' ').map(w=>w[0]).join('').slice(0,2);
     const _av = document.getElementById('userAvatar'); if (_av) _av.textContent = initials;
@@ -709,7 +688,6 @@ async function resumeDraftQuote(quoteId, editHeader) {
         } else {
           document.getElementById('customerSearch').value      = quote.customerName || custAcct;
           document.getElementById('customerAccNo').value       = custAcct;
-          document.getElementById('customerNameDisplay').value = quote.customerName || custAcct;
           document.getElementById('customerDetailsRow').classList.add('visible');
         }
       } catch (e) {
@@ -719,6 +697,7 @@ async function resumeDraftQuote(quoteId, editHeader) {
     }
 
     // Load existing lines from SP so finalActivate doesn't duplicate them
+    removedLineSpIds = [];
     if ((quote.lines || []).length > 0) {
       quoteLines = quote.lines.map((l, i) => ({
         lineNo:       l.lineNo || (i + 1),
@@ -729,7 +708,6 @@ async function resumeDraftQuote(quoteId, editHeader) {
         unit:         l.unit  || 'ea',
         price:        l.price || 0,
         discount:     l.discount || 0,
-        deliveryType: l.deliveryType || 'Stock',
         _fromSP:      true,   // flag: line already exists in SP, don't re-save unless modified
         _spId:        l.id || null, // SP item ID — used to UPDATE instead of CREATE on modify
       }));
@@ -798,7 +776,6 @@ function selectCustomer(customer) {
 
   document.getElementById('customerSearch').value      = name;
   document.getElementById('customerAccNo').value       = acct;
-  document.getElementById('customerNameDisplay').value = name;
   document.getElementById('customerDropdown').classList.remove('open');
   document.getElementById('customerDetailsRow').classList.add('visible');
 
@@ -829,11 +806,13 @@ function selectCustomer(customer) {
 /* ---- Lines ----------------------------------------------- */
 function addBlankLine() {
   if (!selectedCustomer) { PP.showToast('Please select a customer first', 'warning'); return; }
-  quoteLines.push({ lineNo: quoteLines.length + 1, itemNo: '', name: '', category: '', qty: 1, unit: 'ea', price: 0, discount: 0, deliveryType: 'Stock' });
+  quoteLines.push({ lineNo: quoteLines.length + 1, itemNo: '', name: '', category: '', qty: 1, unit: 'ea', price: 0, discount: 0 });
   renderLines();
 }
 
 function removeLine(idx) {
+  const removed = quoteLines[idx];
+  if (removed?._spId) removedLineSpIds.push(removed._spId);
   quoteLines.splice(idx, 1);
   quoteLines.forEach((l, i) => l.lineNo = i + 1);
   renderLines();
@@ -873,11 +852,6 @@ function renderLines() {
           onchange="updateLine(${idx}, 'discount', +this.value)" />
       </td>
       <td class="col-net"><span class="net-amount">${PP.fmtCurrency(net)}</span></td>
-      <td class="col-del">
-        <select onchange="updateLine(${idx}, 'deliveryType', this.value)" style="width:90px; font-size:.8rem;">
-          ${['Stock','Backorder','Direct'].map(t => `<option ${t===line.deliveryType?'selected':''}>${t}</option>`).join('')}
-        </select>
-      </td>
       <td class="col-act">
         <button class="remove-line" onclick="removeLine(${idx})" title="Remove line"><i class="fas fa-times"></i></button>
       </td>`;
@@ -1185,7 +1159,7 @@ function previewAndActivate() {
     <div class="confirm-line"><span class="cl-label">Quote ID</span><span class="cl-val" style="font-family:monospace;">${savedQuoteId}</span></div>
     <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name}</span></div>
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
-    <div class="confirm-line"><span class="cl-label">Account #</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
+    <div class="confirm-line"><span class="cl-label">Customer ID</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
     <div class="confirm-line"><span class="cl-label">Valid Until</span><span class="cl-val">${validUntil}</span></div>
     <div class="confirm-line"><span class="cl-label">Lines</span><span class="cl-val">${quoteLines.length} product${quoteLines.length!==1?'s':''}</span></div>
     <div class="confirm-line"><span class="cl-label">Total units</span><span class="cl-val">${quoteLines.reduce((s,l)=>s+l.qty,0)}</span></div>
@@ -1228,7 +1202,6 @@ async function finalActivate() {
         SalesPrice:   line.price    || 0,
         SalesQty:     line.qty      || 1,
         Discount:     line.discount || 0,
-        DeliveryType: line.deliveryType || 'Stock',
         ItemCategory: line.category || '',
         ...(line.itemNo ? { ItemCode: line.itemNo, ItemName: line.name } : {}),
       };
@@ -1255,6 +1228,16 @@ async function finalActivate() {
         throw new Error(`Line ${i + 1} failed: ${err.error || 'unknown error'}`);
       }
     }
+
+    // Delete lines that were removed during editing
+    for (const spId of removedLineSpIds) {
+      const delRes = await fetch(`/api/quotes/lines/item/${spId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      if (!delRes.ok) console.warn(`Failed to delete quote line SP item ${spId}`);
+    }
+    removedLineSpIds = [];
 
     // 2. Update header status to Active
     if (savedSpItemId) {
