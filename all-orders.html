@@ -518,7 +518,6 @@ function openOrderDetail(idx) {
   b += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">';
   b += odRow('Customer',           esc(cust));
   b += odRow('Customer ID',          '<span style="font-family:monospace;color:var(--teal-dark)">' + esc(acct) + '</span>');
-  b += odRow('Sales Rep',          esc(rep));
   b += odRow('Date &amp; Time',    dt);
   b += odRow('Line Count',         orderLines.length + ' product' + (orderLines.length !== 1 ? 's' : ''));
   b += '</div></div>';

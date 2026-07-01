@@ -421,7 +421,6 @@ function openDetail(idx) {
   b += mkRow('Customer Group', esc(q.customerGroup||'—'));
   b += mkRow('Payment Terms',  esc(q.paymentTerms||'—'));
   b += mkRow('Delivery Terms', esc(q.deliveryTerms||'—'));
-  b += mkRow('Sales Rep',      esc(q.userEmail||'—'));
   if (q.notes) b += mkRow('Notes', esc(q.notes));
   if (q.convertedOrderId) b += mkRow('Order ID',
     '<a href="sales-order.html?resume='+encodeURIComponent(q.convertedOrderId)+'" style="color:var(--teal-dark,#00a4a6);font-weight:700;font-family:monospace;">'+esc(q.convertedOrderId)+'</a>');
@@ -617,8 +616,8 @@ async function convertQuote(quoteId, spItemId, btn) {
     });
   })
   .then(function(data) {
-    showToast('Order ' + data.salesId + ' created! Redirecting to orders...', 'success');
-    setTimeout(function() { window.location.href = 'all-orders.html'; }, 1800);
+    showToast('Order ' + data.salesId + ' created! Redirecting to order form...', 'success');
+    setTimeout(function() { window.location.href = 'sales-order.html?resume=' + encodeURIComponent(data.salesId); }, 1800);
   })
   .catch(function(err) {
     showError('Convert failed: ' + err.message);

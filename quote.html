@@ -320,7 +320,7 @@
           <div class="lbl">Valid Until</div>
           <div class="val" id="s1lValidUntil">—</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="goBackToStep1()" style="flex-shrink:0; margin-left:auto;">
+        <button id="editHeaderLockedBtn" class="btn btn-ghost btn-sm" onclick="goBackToStep1()" style="flex-shrink:0; margin-left:auto;">
           <i class="fas fa-pencil-alt"></i> Edit Header
         </button>
       </div>
@@ -506,7 +506,7 @@
       </div>
 
       <div class="footer-btn-group" id="step2FooterBtns" hidden>
-        <button class="btn btn-ghost" onclick="goBackToStep1()"><i class="fas fa-arrow-left"></i> Edit Header</button>
+        <button id="editHeaderFooterBtn" class="btn btn-ghost" onclick="goBackToStep1()"><i class="fas fa-arrow-left"></i> Edit Header</button>
         <button class="btn btn-danger" id="cancelOrderBtn" onclick="cancelQuote()"
           style="background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);">
           <i class="fas fa-times"></i> Cancel Quote
@@ -528,10 +528,6 @@
       <button class="btn btn-ghost btn-icon btn-sm" onclick="PP.closeModal('confirmModal')"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i>
-        <span>Activating sends this quote for customer review. You can still revise it after activation.</span>
-      </div>
       <div id="confirmSummary" style="margin: 12px 0;"></div>
     </div>
     <div class="modal-footer">
@@ -547,13 +543,12 @@
 <div class="modal-overlay" id="successModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 style="color:var(--orange);">Quote Activated Successfully</h3>
+      <h3 style="color:var(--orange);">Activated Successfully</h3>
     </div>
     <div class="modal-body" style="text-align:center; padding:24px;">
       <div style="font-size:1.1rem; font-weight:700; color:var(--navy); margin-bottom:8px;" id="successOrderId">
         Quote QUO-0000000
       </div>
-      <p style="margin-bottom:16px;">Quote is now active and ready to share with the customer.</p>
       <div style="background:var(--grey-50); border-radius:var(--radius); padding:14px; margin-bottom:16px; text-align:left; font-size:.85rem;">
         <div id="successDetails" style="line-height:2;"></div>
       </div>
@@ -562,7 +557,7 @@
       <button class="btn btn-primary" style="background:var(--orange);border-color:var(--orange);" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Export PDF</button>
       <button class="btn btn-primary" style="background:linear-gradient(135deg,#1e3a5f,#2a5298);border-color:#1e3a5f;" onclick="openEmailModalFromSuccess()"><i class="fas fa-envelope"></i> Send Email</button>
       <a href="all-quotes.html" class="btn btn-ghost"><i class="fas fa-list"></i> View All Quotes</a>
-      <a href="dashboard.html"  class="btn btn-ghost">← Dashboard</a>
+      <a href="dashboard.html"  class="btn btn-ghost">Dashboard</a>
     </div>
   </div>
 </div>
@@ -713,10 +708,17 @@ async function resumeDraftQuote(quoteId, editHeader) {
       }));
     }
 
+    // Hide Edit Header buttons — revision mode is lines-only
+    const _ehL = document.getElementById('editHeaderLockedBtn');
+    const _ehF = document.getElementById('editHeaderFooterBtn');
+    if (_ehL) _ehL.style.display = 'none';
+    if (_ehF) _ehF.style.display = 'none';
+
     if (editHeader) {
       goToStep(1);
       PP.showToast(`Editing header — ${currentOrderId}`, 'info');
     } else {
+      document.getElementById('s1lOrderId').textContent    = savedQuoteId || '—';
       document.getElementById('s1lPayTerms').textContent   = quote.paymentTerms || '—';
       document.getElementById('s1lValidUntil').textContent = quote.validUntil   || '—';
       goToStep(2);
@@ -838,10 +840,12 @@ function renderLines() {
         <input type="text" value="${(line.category || '').replace(/"/g,'&quot;')}" placeholder="Category"
           style="width:90px; font-size:.78rem;" onchange="updateLine(${idx}, 'category', this.value)" />
       </td>
-      <td class="col-qty">
-        <input type="number" min="0.01" step="0.01" value="${(+line.qty||0).toFixed(2)}" style="width:70px;"
-          onchange="updateLine(${idx}, 'qty', +this.value)" />
-      </td>
+      <td class="col-qty">${(function(){
+        const dec = ['lb','ltr'].includes(line.unit||'');
+        const val = dec ? (+line.qty||0).toFixed(2) : Math.round(+line.qty||1);
+        return `<input type="number" min="${dec?'0.01':'1'}" step="${dec?'0.01':'1'}" value="${val}" style="width:70px;"
+          onchange="updateLine(${idx}, 'qty', ${dec?'+this.value':'Math.round(+this.value)'})">`;
+      })()}</td>
       <td class="col-unit" style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
       <td class="col-price">
         <input type="number" min="0" step="0.01" value="${line.price.toFixed(2)}" style="width:90px;"
@@ -1157,7 +1161,7 @@ function previewAndActivate() {
 
   document.getElementById('confirmSummary').innerHTML = `
     <div class="confirm-line"><span class="cl-label">Quote ID</span><span class="cl-val" style="font-family:monospace;">${savedQuoteId}</span></div>
-    <div class="confirm-line"><span class="cl-label">Sales Rep</span><span class="cl-val">${salesRep.name}</span></div>
+
     <div class="confirm-line"><span class="cl-label">Customer</span><span class="cl-val">${custName}</span></div>
     <div class="confirm-line"><span class="cl-label">Customer ID</span><span class="cl-val" style="font-family:monospace;">${custAcct}</span></div>
     <div class="confirm-line"><span class="cl-label">Valid Until</span><span class="cl-val">${validUntil}</span></div>
@@ -1255,15 +1259,14 @@ async function finalActivate() {
     const grandTotal = subtotal * 1.1;
     const validUntil = document.getElementById('validUntil').value || '—';
 
-    document.getElementById('successOrderId').textContent = `Quote ${savedQuoteId} Activated`;
+    document.getElementById('successOrderId').textContent = `${savedQuoteId} Activated`;
     document.getElementById('successDetails').innerHTML = `
       <div>Quote ID: <strong>${savedQuoteId}</strong></div>
       <div>Rep: <strong>${salesRep.name}</strong></div>
       <div>Customer: <strong>${custName}</strong></div>
       <div>${quoteLines.length} line(s) · ${quoteLines.reduce((s,l)=>s+l.qty,0)} units</div>
       <div>Quote Total: <strong>${PP.fmtCurrency(grandTotal)}</strong></div>
-      <div>Valid Until: <strong>${validUntil}</strong></div>
-      <div style="color:var(--orange); margin-top:4px;">Ready to export as PDF and send to customer</div>`;
+      <div>Valid Until: <strong>${validUntil}</strong></div>`;
     
     // Reset button state in case they close success modal and return to form
     btn.disabled  = false;
@@ -1334,10 +1337,6 @@ async function exportPDF() {
       <button onclick="closeQuoteEmailModal()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
     <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">From</label>
-        <input type="text" value="1dcopilot@1dynamics.com.au" readonly style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#6b7280;font-size:14px;box-sizing:border-box;" />
-      </div>
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">To Email <span style="color:#ef4444;">*</span></label>
         <input type="email" id="qemToEmail" placeholder="client@example.com" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;" />

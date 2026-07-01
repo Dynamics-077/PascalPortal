@@ -784,7 +784,7 @@ app.post('/api/salesorders/header', async (req, res) => {
         const userEmail = req.user?.preferred_username || req.user?.email || '';
         console.log(`[Order] Creating header — user: ${userEmail || '(no email — token missing?)'} | auth header present: ${!!req.headers.authorization}`);
         // Whitelist: only columns that exist in SalesOrderHeader SharePoint list
-        const HEADER_COLS = ['Title','CustAccount','Currency','CustGroup','InvoiceAccount','Status','DeliveryTerms','PaymentTerms'];
+        const HEADER_COLS = ['Title','CustAccount','Currency','CustGroup','InvoiceAccount','Status','DeliveryTerms','PaymentTerms','Note'];
         const fields = {};
         HEADER_COLS.forEach(k => { if (req.body[k] !== undefined) fields[k] = req.body[k]; });
         fields.SalesId = salesId;
@@ -871,7 +871,7 @@ app.post('/api/salesorders/:salesId/lines', async (req, res) => {
         const lineNumber  = parseInt(req.body.lineNumber) || 1;
         const userEmail   = req.user?.preferred_username || req.user?.email || '';
         // Whitelist: only columns that exist in SalesOrderLines SharePoint list
-        const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','Discount','OrderLineStatus','ItemCode'];
+        const LINE_COLS = ['Title','lineNumber','CustAccount','Currency','CustGroup','SalesUnit','SalesPrice','SalesQty','Discount','OrderLineStatus','ItemCode','Category'];
         const fields = {};
         LINE_COLS.forEach(k => { if (req.body[k] !== undefined && req.body[k] !== '') fields[k] = req.body[k]; });
         if (fields.lineNumber === undefined) fields.lineNumber = lineNumber;

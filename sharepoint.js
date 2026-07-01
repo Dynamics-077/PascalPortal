@@ -555,7 +555,8 @@ async function createSalesOrder(orderPayload, user = {}) {
                 SalesQty:        asNumber(line.qty),
                 ...(line.discount > 0 ? { Discount: asNumber(line.discount) } : {}),
                 OrderLineStatus: cleanText(line.orderLineStatus    || line.status || 'In Progress'),
-                ...(line.itemNo ? { ItemCode: cleanText(line.itemNo) } : {}),
+                ...(line.itemNo   ? { ItemCode: cleanText(line.itemNo) } : {}),
+                ...(line.category ? { Category: cleanText(line.category) } : {}),
                 Email:           cleanText(user?.preferred_username || user?.email || ''),
             };
             Object.keys(lineFields).forEach(k => { if (lineFields[k] === '') delete lineFields[k]; });
