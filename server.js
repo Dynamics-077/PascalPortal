@@ -679,6 +679,11 @@ app.listen(PORT, () => {
     d365.getProducts({ top: 1000 })
         .then(data => console.log(`[D365] Product cache pre-warmed — ${(data.value || []).length} products ready`))
         .catch(err  => console.warn('[D365] Product pre-warm failed (will retry on first request):', err.message));
+
+    // Pre-warm D365 units of measure cache
+    d365.getUnitsOfMeasure()
+        .then(data => console.log(`[D365] Units cache pre-warmed — ${data.length} units ready`))
+        .catch(err  => console.warn('[D365] Units pre-warm failed (will retry on first request):', err.message));
 });
 
 // -------------------------------
@@ -1380,6 +1385,17 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
         console.error('[D365] Product detail error:', error.message);
         const status = error.message.includes('not found') ? 404 : 500;
         res.status(status).json({ error: error.message });
+    }
+});
+
+// GET /api/d365/units — all units of measure with decimal precision from D365
+app.get('/api/d365/units', requireAuth, async (req, res) => {
+    try {
+        const units = await d365.getUnitsOfMeasure();
+        res.json({ value: units });
+    } catch (err) {
+        console.error('[D365] Units error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 

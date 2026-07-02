@@ -527,10 +527,6 @@
               <span class="lbl">GST (10%)</span>
               <span class="val" id="gstAmount">$0.00</span>
             </div>
-            <div class="total-row">
-              <span class="lbl">Freight</span>
-              <span class="val" id="freightAmount">$0.00</span>
-            </div>
             <div class="total-row grand">
               <span class="lbl">ORDER TOTAL (incl. GST)</span>
               <span class="val" id="grandTotal">$0.00</span>
@@ -635,6 +631,7 @@ let currentOrderId   = PP.nextOrderId();
 let salesRep         = null;
 let selectedCustomer = null;
 let currentStep      = 1;
+let unitPrecisionMap = {};
 let savedSalesId     = null;   // set after step 1 SP save
 let savedSpItemId    = null;   // SP item ID for direct PUT/DELETE (no SalesId column lookup)
 
@@ -670,6 +667,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('requestedShipDate').value = tomorrow.toISOString().slice(0, 10);
     document.getElementById('requestedShipDate').min   = tomorrow.toISOString().slice(0, 10);
+
+    // Load unit decimal precision from D365
+    try {
+      const uData = await fetch('/api/d365/units', { headers: authHeaders() }).then(r => r.json());
+      (uData.value || []).forEach(u => { unitPrecisionMap[u.UnitSymbol] = u.DecimalPrecision ?? 0; });
+    } catch (_) {}
 
     initCustomerSearch();
 
@@ -950,10 +953,12 @@ function renderLines() {
           onchange="updateLine(${idx}, 'category', this.value)" />
       </td>
       <td class="col-qty">${(function(){
-        const dec = ['lb','ltr'].includes(line.unit||'');
-        const val = dec ? (+line.qty||0).toFixed(2) : Math.round(+line.qty||1);
-        return `<input type="number" min="${dec?'0.01':'1'}" max="9999" step="${dec?'0.01':'1'}" value="${val}" style="width:70px;"
-          onchange="updateLine(${idx}, 'qty', ${dec?'+this.value':'Math.round(+this.value)'})">`;
+        const prec = unitPrecisionMap[line.unit] ?? 0;
+        const step = prec > 0 ? (1 / Math.pow(10, prec)).toFixed(prec) : '1';
+        const val  = prec > 0 ? (+line.qty||0).toFixed(prec) : String(Math.round(+line.qty||1));
+        const onch = prec > 0 ? '+this.value' : 'Math.round(+this.value)';
+        return `<input type="number" min="${prec>0?step:'1'}" max="9999" step="${step}" value="${val}" style="width:70px;"
+          onchange="updateLine(${idx}, 'qty', ${onch})">`;
       })()}</td>
       <td class="col-unit" style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
       <td class="col-price" style="color:var(--text-dark); font-size:.9rem;">
@@ -1127,15 +1132,12 @@ function updateTotals() {
   const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
   const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
   const subtotal     = subtotalFull - discountAmt;
-  const freight      = subtotal > 0 ? (subtotal >= 150 ? 0 : 12.50) : 0;
   const gst          = subtotal * 0.1;
-  const grandTotal   = subtotal + gst + freight;
+  const grandTotal   = subtotal + gst;
 
   document.getElementById('subtotal').textContent      = PP.fmtCurrency(subtotalFull);
   document.getElementById('totalDiscount').textContent = `-${PP.fmtCurrency(discountAmt)}`;
   document.getElementById('gstAmount').textContent     = PP.fmtCurrency(gst);
-  document.getElementById('freightAmount').textContent = freight === 0 && subtotal > 0
-    ? 'FREE (order ≥ $150)' : PP.fmtCurrency(freight);
   document.getElementById('grandTotal').textContent    = PP.fmtCurrency(grandTotal);
 
   const lineCount = orderLines.length;
@@ -1149,9 +1151,7 @@ function updateTotals() {
     : `<strong>${lineCount}</strong> line${lineCount!==1?'s':''} ·
        <strong>${orderLines.reduce((s,l)=>s+l.qty,0)}</strong> total books<br>
        Categories: ${categories.join(', ') || '—'}<br>
-       ${subtotal >= 150
-         ? '<i class="fas fa-check" style="color:var(--success)"></i> <span style="color:var(--success)">Free freight applied</span>'
-         : `$${(150 - subtotal).toFixed(2)} more for free freight`}`;
+       `;
 
   // Step 2 submit button: enabled when at least one valid line exists
   const hasValidLine = orderLines.some(l => (l.name || l.itemNo).trim() && l.qty >= 1);
@@ -1341,8 +1341,7 @@ function submitOrder() {
   const subtotalFull = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
   const discountAmt  = orderLines.reduce((s, l) => s + l.price * l.qty * (l.discount / 100), 0);
   const subtotal     = subtotalFull - discountAmt;
-  const freight      = subtotal >= 150 ? 0 : 12.50;
-  const grandTotal   = subtotal * 1.1 + freight;
+  const grandTotal   = subtotal * 1.1;
   const addrText     = document.getElementById('deliveryAddress').value.trim() || '—';
 
   document.getElementById('confirmSummary').innerHTML = `
@@ -1355,7 +1354,7 @@ function submitOrder() {
     <div class="confirm-line"><span class="cl-label">Total books</span><span class="cl-val">${orderLines.reduce((s,l)=>s+l.qty,0)}</span></div>
     <div class="confirm-line"><span class="cl-label">Subtotal (excl.GST)</span><span class="cl-val">${PP.fmtCurrency(subtotal)}</span></div>
     <div class="confirm-line"><span class="cl-label">GST (10%)</span><span class="cl-val">${PP.fmtCurrency(subtotal * 0.1)}</span></div>
-    <div class="confirm-line"><span class="cl-label">Freight</span><span class="cl-val">${freight === 0 ? 'FREE' : PP.fmtCurrency(freight)}</span></div>
+
     <div class="confirm-line" style="border-top:2px solid var(--grey-200); margin-top:4px; padding-top:10px;">
       <span class="cl-label" style="font-weight:700; color:var(--navy); font-size:.95rem;">TOTAL (incl. GST)</span>
       <span class="cl-val" style="font-size:1.1rem; color:var(--teal);">${PP.fmtCurrency(grandTotal)}</span>

@@ -581,6 +581,7 @@ function esc(s) {
 let quoteLines       = [];
 let removedLineSpIds = [];
 let currentOrderId   = PP.nextQuoteId();
+let unitPrecisionMap = {};
 let salesRep         = null;
 let selectedCustomer = null;
 let currentStep      = 1;
@@ -616,6 +617,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const validUntil = new Date(); validUntil.setDate(validUntil.getDate() + 30);
     document.getElementById('validUntil').value = validUntil.toISOString().slice(0, 10);
     document.getElementById('validUntil').min   = today;
+
+    // Load unit decimal precision from D365
+    try {
+      const uData = await fetch('/api/d365/units', { headers: authHeaders() }).then(r => r.json());
+      (uData.value || []).forEach(u => { unitPrecisionMap[u.UnitSymbol] = u.DecimalPrecision ?? 0; });
+    } catch (_) {}
 
     initCustomerSearch();
 
@@ -841,10 +848,12 @@ function renderLines() {
           style="width:90px; font-size:.78rem;" onchange="updateLine(${idx}, 'category', this.value)" />
       </td>
       <td class="col-qty">${(function(){
-        const dec = ['lb','ltr'].includes(line.unit||'');
-        const val = dec ? (+line.qty||0).toFixed(2) : Math.round(+line.qty||1);
-        return `<input type="number" min="${dec?'0.01':'1'}" step="${dec?'0.01':'1'}" value="${val}" style="width:70px;"
-          onchange="updateLine(${idx}, 'qty', ${dec?'+this.value':'Math.round(+this.value)'})">`;
+        const prec = unitPrecisionMap[line.unit] ?? 0;
+        const step = prec > 0 ? (1 / Math.pow(10, prec)).toFixed(prec) : '1';
+        const val  = prec > 0 ? (+line.qty||0).toFixed(prec) : String(Math.round(+line.qty||1));
+        const onch = prec > 0 ? '+this.value' : 'Math.round(+this.value)';
+        return `<input type="number" min="${prec>0?step:'1'}" step="${step}" value="${val}" style="width:70px;"
+          onchange="updateLine(${idx}, 'qty', ${onch})">`;
       })()}</td>
       <td class="col-unit" style="color:var(--grey-400); font-size:.82rem;">${line.unit}</td>
       <td class="col-price">

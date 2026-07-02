@@ -27,6 +27,11 @@ let _prodCache    = null;
 let _prodCacheExp = 0;
 const PROD_TTL_MS = 10 * 60 * 1000;
 
+// Units of measure cache (1-hour TTL)
+let _unitsCache    = null;
+let _unitsCacheExp = 0;
+const UNITS_TTL_MS = 60 * 60 * 1000;
+
 // Fields to fetch from ReleasedProductsV2
 const PRODUCT_SELECT = [
   'ItemNumber', 'ProductNumber', 'SearchName', 'ProductSearchName',
@@ -487,6 +492,16 @@ async function getSalesLineDiscounts({ itemNumber, customerAccount = '', custome
   };
 }
 
+async function getUnitsOfMeasure() {
+  if (_unitsCache && Date.now() < _unitsCacheExp) return _unitsCache;
+  const res = await _get('UnitsOfMeasure', {
+    $select: 'UnitSymbol,UnitDescription,DecimalPrecision'
+  });
+  _unitsCache    = res.value || [];
+  _unitsCacheExp = Date.now() + UNITS_TTL_MS;
+  return _unitsCache;
+}
+
 module.exports = {
   getToken,
   getCustomers, getCustomer,
@@ -496,4 +511,5 @@ module.exports = {
   getSalesPriceAgreements, getAllPriceAgreementsForItem,
   getSalesLineDiscounts,
   getDefaultDataAreaId,
+  getUnitsOfMeasure,
 };
