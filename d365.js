@@ -7,7 +7,6 @@
 
 'use strict';
 
-const axios = require('axios');
 
 const TENANT_ID     = process.env.D365_TENANT_ID;
 const CLIENT_ID     = process.env.D365_CLIENT_ID;
@@ -69,15 +68,17 @@ async function getToken() {
     resource:      RESOURCE,
   });
 
-  const res = await axios.post(
-    `https://login.microsoftonline.com/${TENANT_ID}/oauth2/token`,
-    params.toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-  );
+  const res  = await fetch(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  if (!res.ok) throw new Error(`[D365] Token fetch failed: ${res.status}`);
+  const data = await res.json();
 
-  _cachedToken  = res.data.access_token;
-  _tokenExpires = Date.now() + res.data.expires_in * 1000;
-  console.info('[D365] Token refreshed, expires in', res.data.expires_in, 's');
+  _cachedToken  = data.access_token;
+  _tokenExpires = Date.now() + data.expires_in * 1000;
+  console.info('[D365] Token refreshed, expires in', data.expires_in, 's');
   return _cachedToken;
 }
 
@@ -86,8 +87,9 @@ async function getToken() {
    ---------------------------------------------------------- */
 async function _get(entity, params = {}) {
   const token = await getToken();
-  const res = await axios.get(`${RESOURCE}/data/${entity}`, {
-    params,
+  const qs    = new URLSearchParams(params).toString();
+  const url   = `${RESOURCE}/data/${entity}${qs ? '?' + qs : ''}`;
+  const res   = await fetch(url, {
     headers: {
       Authorization:       `Bearer ${token}`,
       'OData-MaxVersion':  '4.0',
@@ -95,7 +97,8 @@ async function _get(entity, params = {}) {
       Accept:              'application/json;odata.metadata=minimal',
     },
   });
-  return res.data;
+  if (!res.ok) { const t = await res.text(); throw new Error(`[D365] GET ${entity} ${res.status}: ${t}`); }
+  return res.json();
 }
 
 /* ----------------------------------------------------------
@@ -103,7 +106,8 @@ async function _get(entity, params = {}) {
    ---------------------------------------------------------- */
 async function _post(entity, body) {
   const token = await getToken();
-  const res = await axios.post(`${RESOURCE}/data/${entity}`, body, {
+  const res   = await fetch(`${RESOURCE}/data/${entity}`, {
+    method:  'POST',
     headers: {
       Authorization:       `Bearer ${token}`,
       'OData-MaxVersion':  '4.0',
@@ -111,8 +115,10 @@ async function _post(entity, body) {
       Accept:              'application/json;odata.metadata=minimal',
       'Content-Type':      'application/json',
     },
+    body: JSON.stringify(body),
   });
-  return res.data;
+  if (!res.ok) { const t = await res.text(); throw new Error(`[D365] POST ${entity} ${res.status}: ${t}`); }
+  return res.json();
 }
 
 /* ----------------------------------------------------------
@@ -121,7 +127,8 @@ async function _post(entity, body) {
    ---------------------------------------------------------- */
 async function _patch(entityWithKey, body) {
   const token = await getToken();
-  const res = await axios.patch(`${RESOURCE}/data/${entityWithKey}`, body, {
+  const res   = await fetch(`${RESOURCE}/data/${entityWithKey}`, {
+    method:  'PATCH',
     headers: {
       Authorization:       `Bearer ${token}`,
       'OData-MaxVersion':  '4.0',
@@ -129,8 +136,11 @@ async function _patch(entityWithKey, body) {
       Accept:              'application/json;odata.metadata=minimal',
       'Content-Type':      'application/json',
     },
+    body: JSON.stringify(body),
   });
-  return res.data;
+  if (!res.ok) { const t = await res.text(); throw new Error(`[D365] PATCH ${entityWithKey} ${res.status}: ${t}`); }
+  if (res.status === 204) return {};
+  return res.json();
 }
 
 /* ----------------------------------------------------------

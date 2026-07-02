@@ -14,14 +14,12 @@
   "dependencies": {
     "@azure/msal-browser": "^2.39.0",
     "@fortawesome/fontawesome-free": "^7.2.0",
-    "axios": "^1.15.1",
     "cors": "^2.8.6",
     "docx": "^9.7.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^4.0.1",
-    "nodemailer": "^9.0.0",
     "puppeteer": "^25.1.0"
   },
   "devDependencies": {

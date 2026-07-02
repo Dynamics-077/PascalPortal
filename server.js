@@ -3,8 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
-const axios = require('axios');
-const nodemailer  = require('nodemailer');
 const puppeteer   = require('puppeteer');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
@@ -384,11 +382,15 @@ async function getGraphToken() {
         client_secret: clientSecret,
         scope:         'https://graph.microsoft.com/.default',
     });
-    const resp = await axios.post(url, body.toString(), {
+    const resp = await fetch(url, {
+        method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    body.toString(),
     });
-    _graphToken = resp.data.access_token;
-    _graphTokenExpiry = Date.now() + ((resp.data.expires_in || 3600) - 60) * 1000;
+    if (!resp.ok) throw new Error(`[Graph] Token fetch failed: ${resp.status}`);
+    const tokenData = await resp.json();
+    _graphToken = tokenData.access_token;
+    _graphTokenExpiry = Date.now() + ((tokenData.expires_in || 3600) - 60) * 1000;
     return _graphToken;
 }
 
@@ -399,10 +401,13 @@ async function sendGraphEmail({ fromEmail, toEmail, toName, subject, html }) {
         body: { contentType: 'HTML', content: html },
         toRecipients: [{ emailAddress: { address: toEmail, name: toName || toEmail } }],
     };
-    await axios.post(
+    await fetch(
         `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(fromEmail)}/sendMail`,
-        { message, saveToSentItems: true },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        {
+            method:  'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ message, saveToSentItems: true }),
+        }
     );
 }
 
@@ -652,7 +657,7 @@ app.post('/api/email/quote/:quoteId', async (req, res) => {
             }),
         };
 
-        await axios.post(paUrl, payload, { headers: { 'Content-Type': 'application/json' } });
+        await fetch(paUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
         console.log(`[Email] Quote ${quote.quoteId} sent to ${toEmail} with PDF attachment`);
         res.json({ success: true, quoteId: quote.quoteId, sentTo: toEmail });
@@ -1389,7 +1394,7 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
 });
 
 // GET /api/d365/units — all units of measure with decimal precision from D365
-app.get('/api/d365/units', requireAuth, async (req, res) => {
+app.get('/api/d365/units', async (req, res) => {
     try {
         const units = await d365.getUnitsOfMeasure();
         res.json({ value: units });

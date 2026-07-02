@@ -1,5 +1,4 @@
 require('dotenv').config();
-const axios = require('axios');
 
 const graphBaseUrl = 'https://graph.microsoft.com/v1.0';
 
@@ -85,29 +84,34 @@ async function getAccessToken() {
         scope: 'https://graph.microsoft.com/.default'
     });
 
-    const response = await axios.post(
+    const response = await fetch(
         `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-        body,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }
     );
+    if (!response.ok) throw new Error(`[Graph] Token fetch failed: ${response.status}`);
+    const tokenData = await response.json();
 
-    cachedToken = response.data.access_token;
-    cachedTokenExpiresAt = Date.now() + ((response.data.expires_in || 3600) * 1000);
+    cachedToken = tokenData.access_token;
+    cachedTokenExpiresAt = Date.now() + ((tokenData.expires_in || 3600) * 1000);
     return cachedToken;
 }
 
 async function graphRequest(method, url, data) {
     const token = await getAccessToken();
-    const response = await axios({
-        method,
-        url: `${graphBaseUrl}${url}`,
-        data,
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
-    });
-    return response.data;
+    const opts  = {
+        method:  method.toUpperCase(),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    };
+    if (data !== undefined) opts.body = JSON.stringify(data);
+    const response = await fetch(`${graphBaseUrl}${url}`, opts);
+    if (!response.ok) {
+        const errText = await response.text();
+        const err = new Error(`[Graph] ${method.toUpperCase()} ${url} ${response.status}: ${errText}`);
+        err.response = { status: response.status, data: errText };
+        throw err;
+    }
+    if (response.status === 204) return {};
+    return response.json();
 }
 
 async function readListItems(listId, select = '*') {
