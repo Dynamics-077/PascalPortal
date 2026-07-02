@@ -495,8 +495,7 @@ function openOrderDetail(idx) {
     return s + Number(l.SalesQty || 0) * net;
   }, 0);
   var gst        = subtotal * 0.1;
-  var freight    = subtotal > 0 ? (subtotal >= 150 ? 0 : 12.50) : 0;
-  var grandTotal = subtotal + gst + freight;
+  var grandTotal = subtotal + gst;
   var totalBooks = orderLines.reduce(function (s, l) { return s + Number(l.SalesQty || 0); }, 0);
 
   document.getElementById('modalTitle').textContent = 'Order ' + sid;
@@ -523,16 +522,13 @@ function openOrderDetail(idx) {
   b += '</div></div>';
 
   // ── Financial summary ─────────────────────────────────────
-  b += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:18px;align-items:center;">';
+  b += '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:18px;align-items:center;">';
   b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
      + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">Subtotal (excl. GST)</div>'
      + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + fmt(subtotal) + '</div></div>';
   b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
      + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">GST (10%)</div>'
      + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + fmt(gst) + '</div></div>';
-  b += '<div style="background:white;border:1px solid var(--grey-200);border-radius:var(--radius);padding:12px 14px;text-align:center;">'
-     + '<div style="font-size:.72rem;color:var(--grey-500);margin-bottom:4px;">Freight</div>'
-     + '<div style="font-weight:700;color:var(--navy);font-family:monospace">' + (freight === 0 && subtotal > 0 ? '<span style="color:#16a34a;font-size:.75rem;">FREE</span>' : fmt(freight)) + '</div></div>';
   b += '<div style="background:linear-gradient(135deg,var(--teal),var(--teal-dark));border-radius:var(--radius);padding:14px 20px;text-align:center;min-width:130px;">'
      + '<div style="font-size:.72rem;color:rgba(255,255,255,.75);margin-bottom:4px;">TOTAL (incl. GST)</div>'
      + '<div style="font-weight:800;color:white;font-family:monospace;font-size:1.15rem">' + fmt(grandTotal) + '</div></div>';
