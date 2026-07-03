@@ -992,8 +992,14 @@ function selectProduct(idx, p) {
     + '&productGroupCode='  + encodeURIComponent(prodLineDiscGrp), { headers })
     .then(r => r.json())
     .then(data => {
-      // Use DiscountPercentage1 if set; otherwise DiscountAmount (stored as % in this D365)
-      const disc = Math.min(+((data.totalDiscount || data.totalDiscountAmt || 0)).toFixed(2), 100);
+      let disc = 0;
+      if (data.totalDiscount > 0) {
+        // DiscountPercentage1 — already a percentage
+        disc = Math.min(+(data.totalDiscount).toFixed(2), 100);
+      } else if (data.totalDiscountAmt > 0 && quoteLines[idx].price > 0) {
+        // DiscountAmount — fixed $ per unit, convert to % of unit price
+        disc = Math.min(+((data.totalDiscountAmt / quoteLines[idx].price) * 100).toFixed(2), 100);
+      }
       quoteLines[idx].discount = disc;
       renderLines();
     })
