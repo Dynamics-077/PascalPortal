@@ -1059,7 +1059,7 @@ async function doProductSearch(idx, q) {
       const div = document.createElement('div');
       div.className = 'prod-option';
       div.innerHTML =
-        '<div class="po-name">' + (p.SearchName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
+        '<div class="po-name">' + (p.ProductName || p.SearchName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
         '<div class="po-meta">' + (p.ItemNumber || '').replace(/</g,'&lt;') + price + group + '</div>';
       div.addEventListener('click', function() { selectProduct(idx, p); });
       drop.appendChild(div);
@@ -1082,7 +1082,7 @@ async function doProductSearch(idx, q) {
 /* ---- Auto-fill line from D365 product selection ---------- */
 function selectProduct(idx, p) {
   orderLines[idx].itemNo   = p.ItemNumber      || '';
-  orderLines[idx].name     = p.SearchName      || p.ItemNumber || '';
+  orderLines[idx].name     = p.ProductName || p.SearchName || p.ItemNumber || '';
   orderLines[idx].category = p.ProductGroupId  || '';
   orderLines[idx].price    = p.UnitCost        || 0;
   orderLines[idx].discount = 0;

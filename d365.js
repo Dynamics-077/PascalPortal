@@ -208,11 +208,29 @@ async function getCustomer(accountId) {
    ---------------------------------------------------------- */
 async function _getAllProductsCached() {
   if (_prodCache && Date.now() < _prodCacheExp) return _prodCache;
-  const data = await _get('ReleasedProductsV2', {
-    '$top':    1000,
-    '$select': PRODUCT_SELECT,
+
+  // Fetch products + translations in parallel
+  const [prodData, transData] = await Promise.all([
+    _get('ReleasedProductsV2', { '$top': 1000, '$select': PRODUCT_SELECT }),
+    _get('ProductTranslations', {
+      '$top':    1000,
+      '$select': 'ProductNumber,ProductName,LanguageId',
+      '$filter': "LanguageId eq 'en-us'",
+    }).catch(() => ({ value: [] })),
+  ]);
+
+  // Build translation map: ProductNumber → ProductName
+  const nameMap = {};
+  (transData.value || []).forEach(t => {
+    if (t.ProductName) nameMap[t.ProductNumber] = t.ProductName;
   });
-  _prodCache    = data.value || [];
+
+  // Merge ProductName into each product record
+  _prodCache = (prodData.value || []).map(p => ({
+    ...p,
+    ProductName: nameMap[p.ProductNumber] || p.SearchName || p.ItemNumber,
+  }));
+
   _prodCacheExp = Date.now() + PROD_TTL_MS;
   console.info(`[D365] Product cache refreshed — ${_prodCache.length} records, TTL 10 min`);
   return _prodCache;

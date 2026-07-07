@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
-const puppeteer   = require('puppeteer');
+const puppeteer   = require('puppeteer-core');
+const chromium    = require('@sparticuz/chromium');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
 
@@ -526,14 +527,11 @@ ${quote.notes ? `<div style="margin-top:20px;font-size:11px;color:#555;padding:1
 }
 
 async function generateQuotePdf(quote, repName) {
-    const execPath = await puppeteer.executablePath().catch(() => null)
-        || process.env.PUPPETEER_EXECUTABLE_PATH
-        || '/usr/bin/google-chrome-stable'
-        || '/usr/bin/chromium-browser';
+    const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || await chromium.executablePath();
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: chromium.headless,
         executablePath: execPath,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        args: [...chromium.args, '--disable-gpu'],
         timeout: 60000,
     });
     try {
@@ -1326,6 +1324,7 @@ app.get('/api/d365/products', async (req, res) => {
         const slim = (data.value || []).map(p => ({
             ItemNumber:          p.ItemNumber          || '',
             ProductNumber:       p.ProductNumber       || '',
+            ProductName:         p.ProductName         || p.SearchName || p.ProductSearchName || '',
             SearchName:          p.SearchName          || p.ProductSearchName || '',
             ProductGroupId:      p.ProductGroupId      || '',
             SalesLineDiscountProductGroupCode: p.SalesLineDiscountProductGroupCode || '',
@@ -1375,6 +1374,7 @@ app.get('/api/d365/products/:itemNumber', async (req, res) => {
         res.json({
             ItemNumber:                        product.ItemNumber                        || '',
             ProductNumber:                     product.ProductNumber                     || '',
+            ProductName:                       product.ProductName || product.SearchName || product.ProductSearchName || '',
             SearchName:                        product.SearchName                        || product.ProductSearchName || '',
             ProductGroupId:                    product.ProductGroupId                    || '',
             ProductType:                       product.ProductType                       || '',
