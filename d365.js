@@ -228,7 +228,7 @@ async function _getAllProductsCached() {
   // Merge ProductName into each product record
   _prodCache = (prodData.value || []).map(p => ({
     ...p,
-    ProductName: nameMap[p.ProductNumber] || p.SearchName || p.ItemNumber,
+    ProductName: nameMap[p.ProductNumber] || p.ItemNumber,
   }));
 
   _prodCacheExp = Date.now() + PROD_TTL_MS;

@@ -937,7 +937,7 @@ async function doProductSearch(idx, q) {
       const div   = document.createElement('div');
       div.className = 'prod-option';
       div.innerHTML =
-        '<div class="po-name">' + (p.ProductName || p.SearchName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
+        '<div class="po-name">' + (p.ProductName || p.ItemNumber || '').replace(/</g,'&lt;') + '</div>' +
         '<div class="po-meta">' + (p.ItemNumber || '').replace(/</g,'&lt;') + price + group + '</div>';
       div.addEventListener('click', function() { selectProduct(idx, p); });
       drop.appendChild(div);
@@ -955,7 +955,7 @@ async function doProductSearch(idx, q) {
 
 function selectProduct(idx, p) {
   quoteLines[idx].itemNo   = p.ItemNumber     || '';
-  quoteLines[idx].name     = p.ProductName || p.SearchName || p.ItemNumber || '';
+  quoteLines[idx].name     = p.ProductName || p.ItemNumber || '';
   quoteLines[idx].category = p.ProductGroupId || '';
   quoteLines[idx].price    = p.UnitCost       || 0;
   quoteLines[idx].discount = 0;
