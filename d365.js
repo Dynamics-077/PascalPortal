@@ -102,6 +102,30 @@ async function _get(entity, params = {}) {
 }
 
 /* ----------------------------------------------------------
+   _getAll — fetch ALL pages following @odata.nextLink
+   ---------------------------------------------------------- */
+async function _getAll(entity, params = {}) {
+  const token  = await getToken();
+  const authHdr = {
+    Authorization:      `Bearer ${token}`,
+    'OData-MaxVersion': '4.0',
+    'OData-Version':    '4.0',
+    Accept:             'application/json;odata.metadata=minimal',
+  };
+  const qs  = new URLSearchParams({ '$top': 1000, ...params }).toString();
+  let   url = `${RESOURCE}/data/${entity}?${qs}`;
+  const all = [];
+  while (url) {
+    const res = await fetch(url, { headers: authHdr });
+    if (!res.ok) { const t = await res.text(); throw new Error(`[D365] GET ${entity} ${res.status}: ${t}`); }
+    const page = await res.json();
+    all.push(...(page.value || []));
+    url = page['@odata.nextLink'] || null;
+  }
+  return { value: all };
+}
+
+/* ----------------------------------------------------------
    _post — raw OData POST (create)
    ---------------------------------------------------------- */
 async function _post(entity, body) {
@@ -209,11 +233,10 @@ async function getCustomer(accountId) {
 async function _getAllProductsCached() {
   if (_prodCache && Date.now() < _prodCacheExp) return _prodCache;
 
-  // Fetch products + translations in parallel
+  // Fetch products + translations in parallel (paginated — follows @odata.nextLink)
   const [prodData, transData] = await Promise.all([
-    _get('ReleasedProductsV2', { '$top': 1000, '$select': PRODUCT_SELECT }),
-    _get('ProductTranslations', {
-      '$top':    1000,
+    _getAll('ReleasedProductsV2', { '$select': PRODUCT_SELECT }),
+    _getAll('ProductTranslations', {
       '$select': 'ProductNumber,ProductName,LanguageId',
       '$filter': "LanguageId eq 'en-us'",
     }).catch(() => ({ value: [] })),
