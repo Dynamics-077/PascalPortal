@@ -209,24 +209,29 @@ async function getCustomer(accountId) {
 async function _getAllProductsCached() {
   if (_prodCache && Date.now() < _prodCacheExp) return _prodCache;
 
-  // Fetch products + translations in parallel
-  const [prodData, transData] = await Promise.all([
-    _get('ReleasedProductsV2', { '$top': 1000, '$select': PRODUCT_SELECT }),
-    _get('ProductTranslations', {
-      '$top':    5000,
-      '$select': 'ProductNumber,ProductName,LanguageId',
-      '$filter': "LanguageId eq 'en-us'",
-    }).catch(() => ({ value: [] })),
-  ]);
+  // Step 1: fetch all released products
+  const prodData = await _get('ReleasedProductsV2', { '$top': 1000, '$select': PRODUCT_SELECT });
+  const products = prodData.value || [];
 
-  // Build translation map: ProductNumber → ProductName
+  // Step 2: fetch translations only for the product numbers we actually have,
+  // in parallel batches — avoids D365's silent cap on LanguageId-only queries
   const nameMap = {};
-  (transData.value || []).forEach(t => {
-    if (t.ProductName) nameMap[t.ProductNumber] = t.ProductName;
-  });
+  const pnums = [...new Set(products.map(p => p.ProductNumber).filter(Boolean))];
+  const BATCH = 50;
+  const batches = [];
+  for (let i = 0; i < pnums.length; i += BATCH) batches.push(pnums.slice(i, i + BATCH));
 
-  // Merge ProductName into each product record
-  _prodCache = (prodData.value || []).map(p => ({
+  await Promise.all(batches.map(async batch => {
+    const orClause = batch.map(pn => `ProductNumber eq '${pn.replace(/'/g, "''")}'`).join(' or ');
+    const data = await _get('ProductTranslations', {
+      '$top':    batch.length + 5,
+      '$select': 'ProductNumber,ProductName',
+      '$filter': `LanguageId eq 'en-us' and (${orClause})`,
+    }).catch(() => ({ value: [] }));
+    (data.value || []).forEach(t => { if (t.ProductName) nameMap[t.ProductNumber] = t.ProductName; });
+  }));
+
+  _prodCache = products.map(p => ({
     ...p,
     ProductName: nameMap[p.ProductNumber] || p.ItemNumber,
   }));
