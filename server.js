@@ -4,7 +4,9 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const puppeteer   = require('puppeteer-core');
-const chromium    = require('@sparticuz/chromium');
+// @sparticuz/chromium is ESM-only (no CJS "main") — CJS require() interop
+// hands back the module namespace, so the real object is under .default.
+const chromium    = require('@sparticuz/chromium').default || require('@sparticuz/chromium');
 const sharepoint = require('./sharepoint');
 const d365       = require('./d365');
 
@@ -1187,7 +1189,7 @@ app.post('/api/quotes/:quoteId/convert', async (req, res) => {
             customerGroup: quote.customerGroup || '',
             custGroup:     quote.customerGroup || '',
             invoiceAccount:quote.custAccount,
-            status:        'In Progress',
+            status:        'Draft',
             deliveryTerms: quote.deliveryTerms || '',
             paymentTerms:  quote.paymentTerms  || '',
             lines: (quote.lines || []).map((l, i) => ({

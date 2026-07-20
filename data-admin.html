@@ -488,12 +488,19 @@ function renderOrders() {
     tbody.innerHTML = `<tr><td colspan="8"><div class="da-empty">No orders found.</div></td></tr>`;
     return;
   }
-  const statusColour = { 'In Progress':'badge-open', 'Submit':'badge-paid', 'Complete':'badge-paid', 'Cancel':'badge-cancelled', 'Submitted':'badge-paid', 'Completed':'badge-paid' };
-  tbody.innerHTML = rows.map(o => `
+  const statusColour = { 'Draft':'badge-pending', 'Open Order':'badge-paid', 'Cancel':'badge-cancelled' };
+  const DRAFT_ALIASES = ['draft','in progress','submit','submitted'], OPEN_ALIASES = ['open order','complete','completed'];
+  const normStatus = raw => {
+    const k = String(raw||'').trim().toLowerCase();
+    if (DRAFT_ALIASES.includes(k)) return 'Draft';
+    if (OPEN_ALIASES.includes(k))  return 'Open Order';
+    return raw || 'Draft';
+  };
+  tbody.innerHTML = rows.map(o => { const st = normStatus(o.status); return `
     <tr>
       <td class="mono">${esc(o.salesId)}</td>
       <td>${esc(o.customerName || o.customerId)}</td>
-      <td><span class="badge ${statusColour[o.status]||'badge-open'}" style="font-size:.72rem;">${esc(o.status||'In Progress')}</span></td>
+      <td><span class="badge ${statusColour[st]||'badge-open'}" style="font-size:.72rem;">${esc(st)}</span></td>
       <td class="muted">${esc(o.paymentTerms || '—')}</td>
       <td class="muted">${esc(o.deliveryTerms || '—')}</td>
       <td class="muted">${esc(o.currency)}</td>
@@ -504,7 +511,7 @@ function renderOrders() {
         <button class="btn btn-ghost btn-sm" style="color:var(--danger);"
           onclick="askDelete('orders','${esc(o.salesId)}','Order ${esc(o.salesId)}')">Del</button>
       </td>
-    </tr>`).join('');
+    </tr>`; }).join('');
 }
 
 /* ============================================================

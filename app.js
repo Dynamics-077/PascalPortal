@@ -176,9 +176,7 @@ function statusBadge(status) {
   // Matches SharePoint SalesOrderHeader Status choices exactly
   const map = {
     'Draft':       'badge-pending',
-    'In Progress': 'badge-open',
-    'Submit':      'badge-confirmed',
-    'Complete':    'badge-paid',
+    'Open Order':  'badge-paid',
     'Shipped':     'badge-shipped',
     'Invoiced':    'badge-partial',
     'Cancel':      'badge-cancelled',
@@ -189,8 +187,18 @@ function statusBadge(status) {
     'On Hold':     'badge-overdue',
     'Overdue':     'badge-overdue',
   };
-  const cls = map[status] || 'badge-open';
-  return `<span class="badge ${cls}">${status}</span>`;
+  // Fold legacy/duplicate order-status wording (old records, old flow steps)
+  // into the current canonical label — "Submit" and "In Progress" are both
+  // pre-sync states, so they now just display as "Draft".
+  const DRAFT_ALIASES      = ['in progress', 'submit', 'submitted'];
+  const OPEN_ORDER_ALIASES = ['complete', 'completed', 'open order'];
+  const key = String(status || '').trim().toLowerCase();
+  let label = status;
+  if (DRAFT_ALIASES.includes(key))           label = 'Draft';
+  else if (OPEN_ORDER_ALIASES.includes(key)) label = 'Open Order';
+
+  const cls = map[label] || 'badge-open';
+  return `<span class="badge ${cls}">${label}</span>`;
 }
 
 /* ---- Calculate line net amount ---------------------------- */

@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /* Continue Orders — In-Progress headers with no submitted lines */
-    const draftOrders = orders.filter(o => o.status === 'In Progress');
+    const draftOrders = orders.filter(o => ['draft', 'in progress', 'submit', 'submitted'].includes(String(o.status || '').trim().toLowerCase()));
     if (draftOrders.length > 0) {
       document.getElementById('continueOrdersCard').style.display = '';
       document.getElementById('continueOrdersBadge').textContent  = draftOrders.length;
@@ -489,29 +489,24 @@ async function buildTopCustomers(orders) {
 }
 
 function buildDonut(orders) {
-  // SharePoint SalesOrderHeader Status choices (exact values)
+  // Only 3 buckets are shown — every raw status (incl. legacy/mis-cased values
+  // like "In Progress", "Complete", "open order") is folded into one of these.
   const STATUS_CONFIG = {
-    'In Progress': { color: '#f59e0b', label: 'In Progress' },
-    'Submit':      { color: '#3b82f6', label: 'Submitted'   },
-    'Complete':    { color: '#00a4a6', label: 'Complete'     },
-    'Cancel':      { color: '#ef4444', label: 'Cancel'       },
-    'Draft':       { color: '#94a3b8', label: 'Draft'        },
-    'Shipped':     { color: '#10b981', label: 'Shipped'      },
-    'Invoiced':    { color: '#8b5cf6', label: 'Invoiced'     },
+    'Draft':      { color: '#e67e22', label: 'Draft'      },
+    'Open Order': { color: '#00a4a6', label: 'Open Order' },
+    'Overdue':    { color: '#ef4444', label: 'Overdue'    },
   };
 
-  // Count per status — unknown statuses go into their own bucket
-  const counts = {};
-  Object.keys(STATUS_CONFIG).forEach(k => { counts[k] = 0; });
+  // Normalise any raw status value (case-insensitive) into one of the 3 canonical buckets
+  function normaliseStatus(raw) {
+    const s = String(raw || '').trim().toLowerCase();
+    if (['cancel', 'cancelled', 'canceled'].includes(s)) return 'Overdue';
+    if (['open order', 'complete', 'completed'].includes(s)) return 'Open Order';
+    return 'Draft'; // draft, in progress, submit, submitted, blank, or anything unrecognised
+  }
 
-  (orders || []).forEach(o => {
-    const s = o.status || 'In Progress';
-    if (counts[s] !== undefined) counts[s]++;
-    else {
-      counts[s] = (counts[s] || 0) + 1;
-      if (!STATUS_CONFIG[s]) STATUS_CONFIG[s] = { color: '#9ba5b4', label: s };
-    }
-  });
+  const counts = { 'Draft': 0, 'Open Order': 0, 'Overdue': 0 };
+  (orders || []).forEach(o => { counts[normaliseStatus(o.status)]++; });
 
   // Only show statuses that have > 0 OR are active types
   const active = Object.entries(counts).filter(([k, v]) => v > 0);
@@ -539,10 +534,8 @@ function buildDonut(orders) {
     });
   }
 
-  // Legend — show core statuses (In Progress, Submit, Complete, Cancel) always, hide others if 0
-  const CORE_STATUSES = ['In Progress', 'Submit', 'Complete', 'Cancel'];
+  // Legend — always show all 3 core statuses (Draft, Open Order, Overdue)
   const legendHtml = Object.entries(STATUS_CONFIG)
-    .filter(([key]) => (counts[key] || 0) > 0 || CORE_STATUSES.includes(key))
     .map(([key, cfg]) => {
       const c = counts[key] || 0;
       return `

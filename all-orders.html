@@ -216,7 +216,7 @@
         </div>
         <div class="stat-card">
           <div class="stat-icon navy"><i class="fas fa-clock" style="color:var(--navy);"></i></div>
-          <div><div class="stat-val" id="statPending">&mdash;</div><div class="stat-lbl">In Progress</div></div>
+          <div><div class="stat-val" id="statPending">&mdash;</div><div class="stat-lbl">Draft</div></div>
         </div>
       </div>
 
@@ -305,11 +305,20 @@ function fmtDT(iso) {
          d.toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit',hour12:true});
 }
 
+// Fold legacy/duplicate order-status wording (old records, old flow steps,
+// any casing) into the current canonical label — Draft or Open Order.
+var DRAFT_ALIASES      = ['draft', 'in progress', 'submit', 'submitted'];
+var OPEN_ORDER_ALIASES = ['open order', 'complete', 'completed'];
 var SC = {
-  'In Progress':'badge-open', 'Submitted':'badge-paid', 'Submit':'badge-paid',
-  'Complete':'badge-paid',    'Completed':'badge-paid',
+  'Draft':'badge-pending', 'Open Order':'badge-paid',
   'Cancel':'badge-cancelled', 'Cancelled':'badge-cancelled'
 };
+function normStatus(raw) {
+  var key = String(raw || '').trim().toLowerCase();
+  if (DRAFT_ALIASES.indexOf(key) !== -1)      return 'Draft';
+  if (OPEN_ORDER_ALIASES.indexOf(key) !== -1) return 'Open Order';
+  return raw || 'Draft';
+}
 
 document.addEventListener('DOMContentLoaded', function () {
   var token = localStorage.getItem('pp_token');
@@ -385,7 +394,7 @@ function loadLines() {
 }
 
 function renderContinueOrders() {
-  var drafts = _orders.filter(function (o) { return (o.status || o.Status) === 'In Progress'; });
+  var drafts = _orders.filter(function (o) { return normStatus(o.status || o.Status) === 'Draft'; });
   var card   = document.getElementById('continueOrdersCard');
   if (!drafts.length) { card.style.display = 'none'; return; }
   card.style.display = '';
@@ -435,7 +444,7 @@ function renderHeaders() {
   var trs = rows.map(function (o, i) {
     var sid      = o.salesId || o.SalesId || o.id || '—';
     var cust     = o.customerName || o.CustomerName || o.customerId || '—';
-    var stat     = o.status || o.Status || 'In Progress';
+    var stat     = normStatus(o.status || o.Status);
     var rawT     = o.total || o.Total || 0;
     var tot      = rawT > 0 ? fmt(rawT) : '—';
     var lc       = Array.isArray(o.lines) ? o.lines.length : (o.LineCount || '—');
@@ -475,7 +484,7 @@ function openOrderDetail(idx) {
   var sid  = o.salesId || o.SalesId || o.id || '—';
   var cust = o.customerName || o.CustomerName || o.customerId || '—';
   var acct = o.customerId || o.CustomerAccount || o.custAccount || '—';
-  var stat = o.status || o.Status || 'In Progress';
+  var stat = normStatus(o.status || o.Status);
   var rep  = o.userEmail || '—';
   var dt   = fmtDT(o.dateTime || o.createdDateTime || '');
   var sc   = SC[stat] || 'badge-open';
@@ -618,8 +627,8 @@ document.addEventListener('keydown', function (e) {
 function updateStats() {
   document.getElementById('statHeaders').textContent = _orders.length;
   document.getElementById('statLines').textContent   = _lines.length;
-  var sub = _orders.filter(function (o) { return ['Submitted','Submit','Complete','Completed'].indexOf(o.status || o.Status) !== -1; }).length;
-  var pen = _orders.filter(function (o) { return (o.status || o.Status) === 'In Progress'; }).length;
+  var sub = _orders.filter(function (o) { return normStatus(o.status || o.Status) === 'Open Order'; }).length;
+  var pen = _orders.filter(function (o) { return normStatus(o.status || o.Status) === 'Draft'; }).length;
   document.getElementById('statSubmitted').textContent = sub;
   document.getElementById('statPending').textContent   = pen;
 }

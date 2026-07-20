@@ -353,7 +353,7 @@
         </div>
         <div class="s1l-field" style="flex:1; min-width:90px;">
           <div class="lbl">Order Status</div>
-          <div class="val"><span class="badge badge-open">In Progress</span></div>
+          <div class="val"><span class="badge badge-pending">Draft</span></div>
         </div>
         <button id="editHeaderLockedBtn" class="btn btn-ghost btn-sm" onclick="goBackToStep1()" style="flex-shrink:0; margin-left:auto;">
           <i class="fas fa-pencil-alt"></i> Edit Header
@@ -618,7 +618,7 @@
 <script>
 /* ============================================================
    Sales Order Page — 2-Step Pipeline
-   Step 1: Customer + Header → save to SP (status = In Progress)
+   Step 1: Customer + Header → save to SP (status = Draft)
    Step 2: Order Lines → save lines + update header to Submit
    ============================================================ */
 function esc(s) {
@@ -1266,7 +1266,7 @@ async function saveHeaderAndContinue() {
     Currency:       currency,
     CustGroup:      custGroup,
     InvoiceAccount: selectedCustomer.InvoiceCustomerAccountNumber || custAcct,
-    Status:         'In Progress',
+    Status:         'Draft',
     DeliveryTerms:  document.getElementById('deliveryTerms').value,
     PaymentTerms:   document.getElementById('paymentTerms').value,
     Note:           (document.getElementById('orderNote').value || '').trim(),
@@ -1430,12 +1430,12 @@ async function finalSubmit() {
       }
     }
 
-    // 2. Update header status from "In Progress" → "Submit" (use SP item ID directly)
+    // 2. Header stays "Draft" until Power Automate syncs it to F&O and flips it to "Open Order"
     if (savedSpItemId) {
       const updateRes = await fetch(`/api/salesorders/item/${savedSpItemId}`, {
         method: 'PUT',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ Status: 'Submit' })
+        body: JSON.stringify({ Status: 'Draft' })
       });
       if (!updateRes.ok) {
         const err = await updateRes.json();
