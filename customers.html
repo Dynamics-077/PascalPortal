@@ -422,6 +422,7 @@
         <div class="detail-grid">
           <div class="detail-field"><div class="lbl">Item Number</div><div class="val mono" id="pd-item-num">—</div></div>
           <div class="detail-field"><div class="lbl">Product Number</div><div class="val mono" id="pd-prod-num">—</div></div>
+          <div class="detail-field"><div class="lbl">Search Name</div><div class="val" id="pd-search-name">—</div></div>
           <div class="detail-field"><div class="lbl">Product Group</div><div class="val" id="pd-prod-group">—</div></div>
           <div class="detail-field"><div class="lbl">Product Type</div><div class="val" id="pd-prod-type">—</div></div>
           <div class="detail-field"><div class="lbl">Data Area</div><div class="val mono" id="pd-data-area">—</div></div>
@@ -777,7 +778,7 @@ function renderProdTable(products) {
   }
 
   const rows = products.map((p, i) => {
-    const initials = (p.ProductName || p.ItemNumber || '??')
+    const initials = (p.SearchName || p.ItemNumber || '??')
       .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
     const price = p.SalesPrice > 0 ? `$${Number(p.SalesPrice).toFixed(2)}` : '—';
     const unit  = p.SalesUnitSymbol || 'ea';
@@ -787,7 +788,7 @@ function renderProdTable(products) {
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="width:34px;height:34px;border-radius:10px;background:var(--orange-light);color:var(--orange);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initials}</div>
           <div>
-            <div class="prod-name">${esc(p.ProductName || p.ItemNumber || '—')}</div>
+            <div class="prod-name">${esc(p.SearchName || p.ItemNumber || '—')}</div>
             <div class="sub-text">${esc(p.ProductGroupId || '—')}</div>
           </div>
         </div>
@@ -796,6 +797,7 @@ function renderProdTable(products) {
       <td>${esc(p.ProductGroupId || '—')}</td>
       <td>${esc(p.ProductType || '—')}</td>
       <td><span class="price-val">${price}</span></td>
+      <td>Main</td>
       <td>${esc(unit)}</td>
       <td>${esc(p.dataAreaId || '—')}</td>
     </tr>`;
@@ -810,6 +812,7 @@ function renderProdTable(products) {
           <th>Group</th>
           <th>Type</th>
           <th>Sales Price</th>
+          <th>Warehouse</th>
           <th>Unit</th>
           <th>Data Area</th>
         </tr></thead>
@@ -853,10 +856,10 @@ function openProdDetail(index) {
   if (!p) return;
   currentProduct = p;
 
-  const initials = (p.ProductName || p.ItemNumber || '??')
+  const initials = (p.SearchName || p.ItemNumber || '??')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   document.getElementById('pd-avatar').textContent   = initials;
-  document.getElementById('pd-name').textContent     = p.ProductName || p.ItemNumber || '—';
+  document.getElementById('pd-name').textContent     = p.SearchName || p.ItemNumber || '—';
   document.getElementById('pd-itemNum').textContent  = p.ItemNumber || '—';
 
   const tb = document.getElementById('pd-typeBadge');
@@ -864,6 +867,7 @@ function openProdDetail(index) {
 
   setEl('pd-item-num',    p.ItemNumber);
   setEl('pd-prod-num',    p.ProductNumber);
+  setEl('pd-search-name', p.SearchName);
   setEl('pd-prod-group',  p.ProductGroupId);
   setEl('pd-prod-type',   p.ProductType);
   setEl('pd-data-area',   p.dataAreaId);
@@ -884,7 +888,7 @@ function newOrderWithProduct() {
   if (!currentProduct) return;
   sessionStorage.setItem('d365_selected_product', JSON.stringify({
     ItemNumber:      currentProduct.ItemNumber      || '',
-    ProductName:     currentProduct.ProductName     || '',
+    SearchName:      currentProduct.SearchName      || '',
     ProductGroupId:  currentProduct.ProductGroupId  || '',
     SalesPrice:      currentProduct.SalesPrice      || 0,
     SalesUnitSymbol: currentProduct.SalesUnitSymbol || 'ea',
