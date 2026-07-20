@@ -307,6 +307,16 @@ function esc(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Normalise any raw order status (incl. legacy/mis-cased values like
+// "In Progress", "Complete", "open order", "Submit") into one of the
+// 3 canonical buckets shown everywhere on this page: Draft / Open Order / Overdue.
+function normOrderStatus(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (['cancel', 'cancelled', 'canceled'].includes(s)) return 'Overdue';
+  if (['open order', 'complete', 'completed'].includes(s)) return 'Open Order';
+  return 'Draft';
+}
+
 /* ---- Load session ---------------------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -603,7 +613,8 @@ function buildTimeline(rep, orders) {
   }
 
   recent.forEach(o => {
-    const cls  = o.status === 'Shipped' ? '' : o.status === 'Cancelled' ? 'grey' : 'orange';
+    const label = normOrderStatus(o.status);
+    const cls   = label === 'Overdue' ? 'grey' : label === 'Open Order' ? '' : 'orange';
     const icon = '';
     const amtStr = o.total > 0 ? ' · ' + PP.fmtCurrency(o.total) : '';
     tl.innerHTML += `
@@ -611,7 +622,7 @@ function buildTimeline(rep, orders) {
         <div class="tl-dot ${cls}">${icon}</div>
         <div class="tl-content">
           <div class="tl-title">${esc(o.id)} — ${esc(o.customerName || o.customerId || '—')}</div>
-          <div class="tl-desc">${o.status}${amtStr} · ${o.date ? PP.fmtDate(o.date) : 'Today'}</div>
+          <div class="tl-desc">${esc(label)}${amtStr} · ${o.date ? PP.fmtDate(o.date) : 'Today'}</div>
         </div>
       </div>`;
   });
