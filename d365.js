@@ -474,8 +474,12 @@ async function getAllPriceAgreementsForItem(itemNumber) {
 
 /* ----------------------------------------------------------
    getSalesLineDiscounts — 9-case line discount cascade
-   Runs all 9 Party×Product combinations against
-   SalesLineDiscountAgreements, sums DiscountPercentage1.
+   Runs all 9 Party×Product combinations against SalesLineDiscountAgreements
+   in parallel, then uses ONLY the single best match from the most specific
+   case that matched anything (same priority order as before: customer+item
+   is checked first, all+all last). Matches D365's real pricing engine,
+   which applies one discount rule per line — it does not stack every
+   matching agreement together.
    ---------------------------------------------------------- */
 const DISC_SELECT = [
   'ItemNumber', 'LineDiscountProductGroupCode',
@@ -492,7 +496,7 @@ async function getSalesLineDiscounts({ itemNumber, customerAccount = '', custome
   const i = _esc(itemNumber);
   const pg = _esc(productGroupCode);
   const _f = filter => _get('SalesLineDiscountAgreements', { '$filter': filter, '$select': DISC_SELECT, '$top': 50 });
-  const empty = { value: [] };
+  const empty = Promise.resolve({ value: [] });
 
   const results = await Promise.allSettled([
     // Case 1: Cust=Table + Item=Table
@@ -515,14 +519,28 @@ async function getSalesLineDiscounts({ itemNumber, customerAccount = '', custome
     _f(`LineDiscountCustomerGroupCode eq '' and CustomerAccountNumber eq '' and ItemNumber eq '' and LineDiscountProductGroupCode eq ''`),
   ]);
 
-  const allRecords = results.flatMap(r => (r.status === 'fulfilled' ? r.value.value : null) || []);
-  const totalDiscountPct = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountPercentage1) || 0), 0);
-  const totalDiscountAmt = allRecords.reduce((sum, r) => sum + (parseFloat(r.DiscountAmount) || 0), 0);
-  return {
-    totalDiscount:    +totalDiscountPct.toFixed(4),
-    totalDiscountAmt: +totalDiscountAmt.toFixed(4),
-    records: allRecords,
-  };
+  // Walk cases in priority order (most specific first); stop at the first
+  // one that returned any records at all.
+  for (const r of results) {
+    const records = r.status === 'fulfilled' ? (r.value.value || []) : [];
+    if (records.length === 0) continue;
+
+    // Within that single case, multiple records can still match (e.g.
+    // quantity breaks) — take the single best one, never stack them.
+    const best = records.reduce((champ, rec) => {
+      const score = (parseFloat(rec.DiscountPercentage1) || 0) || (parseFloat(rec.DiscountAmount) || 0);
+      const champScore = (parseFloat(champ.DiscountPercentage1) || 0) || (parseFloat(champ.DiscountAmount) || 0);
+      return score > champScore ? rec : champ;
+    }, records[0]);
+
+    return {
+      totalDiscount:    +((parseFloat(best.DiscountPercentage1) || 0)).toFixed(4),
+      totalDiscountAmt: +((parseFloat(best.DiscountAmount) || 0)).toFixed(4),
+      records: [best],
+    };
+  }
+
+  return { totalDiscount: 0, totalDiscountAmt: 0, records: [] };
 }
 
 async function getUnitsOfMeasure() {
